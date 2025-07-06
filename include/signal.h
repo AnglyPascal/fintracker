@@ -4,9 +4,22 @@
 #include <unordered_map>
 #include <vector>
 
-enum class SignalType { None, Entry, Exit };
+enum class Severity { Urgent = 0, High = 1, Medium = 2, Low = 3 };
 
-enum class Reason {
+enum class SignalType {
+  None,            // No action
+                   //
+  Entry,           // Strong buy signal
+  Watchlist,       // Not a trade yet, but worth tracking
+                   //
+  Exit,            // Strong sell signal
+  HoldCautiously,  // Already in trade, tightening stop
+  Caution,         // Not a trade yet, but worth being cautious
+                   //
+  Mixed            // Conflicting signals
+};
+
+enum class ReasonType {
   None,
 
   // Entry reasons
@@ -24,26 +37,54 @@ enum class Reason {
   StopLossHit,
 };
 
+struct Reason {
+  ReasonType type;
+  Severity severity;
+
+  Reason(ReasonType type) : type{type}, severity{Severity::Low} {}
+  Reason(ReasonType type, Severity severity) : type{type}, severity{severity} {}
+
+  bool operator<(const Reason& other) const {
+    return severity < other.severity;
+  }
+};
+
+struct Hint {
+  std::string str;
+  Severity severity;
+
+  Hint(const char* str) : str{str}, severity{Severity::Low} {}
+  Hint(const char* str, Severity severity) : str{str}, severity{severity} {}
+
+  bool operator<(const Hint& other) const { return severity < other.severity; }
+};
+
 struct Metrics;
 
 using signal_f = Reason (*)(const Metrics&);
-using hint_f = std::string (*)(const Metrics&);
+using hint_f = Hint (*)(const Metrics&);
 
 struct Signal {
   SignalType type = SignalType::None;
 
   std::vector<Reason> entry_reasons, exit_reasons;
-  std::vector<std::string> entry_hints, exit_hints;
+  std::vector<Hint> entry_hints, exit_hints;
 
   std::string to_str(bool tg = false) const;
+
   std::string color() const;
   std::string color_bg() const;
   std::string emoji() const;
+  std::string type_to_str() const;
 
   Signal() noexcept = default;
   Signal(const Metrics& m) noexcept;
 
  private:
+  int entry_score = 0;
+  int exit_score = 0;
+
+  SignalType gen_signal(const Metrics& m) const;
   bool has_signal() const;
   bool has_hints() const;
 };

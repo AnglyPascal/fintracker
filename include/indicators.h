@@ -1,5 +1,6 @@
 #pragma once
 
+#include "prediction.h"
 #include "times.h"
 
 #include <cassert>
@@ -15,17 +16,21 @@ struct Candle {
   double close = 0.0;
   int volume = 0.0;
 
-  static Candle combine(const std::vector<Candle>& group);
-
   std::string to_str() const;
   std::string day() const;
   SysTimePoint time() const;
+
+  double true_range(double prev_close) const;
+  static Candle combine(const std::vector<Candle>& group);
 };
 
 struct EMA {
   std::vector<double> values;
+
+ private:
   int period;
 
+ public:
   EMA() noexcept = default;
   EMA(const std::vector<Candle>& candles, int period) noexcept;
   EMA(const std::vector<double>& prices, int period) noexcept;
@@ -38,9 +43,10 @@ struct EMA {
 
 struct RSI {
   std::vector<double> values;
-  int period;
 
  private:
+  int period;
+
   std::deque<double> gains;
   std::deque<double> losses;
   double last_close = 0.0;
@@ -50,6 +56,7 @@ struct RSI {
  public:
   RSI(const std::vector<Candle>& candles, int period = 14) noexcept;
   void add(const Candle& candle) noexcept;
+  bool rising() const;
   std::string to_str() const;
 };
 
@@ -58,17 +65,16 @@ struct MACD {
   std::vector<double>& signal_line;
   std::vector<double> histogram;
 
+ private:
   int fast_period = 12;
   int slow_period = 26;
   int signal_period = 9;
 
- private:
   EMA fast_ema;
   EMA slow_ema;
   EMA signal_ema;
 
  public:
-  MACD() noexcept : signal_line{signal_ema.values} {}
   MACD(const std::vector<Candle>& candles,
        int fast = 12,
        int slow = 26,
@@ -79,18 +85,26 @@ struct MACD {
 struct ATR {
   double val = 0.0;
 
-  ATR() noexcept = default;
+ private:
+  const int period = 14;
+  double prev_close = 0.0;
+
+ public:
   ATR(const std::vector<Candle>& candles, int period = 14) noexcept;
+
+  void add(const Candle& candle) noexcept;
 };
 
 struct Indicators {
   std::vector<Candle> candles;
-  minutes interval;
+  const minutes interval;
 
   EMA ema9, ema21, ema50;
   RSI rsi;
   MACD macd;
   ATR atr;
+
+  Trends trends;
 
   Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
   void add(const Candle& candle) noexcept;
@@ -121,10 +135,11 @@ struct Pullback {
 struct Metrics {
   const std::string& symbol;
   std::vector<Candle> candles;
-  minutes interval;
+  const minutes interval;
 
   Indicators indicators_1h, indicators_4h, indicators_1d;
   StopLoss stop_loss;
+  const Position* position;
 
   Metrics(const std::string& symbol,
           std::vector<Candle>&& candles,
@@ -137,12 +152,12 @@ struct Metrics {
   const std::string& last_updated() const;
 
   Pullback pullback(int lookback = 360) const;
+  bool has_position() const;
 
   std::string to_str(bool tg = false) const;
   void plot() const;
 
  private:
   std::vector<Candle> downsample(minutes target) const;
-  Candle combine(size_t skip, size_t sub_idx) const;
 };
 

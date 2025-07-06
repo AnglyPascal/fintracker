@@ -20,7 +20,13 @@ class TG {
   static std::set<int> seen_updates;
 
  public:
-  static void send(const std::string& text);
+  static int send(const std::string& text);
+  static int send_doc(const std::string& doc_name,
+                      const std::string& caption = "");
+
+  static int pin_message(int message_id);
+  static int edit_msg(int message_id, const std::string& text);
+
   static std::tuple<bool, std::string, int> receive(int last_update_id);
 };
 

@@ -3,6 +3,7 @@
 #include "api.h"
 #include "indicators.h"
 #include "positions.h"
+#include "prediction.h"
 #include "signal.h"
 
 #include <chrono>
@@ -21,6 +22,7 @@ struct Ticker {
 
   Metrics metrics;
   Signal signal = {};
+
   const Position* position = nullptr;
 
   Ticker(const std::string& symbol,

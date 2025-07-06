@@ -2,15 +2,17 @@ import sys
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import numpy as np
 
 symbol = sys.argv[1]
 
+# Read data
 data_df = pd.read_csv("data.csv")
-datetime = data_df["datetime"]
 
-price_fit = pd.read_csv("price_fit.csv")
-rsi_fit = pd.read_csv("rsi_fit.csv")
+price_fits = pd.read_csv("price_fits.csv")
+ema21_fits = pd.read_csv("ema21_fits.csv")
+rsi_fits = pd.read_csv("rsi_fits.csv")
+
+datetime = data_df["datetime"]
 
 # Create subplots
 fig = make_subplots(
@@ -42,15 +44,6 @@ fig.add_trace(
 )
 
 fig.add_trace(
-    go.Scatter(x=price_fit["datetime"],
-               y=price_fit["value"],
-               name="Price fits",
-               line=line_style("black", dash="dash")),
-    row=1,
-    col=1,
-)
-
-fig.add_trace(
     go.Scatter(x=datetime,
                y=data_df["ema9"],
                name="EMA 9",
@@ -70,6 +63,32 @@ fig.add_trace(
     col=1,
 )
 
+# Add price trend lines
+for i, fit in enumerate(price_fits):
+    fig.add_trace(
+        go.Scatter(
+            x=datetime,
+            y=fit,
+            name=f"Price Fit {i+1}",
+            line=line_style("gray", dash="dot", width=1),
+        ),
+        row=1,
+        col=1,
+    )
+
+# Add EMA21 trend lines
+for i, fit in enumerate(ema21_fits):
+    fig.add_trace(
+        go.Scatter(
+            x=datetime,
+            y=fit,
+            name=f"EMA21 Fit {i+1}",
+            line=line_style("blue", dash="dot", width=1),
+        ),
+        row=1,
+        col=1,
+    )
+
 # --- 2. RSI ---
 fig.add_trace(
     go.Scatter(x=datetime,
@@ -80,15 +99,19 @@ fig.add_trace(
     col=1,
 )
 
-fig.add_trace(
-    go.Scatter(x=rsi_fit["datetime"],
-               y=rsi_fit["value"],
-               name="RSI fits",
-               line=line_style("black", dash="dash")),
-    row=2,
-    col=1,
-)
+for i, fit in enumerate(rsi_fits):
+    fig.add_trace(
+        go.Scatter(
+            x=datetime,
+            y=fit,
+            name=f"RSI Fit {i+1}",
+            line=line_style("gray", dash="dot", width=1),
+        ),
+        row=2,
+        col=1,
+    )
 
+# Add RSI bands
 fig.add_hline(y=70, line=dict(color="red", dash="dash"), row=2, col=1)
 fig.add_hline(y=30, line=dict(color="green", dash="dash"), row=2, col=1)
 
@@ -125,3 +148,5 @@ fig.update_xaxes(tickangle=45)
 # Save as interactive HTML
 output_file = f"{symbol}.html"
 fig.write_html(output_file)
+
+print(f"Saved interactive chart to {output_file}")

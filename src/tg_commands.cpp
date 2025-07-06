@@ -24,6 +24,7 @@ enum class Commands {
   STATUS,
   TRADES,
   POSITIONS,
+  PLOTS,
 };
 
 template <Commands command>
@@ -39,6 +40,8 @@ void handle_command(Portfolio& portfolio, std::istream& is) {
     TG::send(std::format("/trades not implemented: {} {}\n", symbol, since));
   } else if constexpr (command == Commands::POSITIONS) {
     portfolio.send_current_positions(symbol);
+  } else if constexpr (command == Commands::PLOTS) {
+    portfolio.plot(symbol);
   }
 }
 
@@ -48,8 +51,10 @@ void handle_command(Portfolio&, std::istream& is) {
   std::string symbol, qty_str, px_str, fees_str;
   is >> symbol >> qty_str >> px_str >> fees_str;
 
-  if (qty_str == "" || px_str == "")
-    return TG::send("Command not valid");
+  if (qty_str == "" || px_str == "") {
+    TG::send("Command not valid");
+    return;
+  }
 
   double fees = fees_str != "" ? std::stod(fees_str) : 0.0;
 
@@ -79,6 +84,8 @@ inline void handle_command(Portfolio& portfolio, const std::string& line) {
     handle_command<Commands::STATUS>(portfolio, is);
   else if (command == "/positions")
     handle_command<Commands::POSITIONS>(portfolio, is);
+  else if (command == "/plot")
+    handle_command<Commands::PLOTS>(portfolio, is);
 }
 
 bool tg_response(Portfolio& portfolio) {

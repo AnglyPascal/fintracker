@@ -6,6 +6,15 @@
 #include <cassert>
 #include <numeric>
 
+/*
+ * Things that need to be on the tg updates
+ * */
+
+double Candle::true_range(double prev_close) const {
+  return std::max(
+      {high - low, std::abs(high - prev_close), std::abs(low - prev_close)});
+}
+
 Candle Candle::combine(const std::vector<Candle>& group) {
   assert(!group.empty());
   Candle out;
@@ -138,6 +147,12 @@ void RSI::add(const Candle& candle) noexcept {
   values.push_back(100.0 - (100.0 / (1.0 + rs)));
 }
 
+bool RSI::rising() const {
+  if (values.size() < 2)
+    return false;
+  return values[values.size() - 2] < values.back();
+}
+
 MACD::MACD(const std::vector<Candle>& candles,
            int fast,
            int slow,
@@ -172,21 +187,25 @@ void MACD::add(const Candle& candle) noexcept {
   histogram.push_back(macd - signal_val);
 }
 
-ATR::ATR(const std::vector<Candle>& candles, int period) noexcept {
-  if (candles.size() < period)
+ATR::ATR(const std::vector<Candle>& candles, int period) noexcept
+    : period{period} {
+  if (candles.size() < period + 1)
     return;
 
   std::vector<double> tr;
-  for (size_t i = candles.size() - period; i < candles.size(); i++) {
-    auto high = candles[i].high;
-    auto low = candles[i].low;
+  for (size_t i = candles.size() - period; i < candles.size(); ++i) {
     auto prev_close = candles[i - 1].close;
-    auto true_range = std::max(
-        {high - low, std::abs(high - prev_close), std::abs(low - prev_close)});
-    tr.push_back(true_range);
+    tr.push_back(candles[i].true_range(prev_close));
   }
 
   val = std::accumulate(tr.begin(), tr.end(), 0.0) / period;
+  prev_close = candles.back().close;
+}
+
+void ATR::add(const Candle& candle) noexcept {
+  double tr = candle.true_range(prev_close);
+  val = (val * (period - 1) + tr) / period;
+  prev_close = candle.close;
 }
 
 Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
@@ -197,14 +216,20 @@ Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
       ema50{this->candles, 50},
       rsi{this->candles},
       macd{this->candles},
-      atr{this->candles}  //
+      atr{this->candles},
+      trends{*this}  //
 {}
 
 void Indicators::add(const Candle& candle) noexcept {
+  candles.push_back(candle);
+
   ema9.add(candle);
   ema21.add(candle);
   ema50.add(candle);
   rsi.add(candle);
+  atr.add(candle);
+
+  trends = Trends{*this};
 }
 
 std::vector<Candle> Metrics::downsample(std::chrono::minutes target) const {
@@ -255,28 +280,12 @@ Metrics::Metrics(const std::string& symbol,
       indicators_1d{std::move(downsample(D_1)), D_1},  //
       indicators_4h{std::move(downsample(H_4)), H_4},  //
       indicators_1h{std::move(downsample(H_1)), H_1},  //
-      stop_loss{indicators_1h, position}               //
+      stop_loss{indicators_1h, position},              //
+      position{position}                               //
 {}
 
-Candle Metrics::combine(size_t skip, size_t sub_idx) const {
-  auto start = sub_idx * skip;
-
-  Candle candle{
-      .datetime = candles[start].datetime,
-      .open = candles[start].open,
-      .high = 0.0,
-      .low = std::numeric_limits<double>::max(),
-      .close = candles[start + skip - 1].close,
-      .volume = 0,
-  };
-
-  for (size_t i = start; i < start + skip; i++) {
-    candle.high = std::max(candles[i].high, candle.high);
-    candle.low = std::min(candles[i].low, candle.low);
-    candle.volume += candles[i].volume;
-  }
-
-  return candle;
+bool Metrics::has_position() const {
+  return position != nullptr && position->qty != 0;
 }
 
 void Metrics::add(const Candle& candle, const Position* position) noexcept {
@@ -285,10 +294,13 @@ void Metrics::add(const Candle& candle, const Position* position) noexcept {
   for (auto& indicators : std::initializer_list<Indicators*>{
            &indicators_1h, &indicators_4h, &indicators_1d}) {
     size_t skip = indicators->interval / interval;
-    if (candles.size() % skip == 0)
-      indicators->add(combine(skip, candles.size() / skip - 1));
+    if (candles.size() % skip == 0) {
+      std::vector<Candle> group(candles.end() - skip, candles.end());
+      indicators->add(Candle::combine(group));
+    }
   }
 
+  this->position = position;
   stop_loss = StopLoss{indicators_1h, position};
 }
 

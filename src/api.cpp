@@ -1,6 +1,7 @@
 #include "api.h"
 
 #include <cpr/cpr.h>
+#include <curl/curl.h>
 #include <format>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -32,17 +33,68 @@ using nlohmann::json;
 #define TG_USER ""
 #endif
 
-void TG::send(const std::string& text) {
+int TG::send(const std::string& text) {
   auto url =
       std::format("https://api.telegram.org/bot{}/sendMessage", TG_TOKEN);
   cpr::Response r = cpr::Post(cpr::Url{url},
                               cpr::Payload{{"chat_id", std::string(TG_CHAT_ID)},
                                            {"text", text},
                                            {"parse_mode", "Markdown"}});
+
   if (r.status_code != 200) {
-    std::cerr << "[tg] Error " << r.status_code << ": " << r.text << "\n";
-    std::cout << text << std::endl;
+    std::cerr << "[tg] Error " << r.status_code << ": " << r.text << std::endl
+              << text << std::endl;
+    return -1;
   }
+
+  auto json = nlohmann::json::parse(r.text);
+  return json["result"]["message_id"];
+}
+
+int TG::pin_message(int message_id) {
+  auto url =
+      std::format("https://api.telegram.org/bot{}/pinChatMessage", TG_TOKEN);
+  cpr::Response r = cpr::Post(
+      cpr::Url{url},
+      cpr::Payload{{"chat_id", std::string(TG_CHAT_ID)},
+                   {"message_id", std::to_string(message_id)},
+                   {"disable_notification", "true"}});  // Optional: silent pin
+
+  if (r.status_code != 200) {
+    std::cerr << "[tg] Error " << r.status_code << ": " << r.text << std::endl;
+    return -1;
+  }
+
+  auto json = json::parse(r.text);
+  if (json.contains("ok") && json["ok"].get<bool>() == true)
+    return 0;
+
+  std::cerr << "[tg] Failed to pin message: " << r.text << std::endl;
+  return -1;
+}
+
+int TG::edit_msg(int message_id, const std::string& text) {
+  auto url =
+      std::format("https://api.telegram.org/bot{}/editMessageText", TG_TOKEN);
+
+  cpr::Response r = cpr::Post(
+      cpr::Url{url}, cpr::Payload{{"chat_id", std::string(TG_CHAT_ID)},
+                                  {"message_id", std::to_string(message_id)},
+                                  {"text", text},
+                                  {"parse_mode", "Markdown"}});
+
+  if (r.status_code != 200) {
+    std::cerr << "[tg] Error " << r.status_code << ": " << r.text << std::endl
+              << text << std::endl;
+    return -1;
+  }
+
+  auto json = json::parse(r.text);
+  if (json.contains("ok") && json["ok"].get<bool>() == true)
+    return 0;
+
+  std::cerr << "[tg] Failed to edit message: " << r.text << std::endl;
+  return -1;
 }
 
 std::tuple<bool, std::string, int> TG::receive(int last_update_id) {
@@ -77,6 +129,27 @@ std::tuple<bool, std::string, int> TG::receive(int last_update_id) {
   }
 
   return {false, "", last_update_id};
+}
+
+int TG::send_doc(const std::string& doc_name, const std::string& caption) {
+  auto url =
+      std::format("https://api.telegram.org/bot{}/sendDocument", TG_TOKEN);
+
+  cpr::Multipart multipart{
+      {"chat_id", TG_CHAT_ID},
+      {"caption", caption},
+      {"document", cpr::File{doc_name, doc_name}, "text/html"}};
+
+  cpr::Response r = cpr::Post(cpr::Url{url}, multipart);
+
+  if (r.status_code != 200) {
+    std::cerr << "Telegram API error: " << r.status_code
+              << "Response: " << r.text << "\n";
+    return -1;
+  }
+
+  auto json = nlohmann::json::parse(r.text);
+  return json["result"]["message_id"];
 }
 
 inline constexpr minutes get_interval(size_t n_tickers) {

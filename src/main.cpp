@@ -1,4 +1,5 @@
 #include "api.h"
+#include "format.h"
 #include "portfolio.h"
 #include "tg_commands.h"
 

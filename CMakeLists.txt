@@ -35,6 +35,7 @@ add_executable(${TARGET}
   src/portfolio.cpp
   src/positions.cpp
   src/tg_commands.cpp
+  src/prediction.cpp
   src/plot.cpp
 )
 

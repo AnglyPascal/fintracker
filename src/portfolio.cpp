@@ -113,8 +113,9 @@ void Portfolio::status(const std::string& symbol) const {
 
   auto it = tickers.find(symbol);
   if (it == tickers.end())
-    return TG::send(std::format("ticker {} is not being tracked\n", symbol));
-  TG::send(std::format("📊 *Market Status*\n\n{}", it->second.to_str(true)));
+    TG::send(std::format("ticker {} is not being tracked\n", symbol));
+  else
+    TG::send(std::format("📊 *Market Status*\n\n{}", it->second.to_str(true)));
 }
 
 void Portfolio::run() {

@@ -1,4 +1,4 @@
-#include "colors.h"
+#include "format.h"
 #include "portfolio.h"
 
 #include <format>
@@ -7,10 +7,13 @@
 #include <iostream>
 #include <sstream>
 
-std::string Trade::to_str() const {
-  return std::format("{:<10} {:<6} {:<4} {:>6.2f} @ {:>6.2f}", date, ticker,
-                     (action == Action::BUY ? "BUY" : "SELL"),
-                     double(qty) / FLOAT_SCALE, double(px) / FLOAT_SCALE);
+template <>
+std::string to_str(const Trade& t) {
+  return std::format("{:<10} {:<6} {:<4} {:>6.2f} @ {:>6.2f}",                //
+                     t.date, t.ticker,                                        //
+                     (t.action == Action::BUY ? "BUY" : "SELL"),              //
+                     double(t.qty) / FLOAT_SCALE, double(t.px) / FLOAT_SCALE  //
+  );
 }
 
 std::string Position::to_str() const {
@@ -92,27 +95,27 @@ std::string Metrics::to_str(bool tg) const {
 }
 
 inline std::string reason_to_str(Reason r) {
-  switch (r) {
+  switch (r.type) {
     // Entry reasons
-    case Reason::EmaCrossover:
+    case ReasonType::EmaCrossover:
       return "EMA crossover";
-    case Reason::RsiCross50:
+    case ReasonType::RsiCross50:
       return "RSI crossed 50";
-    case Reason::PullbackBounce:
+    case ReasonType::PullbackBounce:
       return "Pullback bounce";
-    case Reason::MacdHistogramCross:
+    case ReasonType::MacdHistogramCross:
       return "MACD histogram cross";
 
     // Exit reasons
-    case Reason::EmaCrossdown:
+    case ReasonType::EmaCrossdown:
       return "EMA crossdown";
-    case Reason::RsiOverbought:
+    case ReasonType::RsiOverbought:
       return "RSI overbought";
-    case Reason::MacdBearishCross:
+    case ReasonType::MacdBearishCross:
       return "MACD bearish cross";
-    case Reason::TimeExit:
+    case ReasonType::TimeExit:
       return "Timed exit";
-    case Reason::StopLossHit:
+    case ReasonType::StopLossHit:
       return "Stop loss hit";
 
     default:
@@ -152,7 +155,7 @@ std::string Signal::to_str(bool tg) const {
 
   // --- Signal line ---
   if (has_signal()) {
-    auto type_str = (type == SignalType::Entry ? "Buy" : "Sell");
+    auto type_str = type_to_str();
     auto& reasons = type == SignalType::Entry ? entry_reasons : exit_reasons;
     auto reason_str = join(reasons, reason_to_str, ", ");
 
@@ -174,17 +177,21 @@ std::string Signal::to_str(bool tg) const {
   if (!entry_hints.empty()) {
     if (tg)
       for (const auto& hint : entry_hints)
-        entry_str += std::format("\n   + {}", hint);
+        entry_str += std::format("\n   + {}", hint.str);
     else
-      entry_str = std::format("{}{}{}", GREEN, join(entry_hints), color_reset);
+      entry_str = std::format(
+          "{}{}{}", GREEN,
+          join(entry_hints, [](auto& hint) { return hint.str; }), color_reset);
   }
 
   if (!exit_hints.empty()) {
     if (tg)
       for (const auto& hint : exit_hints)
-        exit_str += std::format("\n   - {}", hint);
+        exit_str += std::format("\n   - {}", hint.str);
     else
-      exit_str = std::format("{}{}{}", RED, join(exit_hints), color_reset);
+      exit_str = std::format(
+          "{}{}{}", RED, join(exit_hints, [](auto& hint) { return hint.str; }),
+          color_reset);
   }
 
   if (tg) {
@@ -205,28 +212,71 @@ std::string Signal::to_str(bool tg) const {
 
 std::string Signal::color_bg() const {
   if (type == SignalType::Entry)
-    return GREEN_BG + BLACK;
+    return GREEN_BG;
   if (type == SignalType::Exit)
-    return RED_BG + BLACK;
-  return YELLOW_BG + BLACK;
+    return RED_BG;
+  if (type == SignalType::Watchlist)
+    return !entry_reasons.empty() ? GREEN_BG : RED_BG;
+  if (type == SignalType::HoldCautiously)
+    return RED_BG;
+  if (type == SignalType::Mixed)
+    return YELLOW_BG;
+  return RESET;
 }
 
 std::string Signal::color() const {
   if (type == SignalType::Entry)
-    return GREEN;
+    return GREEN_BG + BLACK;
   if (type == SignalType::Exit)
+    return RED_BG + BLACK;
+  if (type == SignalType::Watchlist)
+    return GREEN;
+  if (type == SignalType::Caution)
     return RED;
-  return YELLOW;
+  if (type == SignalType::HoldCautiously)
+    return RED;
+  if (type == SignalType::Mixed)
+    return YELLOW;
+  return RESET;
 }
 
 std::string Signal::emoji() const {
-  if (type == SignalType::Entry)
-    return "💚";
-  if (type == SignalType::Exit)
-    return "❌";
-  return "🟡";
+  switch (type) {
+    case SignalType::Entry:
+      return "💚";
+    case SignalType::Exit:
+      return "❌";
+    case SignalType::Watchlist:
+      return "🟡";
+    case SignalType::Caution:
+      return "🟠";
+    case SignalType::HoldCautiously:
+      return "⚠️";
+    case SignalType::Mixed:
+      return "🌀";
+    default:
+      return "";
+  }
 }
 
+std::string Signal::type_to_str() const {
+  switch (type) {
+    case SignalType::Entry:
+      return "Buy";
+    case SignalType::Exit:
+      return "Sell";
+    case SignalType::Watchlist:
+      return "Watch";
+    case SignalType::Caution:
+      return "Watch cautiously";
+    case SignalType::HoldCautiously:
+      return "Hold cautiously";
+    case SignalType::Mixed:
+      return "Confusing";
+    default:
+      return "";
+  }
+}
 void Portfolio::console_update() const {
   std::system("clear");
   std::string header = std::format(
