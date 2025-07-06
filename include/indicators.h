@@ -16,7 +16,6 @@ struct Candle {
   double close = 0.0;
   int volume = 0.0;
 
-  std::string to_str() const;
   std::string day() const;
   SysTimePoint time() const;
 
@@ -37,8 +36,6 @@ struct EMA {
 
   void add(const Candle& candle) noexcept;
   void add(double price) noexcept;
-
-  std::string to_str() const;
 };
 
 struct RSI {
@@ -57,7 +54,6 @@ struct RSI {
   RSI(const std::vector<Candle>& candles, int period = 14) noexcept;
   void add(const Candle& candle) noexcept;
   bool rising() const;
-  std::string to_str() const;
 };
 
 struct MACD {
@@ -124,7 +120,6 @@ struct StopLoss {
 
   StopLoss() noexcept = default;
   StopLoss(const Indicators& ind, const Position* pos) noexcept;
-  std::string to_str(bool tg = false) const;
 };
 
 struct Pullback {
@@ -154,7 +149,6 @@ struct Metrics {
   Pullback pullback(int lookback = 360) const;
   bool has_position() const;
 
-  std::string to_str(bool tg = false) const;
   void plot() const;
 
  private:

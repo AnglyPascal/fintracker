@@ -34,11 +34,6 @@ Candle Candle::combine(const std::vector<Candle>& group) {
   return out;
 }
 
-std::string Candle::to_str() const {
-  return std::format("{} {:.2f} {:.2f} {:.2f} {:.2f} {}", datetime, open, high,
-                     low, close, volume);
-}
-
 std::string Candle::day() const {
   return datetime.substr(0, 10);
 }

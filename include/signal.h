@@ -70,22 +70,20 @@ struct Signal {
   std::vector<Reason> entry_reasons, exit_reasons;
   std::vector<Hint> entry_hints, exit_hints;
 
-  std::string to_str(bool tg = false) const;
-
   std::string color() const;
   std::string color_bg() const;
   std::string emoji() const;
-  std::string type_to_str() const;
 
   Signal() noexcept = default;
   Signal(const Metrics& m) noexcept;
+
+  bool has_signal() const;
+  bool has_hints() const;
 
  private:
   int entry_score = 0;
   int exit_score = 0;
 
-  SignalType gen_signal(const Metrics& m) const;
-  bool has_signal() const;
-  bool has_hints() const;
+  SignalType gen_signal(bool has_position) const;
 };
 

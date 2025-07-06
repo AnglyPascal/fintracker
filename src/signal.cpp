@@ -68,13 +68,6 @@ inline Reason ema_crossdown_exit(const Metrics& m) {
   return ReasonType::None;
 }
 
-inline Reason rsi_overbought_exit(const Metrics& m) {
-  auto& rsi = m.indicators_1h.rsi.values;
-  if (LAST(rsi) >= 70)
-    return {ReasonType::RsiOverbought, Severity::Medium};
-  return ReasonType::None;
-}
-
 inline Reason macd_bearish_cross_exit(const Metrics& m) {
   auto& macd = m.indicators_1h.macd.macd_line;
   auto& signal = m.indicators_1h.macd.signal_line;
@@ -102,7 +95,6 @@ inline constexpr signal_f entry_funcs[] = {
 
 inline constexpr signal_f exit_funcs[] = {
     ema_crossdown_exit,
-    rsi_overbought_exit,
     macd_bearish_cross_exit,
     stop_loss_exit,
 };
@@ -302,21 +294,35 @@ inline int severity_weight(Severity s) {
   }
 }
 
-SignalType Signal::gen_signal(const Metrics& m) const {
+SignalType Signal::gen_signal(bool has_position) const {
   if (entry_score >= 5 && exit_score <= 2)
     return SignalType::Entry;
 
   if (exit_score >= 5 && entry_score <= 2)
-    return m.has_position() ? SignalType::Exit : SignalType::Caution;
-
-  if (entry_score > 0 && exit_score > 0)
-    return SignalType::Mixed;
+    return has_position ? SignalType::Exit : SignalType::Caution;
 
   if (entry_score > 0 && entry_score < 5)
     return SignalType::Watchlist;
 
   if (exit_score > 0 && exit_score < 5)
-    return m.has_position() ? SignalType::HoldCautiously : SignalType::Caution;
+    return has_position ? SignalType::HoldCautiously : SignalType::Caution;
+
+  bool strong_entry_hint =
+      !entry_hints.empty() && entry_hints.front().severity >= Severity::High;
+  bool strong_exit_hint =
+      !exit_hints.empty() && exit_hints.front().severity >= Severity::High;
+
+  if (strong_entry_hint && strong_exit_hint)
+    return SignalType::Mixed;
+
+  if (strong_entry_hint)
+    return SignalType::Watchlist;
+
+  if (strong_exit_hint)
+    return SignalType::Caution;
+
+  if (entry_score > 0 && exit_score > 0)
+    return SignalType::Mixed;
 
   return SignalType::None;
 }
@@ -336,8 +342,6 @@ Signal::Signal(const Metrics& m) noexcept {
       exit_reasons.emplace_back(std::move(r));
     }
 
-  type = gen_signal(m);
-
   // Entry hints
   for (auto f : entry_hint_funcs)
     if (auto h = f(m); h.str != "")
@@ -348,10 +352,23 @@ Signal::Signal(const Metrics& m) noexcept {
     if (auto h = f(m); h.str != "")
       exit_hints.emplace_back(std::move(h));
 
-  auto sort = [](auto& v) { std::sort(v.begin(), v.end()); };
+  auto sort = [](auto& v) {
+    std::sort(v.begin(), v.end(),
+              [](auto& lhs, auto& rhs) { return lhs.severity < rhs.severity; });
+  };
+
   sort(entry_reasons);
   sort(exit_reasons);
   sort(entry_hints);
   sort(exit_hints);
+
+  type = gen_signal(m.has_position());
 }
 
+bool Signal::has_signal() const {
+  return type != SignalType::None;
+}
+
+bool Signal::has_hints() const {
+  return !entry_hints.empty() || !exit_hints.empty();
+}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "api.h"
+#include "format.h"
 #include "indicators.h"
 #include "positions.h"
 #include "prediction.h"
@@ -31,10 +32,9 @@ struct Ticker {
          minutes update_interval,
          const Position* position) noexcept;
 
-  std::string to_str(bool tg = false) const;
   void plot() const;
 
- private:
+  bool has_position() const;
   std::string pos_to_str(bool tg = false) const;
 };
 
@@ -51,7 +51,6 @@ class Portfolio {
   minutes update_interval;
 
   mutable int count = 0;
-  mutable bool send_signal_alerts = false;
 
  private:
   int get_priority(const Ticker& ticker) const;
@@ -64,11 +63,13 @@ class Portfolio {
   void status(const std::string& ticker) const;
 
  private:
-  void send_tg_update(bool full = false) const;
+  mutable int last_tg_update_msg_id = -1;
+  void send_tg_update() const;
   void send_tg_alert() const;
   void console_update() const;
 
   void send_updates() const;
+  void write_html() const;
 
  public:
   Portfolio(const std::vector<SymbolInfo>& symbols) noexcept;
@@ -76,4 +77,7 @@ class Portfolio {
   void debug() const;
   void run();
   void plot(const std::string& ticker) const;
+
+  template <FormatTarget target, typename T>
+  friend std::string to_str(const T& t);
 };

@@ -26,6 +26,7 @@ class TG {
 
   static int pin_message(int message_id);
   static int edit_msg(int message_id, const std::string& text);
+  static int delete_msg(int message_id);
 
   static std::tuple<bool, std::string, int> receive(int last_update_id);
 };

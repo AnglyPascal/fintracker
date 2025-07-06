@@ -45,6 +45,7 @@ inline constexpr std::string BRIGHT_WHITE_BG = "\033[107m";
 
 enum class FormatTarget {
   Telegram,
+  Alert,
   Console,
   HTML,
 };

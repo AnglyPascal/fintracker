@@ -1,5 +1,6 @@
 #include "positions.h"
 #include "api.h"
+#include "format.h"
 
 #include <cmath>
 #include <filesystem>
@@ -29,6 +30,10 @@ double Position::pct(double price) const {
 
 double Position::price() const {
   return (double)px / FLOAT_SCALE;
+}
+
+double Position::quantity() const {
+  return (double)qty / FLOAT_SCALE;
 }
 
 OpenPositions::OpenPositions() noexcept {
@@ -132,7 +137,7 @@ inline std::string position_for_tg_str(const std::string& symbol,
   auto pnl_str = std::format(" | PnL: {:+.2f} ({:+.2f}%)\n", pnl, gain);
 
   return std::format("- {:<7}{}{}{}\n", symbol, (qty > 0 ? " +" : " "),
-                     pos.to_str(), (qty > 0 ? "" : pnl_str));
+                     to_str(pos), (qty > 0 ? "" : pnl_str));
 }
 
 void OpenPositions::send_updates(const Trades& new_trades,

@@ -24,8 +24,6 @@ struct Trade {
   int qty;
   int px;
   int fees;  // actual = fees / FLOAT_SCALE^2;
-
-  std::string to_str() const;
 };
 
 struct Position {
@@ -38,8 +36,6 @@ struct Position {
 
   double pnl(double price) const;
   double pct(double price) const;
-
-  std::string to_str() const;
 };
 
 Position operator-(const Position& lhs, const Position& rhs);

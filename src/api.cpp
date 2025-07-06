@@ -131,6 +131,23 @@ std::tuple<bool, std::string, int> TG::receive(int last_update_id) {
   return {false, "", last_update_id};
 }
 
+int TG::delete_msg(int message_id) {
+  auto url =
+      std::format("https://api.telegram.org/bot{}/deleteMessage", TG_TOKEN);
+
+  cpr::Response r = cpr::Post(
+      cpr::Url{url}, cpr::Payload{{"chat_id", TG_CHAT_ID},
+                                  {"message_id", std::to_string(message_id)}});
+
+  if (r.status_code != 200) {
+    std::cerr << "Telegram delete error: " << r.status_code << " - " << r.text
+              << "\n";
+    return -1;
+  }
+
+  return 0;
+}
+
 int TG::send_doc(const std::string& doc_name, const std::string& caption) {
   auto url =
       std::format("https://api.telegram.org/bot{}/sendDocument", TG_TOKEN);

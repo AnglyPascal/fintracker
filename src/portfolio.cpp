@@ -1,9 +1,11 @@
 #include "portfolio.h"
 #include "api.h"
+#include "format.h"
 
 #include <cassert>
 #include <cmath>
 #include <format>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -39,6 +41,10 @@ Ticker::Ticker(const std::string& symbol,
       position{position}  //
 {}
 
+bool Ticker::has_position() const {
+  return position != nullptr && position->qty != 0;
+}
+
 int Portfolio::get_priority(const Ticker& ticker) const {
   if (positions.get_position(ticker.symbol) != nullptr)
     return 1;
@@ -68,30 +74,39 @@ void Portfolio::update() {
   }
 }
 
-void Portfolio::send_tg_update(bool full) const {
-  auto header = std::format("📊 *Market Snapshot*  @ ");
-  std::string msg, date;
-  for (const auto& [symbol, ticker] : tickers) {
-    if (get_priority(ticker) == 1 || full) {
-      date = ticker.metrics.last_updated();
-      msg += ticker.to_str(true);
-    }
-  }
-  if (date != "")
-    TG::send(header + date + "\n\n" + msg);
+void Portfolio::send_tg_update() const {
+  write_html();
+  if (last_tg_update_msg_id != -1)
+    TG::delete_msg(last_tg_update_msg_id);
+
+  last_tg_update_msg_id = TG::send_doc("portfolio.html", "Portfolio overview");
+  if (last_tg_update_msg_id != -1)
+    TG::pin_message(last_tg_update_msg_id);
 }
 
 void Portfolio::send_tg_alert() const {
-  if (!send_signal_alerts)
-    return;
-  send_signal_alerts = false;
-
   std::ostringstream msg;
-  msg << "📊 *Market Alert*\n\n";
+  msg << "📊 *Market Update*\n\n";
 
-  for (auto& [symbol, ticker] : tickers) {
-    msg << ticker.to_str(true);
-  }
+  for (auto& [symbol, ticker] : tickers)
+    if (ticker.signal.type == SignalType::Exit)
+      msg << to_str<FormatTarget::Alert>(ticker);
+
+  for (auto& [symbol, ticker] : tickers)
+    if (ticker.signal.type == SignalType::HoldCautiously)
+      msg << to_str<FormatTarget::Alert>(ticker);
+
+  for (auto& [symbol, ticker] : tickers)
+    if (ticker.signal.type == SignalType::Entry)
+      msg << to_str<FormatTarget::Alert>(ticker);
+
+  for (auto& [symbol, ticker] : tickers)
+    if (ticker.signal.type == SignalType::Watchlist)
+      msg << to_str<FormatTarget::Alert>(ticker);
+
+  for (auto& [symbol, ticker] : tickers)
+    if (ticker.signal.type == SignalType::Caution)
+      msg << to_str<FormatTarget::Alert>(ticker);
 
   TG::send(msg.str());
 }
@@ -100,7 +115,7 @@ void Portfolio::send_updates() const {
   console_update();
 
   if (count % 2 == 0)
-    send_tg_update(count % 4);
+    send_tg_update();
 
   send_tg_alert();
 
@@ -115,7 +130,7 @@ void Portfolio::status(const std::string& symbol) const {
   if (it == tickers.end())
     TG::send(std::format("ticker {} is not being tracked\n", symbol));
   else
-    TG::send(std::format("📊 *Market Status*\n\n{}", it->second.to_str(true)));
+    TG::send(std::format("{}", to_str<FormatTarget::Telegram>(it->second)));
 }
 
 void Portfolio::run() {
@@ -149,3 +164,8 @@ void Portfolio::run() {
 
 void Portfolio::debug() const {}
 
+void Portfolio::write_html() const {
+  std::ofstream file("portfolio.html");
+  file << to_str<FormatTarget::HTML>(*this);
+  file.close();
+}
