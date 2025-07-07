@@ -56,7 +56,7 @@ TrendLines::TrendLines(const std::vector<double>& series,
       continue;
 
     window.clear();
-    for (int i = series.size() - p; i < series.size(); i++)
+    for (size_t i = series.size() - p; i < series.size(); i++)
       window.emplace_back((double)i, series[i]);
 
     LinearRegression lr(window);
@@ -68,7 +68,7 @@ TrendLines::TrendLines(const std::vector<double>& series,
   std::sort(candidates.begin(), candidates.end());
 
   auto n = std::min<int>(top_n, candidates.size());
-  int i = 0;
+  size_t i = 0;
   while (n > 0 && i < candidates.size()) {
     auto& now = candidates[i++];
 

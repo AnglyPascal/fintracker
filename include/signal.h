@@ -7,6 +7,7 @@
 enum class Severity { Urgent = 0, High = 1, Medium = 2, Low = 3 };
 
 enum class SignalType {
+  Skip,            // Skip
   None,            // No action
                    //
   Entry,           // Strong buy signal

@@ -54,15 +54,14 @@ int Portfolio::get_priority(const Ticker& ticker) const {
 Portfolio::Portfolio(const std::vector<SymbolInfo>& symbols) noexcept
     : td{symbols.size()},
       positions{},
-      update_interval{td.interval},
-      last_updated{Clock::now()}  //
+      last_updated{Clock::now()},   //
+      update_interval{td.interval}  //
 {
-  for (auto& [symbol, priority] : symbols) {
-    auto candles = td.time_series(symbol);
-    const Position* position = positions.get_position(symbol);
-    tickers.try_emplace(symbol, symbol, priority, std::move(candles),
-                        update_interval, position);
-  }
+  for (auto& [symbol, priority] : symbols)
+    tickers.try_emplace(symbol,  //
+                        symbol, priority, td.time_series(symbol),
+                        update_interval, positions.get_position(symbol));
+
   plot_all();
 }
 

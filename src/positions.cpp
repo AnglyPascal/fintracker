@@ -123,7 +123,7 @@ void OpenPositions::update() {
   }
 
   if (!first_run)
-    send_updates(new_trades_by_ticker, positions, new_positions);
+    send_updates(new_trades_by_ticker, positions);
   std::swap(positions, new_positions);
 }
 
@@ -141,23 +141,26 @@ inline std::string position_for_tg_str(const std::string& symbol,
 }
 
 void OpenPositions::send_updates(const Trades& new_trades,
-                                 const Positions& old_positions,
-                                 const Positions& new_positions) const {
+                                 const Positions& old_positions) const {
+  if (new_trades.empty())
+    return;
+
   std::ostringstream msg;
   msg << "🔄 *Position Update*\n\n";
 
   for (auto& [symbol, trades] : new_trades) {
     auto [diff, pnl] = position_from_trades(trades);
     if (diff.qty < 0) {
-      auto& pos = old_positions.at(symbol);
-      if (pos.qty + diff.qty == 0)
-        pnl -= diff.cost + pos.cost;
+      if (auto it = old_positions.find(symbol); it != old_positions.end()) {
+        auto& pos = it->second;
+        if (pos.qty + diff.qty == 0)
+          pnl -= diff.cost + pos.cost;
+      }
     }
     msg << position_for_tg_str(symbol, diff, (double)pnl / COST_SCALE);
   }
 
-  if (!new_trades.empty())
-    TG::send(msg.str());
+  TG::send(msg.str());
 }
 
 Position* OpenPositions::get_position(const std::string& symbol) {

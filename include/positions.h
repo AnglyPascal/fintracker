@@ -59,9 +59,7 @@ class OpenPositions {
   OpenPositions() noexcept;
 
   void update();
-  void send_updates(const Trades& trades,
-                    const Positions& old_positions,
-                    const Positions& new_positions) const;
+  void send_updates(const Trades& trades, const Positions& old_positions) const;
   void send_current_positions(const std::string& ticker) const;
 
   Position* get_position(const std::string& symbol);

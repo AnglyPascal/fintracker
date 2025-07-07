@@ -54,7 +54,7 @@ EMA::EMA(const std::vector<Candle>& candles, int period) noexcept
   }
 
   auto alpha = 2.0 / (period + 1);
-  for (int i = period; i < candles.size(); i++) {
+  for (size_t i = period; i < candles.size(); i++) {
     values[i] = (candles[i].close - values[i - 1]) * alpha + values[i - 1];
   }
 }
@@ -68,7 +68,7 @@ EMA::EMA(const std::vector<double>& prices, int period) noexcept
   }
 
   auto alpha = 2.0 / (period + 1);
-  for (int i = period; i < prices.size(); i++) {
+  for (size_t i = period; i < prices.size(); i++) {
     values[i] = (prices[i] - values[i - 1]) * alpha + values[i - 1];
   }
 }
@@ -178,13 +178,12 @@ void MACD::add(const Candle& candle) noexcept {
 
   signal_ema.add(macd);
   double signal_val = signal_ema.values.back();
-  signal_line.push_back(signal_val);
   histogram.push_back(macd - signal_val);
 }
 
 ATR::ATR(const std::vector<Candle>& candles, int period) noexcept
     : period{period} {
-  if (candles.size() < period + 1)
+  if (candles.size() < (size_t)period + 1)
     return;
 
   std::vector<double> tr;
@@ -272,11 +271,11 @@ Metrics::Metrics(const std::string& symbol,
     : symbol{symbol},
       candles{std::move(candles)},
       interval{interval},
-      indicators_1d{std::move(downsample(D_1)), D_1},  //
-      indicators_4h{std::move(downsample(H_4)), H_4},  //
-      indicators_1h{std::move(downsample(H_1)), H_1},  //
-      stop_loss{indicators_1h, position},              //
-      position{position}                               //
+      indicators_1h{downsample(H_1), H_1},  //
+      indicators_4h{downsample(H_4), H_4},  //
+      indicators_1d{downsample(D_1), D_1},  //
+      stop_loss{indicators_1h, position},   //
+      position{position}                    //
 {}
 
 bool Metrics::has_position() const {
@@ -303,7 +302,7 @@ double Metrics::last_price() const {
   return candles.back().close;
 }
 
-Pullback Metrics::pullback(int lookback) const {
+Pullback Metrics::pullback(size_t lookback) const {
   if (candles.size() < lookback)
     lookback = candles.size();
 
@@ -332,7 +331,7 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
   auto n = std::min<int>(N, candles.size());
 
   swing_low = std::numeric_limits<double>::max();
-  for (int i = candles.size() - n; i < candles.size(); ++i)
+  for (size_t i = candles.size() - n; i < candles.size(); ++i)
     swing_low = std::min(swing_low, candles[i].low);
 
   auto buffer = 0.015 * candles.back().close;  // fallback buffer (1.5%)

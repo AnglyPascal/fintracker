@@ -7,8 +7,16 @@ import numpy as np
 
 symbol = sys.argv[1]
 
+trades_df = pd.read_csv("trades.csv")
+trades_df["datetime"] = pd.to_datetime(
+    trades_df["datetime"]
+)  # .dt.strftime("%b %d %H:%M")
+
+buy_trades = trades_df[trades_df["action"] == "BUY"]
+sell_trades = trades_df[trades_df["action"] == "SELL"]
+
 data_df = pd.read_csv("data.csv")
-datetime = pd.to_datetime(data_df["datetime"]).dt.strftime("%b %d %H:%M")
+datetime = pd.to_datetime(data_df["datetime"])  # .dt.strftime("%b %d %H:%M")
 
 
 def read_fits(name, n_fits=3):
@@ -17,7 +25,9 @@ def read_fits(name, n_fits=3):
         fname = f"{name}_fit_{i}.csv"
         if os.path.isfile(fname):
             fit = pd.read_csv(fname)
-            fit["datetime"] = pd.to_datetime(fit["datetime"]).dt.strftime("%b %d %H:%M")
+            fit["datetime"] = pd.to_datetime(
+                fit["datetime"]
+            )  # .dt.strftime("%b %d %H:%M")
             fits.append(fit)
     return fits
 
@@ -74,6 +84,35 @@ fig.add_trace(
     row=1,
     col=1,
 )
+
+# Add trades
+
+if not buy_trades.empty:
+    fig.add_trace(
+        go.Scatter(
+            x=buy_trades["datetime"],
+            y=buy_trades["price"],
+            mode="markers",
+            name="Buy Trades",
+            marker=dict(color="green", size=8, symbol="square"),
+        ),
+        row=1,
+        col=1,
+    )
+
+if not sell_trades.empty:
+    fig.add_trace(
+        go.Scatter(
+            x=sell_trades["datetime"],
+            y=sell_trades["price"],
+            mode="markers",
+            name="Sell Trades",
+            marker=dict(color="red", size=8, symbol="square"),
+        ),
+        row=1,
+        col=1,
+    )
+
 
 # --- 2. RSI ---
 fig.add_trace(
@@ -135,7 +174,10 @@ def find_cross_points_with_polarity(x, y_fast, y_slow):
             bearish_x.append(x_val)
             bearish_y.append(y_avg)
 
-    return (bullish_x, bullish_y), (bearish_x, bearish_y)
+    return (pd.to_datetime(bullish_x), bullish_y), (
+        pd.to_datetime(bearish_x),
+        bearish_y,
+    )
 
 
 # --- MACD/Signal Crosses ---

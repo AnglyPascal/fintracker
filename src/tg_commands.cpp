@@ -15,8 +15,11 @@
 #define POSITIONS_FILE ""
 #endif
 
-inline std::string current_date() {
-  return std::format("{:%Y-%m-%d}", std::chrono::system_clock::now());
+inline std::string current_ny_time() {
+  using namespace std::chrono;
+  auto now = floor<seconds>(system_clock::now());
+  zoned_time ny_time{"America/New_York", now};
+  return std::format("{:%Y-%m-%d %H:%M:%S}", ny_time);
 }
 
 enum class Commands {
@@ -57,14 +60,14 @@ void handle_command(Portfolio&, std::istream& is) {
     return;
   }
 
-  double fees = fees_str != "" ? std::stod(fees_str) : 0.0;
+  if (fees_str == "")
+    fees_str = "0.0";
 
-  auto date = current_date();
-  auto str = std::format("{},{},{},{:.2f},{:.2f},{:.2f}\n", date, symbol,
-                         command == Commands::BUY ? "BUY" : "SELL",
-                         std::stod(qty_str), std::stod(px_str), fees);
+  auto str = std::format("{},{},{},{},{},{}\n",                      //
+                         current_ny_time(), symbol,                  //
+                         command == Commands::BUY ? "BUY" : "SELL",  //
+                         qty_str, px_str, fees_str);
 
-  // std::cout << str << std::endl;
   std::ofstream file(POSITIONS_FILE, std::ios::app);
   if (file)
     file << str;

@@ -12,11 +12,11 @@ inline void trendlines_to_csv(auto& candles,
   f << "datetime,value\n";
 
   auto period = trend_line.period;
-  auto n = candles.size();
 
-  for (int i = candles.size() - period; i < candles.size(); i++) {
+  for (size_t i = candles.size() - period; i < candles.size(); i++) {
     f << std::format("{},{:.2f}\n", candles[i].datetime, trend_line.eval(i));
   }
+
   f.flush();
   f.close();
 }
@@ -28,8 +28,6 @@ void Indicators::plot(const std::string& symbol) const {
     price_series.push_back(c.close);
   ema21_series = ema21.values;
   rsi_series = rsi.values;
-
-  // Create trend lines
 
   std::ofstream f("data.csv");
   f << "datetime,price,ema9,ema21,rsi,macd,signal\n";
@@ -45,7 +43,7 @@ void Indicators::plot(const std::string& symbol) const {
 
   if (!trends.price.top_trends.empty()) {
     auto& top_trends = trends.price.top_trends;
-    for (int i = 0; i < top_trends.size(); i++)
+    for (size_t i = 0; i < top_trends.size(); i++)
       trendlines_to_csv(candles, top_trends[i],
                         std::format("price_fit_{}.csv", i));
   }
@@ -53,7 +51,7 @@ void Indicators::plot(const std::string& symbol) const {
   // trendlines_to_csv(candles, trends.ema21, "ema21_fit.csv");
   if (!trends.rsi.top_trends.empty()) {
     auto& top_trends = trends.rsi.top_trends;
-    for (int i = 0; i < top_trends.size(); i++)
+    for (size_t i = 0; i < top_trends.size(); i++)
       trendlines_to_csv(candles, top_trends[i],
                         std::format("rsi_fit_{}.csv", i));
   }
@@ -68,11 +66,27 @@ void Metrics::plot() const {
   indicators_1h.plot(symbol);
 }
 
+
+void Portfolio::plot(const std::string& symbol) const {
+  auto& all_trades = get_trades();
+  if (auto it = all_trades.find(symbol); it != all_trades.end()) {
+    std::ofstream f("trades.csv");
+    f << "datetime,name,action,qty,price\n";
+    for (auto& trade : it->second)
+      f << to_str(trade) << std::endl;
+    f.flush();
+    f.close();
+  }
+
+  if (auto it = tickers.find(symbol); it != tickers.end())
+    it->second.metrics.plot();
+}
+
 void Portfolio::plot_all() const {
   auto td = std::thread(
       [](auto* portfolio) {
-        for (auto& [symbol, ticker] : portfolio->tickers)
-          ticker.metrics.plot();
+        for (auto& [symbol, t] : portfolio->tickers)
+          portfolio->plot(symbol);
       },
       this);
   td.detach();

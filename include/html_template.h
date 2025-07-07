@@ -11,26 +11,26 @@ inline constexpr std::string_view html_template = R"(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-    :root {{
-      --font-size: 13px;
-      --padding-cell: 0.25em 0.4em;
-      --padding-mobile: 0.2em 0.3em;
-      --row-gap: 0.4em;
-      --color-border: #ccc;
-      --color-header: #f0f0f0;
-      --color-hover: #f5f5f5;
+:root {{
+  --font-size: 13px;
+  --padding-cell: 0.25em 0.4em;
+  --padding-mobile: 0.2em 0.3em;
+  --row-gap: 0.4em;
+  --color-border: #ccc;
+  --color-header: #f0f0f0;
+  --color-hover: #f5f5f5;
 
-      --color-signal-entry-bg: #c8facc;
-      --color-signal-exit-bg: #ffd2d2;
-      --color-signal-watchlist-bg: #d2e6ff;
-      --color-signal-caution-bg: #fff5d2;
-      --color-signal-mixed-bg: #f5f5f5;
+  --color-signal-entry-bg: #c8facc;
+  --color-signal-exit-bg: #ffd2d2;
+  --color-signal-watchlist-bg: #d2e6ff;
+  --color-signal-caution-bg: #fff5d2;
+  --color-signal-mixed-bg: #f5f5f5;
 
-      --color-black: #000;
-      --color-green: #008000;
-      --color-red: #d10000;
-      --color-yellow: #b58900;
-    }}
+  --color-black: #000;
+  --color-green: #008000;
+  --color-red: #d10000;
+  --color-yellow: #b58900;
+}}
 
     body {{
       font-family: monospace;
@@ -41,7 +41,7 @@ inline constexpr std::string_view html_template = R"(
 
     table {{
       width: 100%;
-      <!-- table-layout: fixed; -->
+        <!-- table-layout: fixed; -->
       border-collapse: collapse;
     }}
 
@@ -124,36 +124,45 @@ inline constexpr std::string_view html_template = R"(
       content: "▶";
     }}
 
-    details {{
-      cursor: pointer;
-    }}
-
-    details summary {{
-      font-weight: bold;
-      outline: none;
-    }}
-
     .signal-details {{
-      padding-top: 0.2em;
-      margin-top: 0.3em;
+      padding-top: 1em;
+      padding-left: 1em;
+      margin-top: 0em;
       font-size: 0.92em;
       color: #444;
-      white-space: pre-wrap;
     }}
 
-    details summary::marker {{
-      content: "▸ ";
+    #signal-filters button {{
+      font-family: monospace;
+      font-size: 0.85em;
+      margin-right: 0.3em;
+      padding: 0.3em 0.6em;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      background-color: #eee;
+      color: #333;
+      cursor: pointer;
+      transition: background-color 0.2s;
     }}
 
-    details[open] summary::marker {{
-      content: "▾ ";
+    #signal-filters button:hover {{
+      background-color: #ddd;
     }}
 
+    #signal-filters button.active {{
+      background-color: #333;
+      color: #fff;
+      border-color: #333;
+    }}
+    </style>
+
+    <style>
     /* Mobile support */
     @media (max-width: 768px) {{
       table, thead, tbody, th, td, tr {{
         display: block;
         width: 100%;
+          padding-right: 1em;
       }}
 
       thead {{
@@ -171,9 +180,13 @@ inline constexpr std::string_view html_template = R"(
       td {{
         display: flex;
         justify-content: space-between;
+        flex-wrap: wrap; /* Allows wrapping to avoid overflow */
         padding: var(--padding-mobile);
         border: none;
         border-bottom: 1px solid var(--color-border);
+        width: 100%;
+        box-sizing: border-box;
+        overflow-wrap: break-word;
       }}
 
       td:last-child {{
@@ -195,54 +208,13 @@ inline constexpr std::string_view html_template = R"(
       }}
 
       .signal-details-row {{
-        background-color: #fdfdfd;
         font-size: 0.85em;
         line-height: 1.2;
-        padding: 0;
       }}
 
       .signal-details {{
-        padding: 0.1em 0.2em;
-        margin: 0;
         color: #333;
-        white-space: pre-wrap;
-        line-height: 1.2;
-      }}
-
-      .signal-details strong {{
-        display: inline-block;
-        font-weight: 600;
-        margin: 0 0 0.1em 0;
-        padding: 0;
-      }}
-
-      .signal-details span {{
-        display: block;
-        margin: 0;
-        padding: 0;
-      }}
-
-      #signal-filters button {{
-        font-family: monospace;
-        font-size: 0.85em;
-        margin-right: 0.3em;
-        padding: 0.3em 0.6em;
-        border: 1px solid #aaa;
-        border-radius: 4px;
-        background-color: #eee;
-        color: #333;
-        cursor: pointer;
-        transition: background-color 0.2s;
-      }}
-
-      #signal-filters button:hover {{
-        background-color: #ddd;
-      }}
-
-      #signal-filters button.active {{
-        background-color: #333;
-        color: #fff;
-        border-color: #333;
+        align-content: start;
       }}
     }}
     </style>

@@ -399,7 +399,7 @@ Signal::Signal(const Metrics& m) noexcept {
   if (!m.has_position())
     for (auto f : filters)
       if (auto [c, s] = f(m); c == Confidence::Bearish) {
-        type = SignalType::None;
+        type = SignalType::Skip;
         return;
       }
 
@@ -441,7 +441,7 @@ Signal::Signal(const Metrics& m) noexcept {
 }
 
 bool Signal::has_signal() const {
-  return type != SignalType::None;
+  return type != SignalType::Skip && type != SignalType::None;
 }
 
 bool Signal::has_hints() const {

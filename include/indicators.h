@@ -58,7 +58,7 @@ struct RSI {
 
 struct MACD {
   std::vector<double> macd_line;
-  std::vector<double>& signal_line;
+  const std::vector<double>& signal_line;
   std::vector<double> histogram;
 
  private:
@@ -146,7 +146,7 @@ struct Metrics {
   double last_price() const;
   const std::string& last_updated() const;
 
-  Pullback pullback(int lookback = 360) const;
+  Pullback pullback(size_t lookback = 360) const;
   bool has_position() const;
 
   void plot() const;

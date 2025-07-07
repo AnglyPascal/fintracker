@@ -15,10 +15,56 @@ std::string to_str(const Candle& candle) {
                      low, close, volume);
 }
 
+inline std::string closest_nyse_aligned_time(const std::string& ny_time_str) {
+  using namespace std::chrono;
+
+  // Parse input
+  std::istringstream ss(ny_time_str);
+  local_time<seconds> input_local;
+  ss >> parse("%Y-%m-%d %H:%M:%S", input_local);
+  if (ss.fail())
+    return "Invalid datetime";
+
+  zoned_time ny_time{"America/New_York", input_local};
+
+  auto day_start = floor<days>(ny_time.get_local_time());
+  year_month_day ymd{day_start};
+  weekday wd{day_start};
+  if (wd == Saturday || wd == Sunday)
+    return "Market closed";
+
+  // Market open = 09:30, last valid aligned time = 15:30
+  local_time<seconds> market_open = day_start + hours{9} + minutes{30};
+  local_time<seconds> last_slot = day_start + hours{15} + minutes{30};
+
+  // Clamp before open
+  if (input_local <= market_open)
+    return std::format("{:%Y-%m-%d %H:%M:%S}",
+                       zoned_time{"America/New_York", market_open});
+
+  // Clamp after last slot
+  if (input_local >= day_start + hours{16})
+    return std::format("{:%Y-%m-%d %H:%M:%S}",
+                       zoned_time{"America/New_York", last_slot});
+
+  // Round to closest 1h-aligned slot from 09:30
+  auto delta = duration_cast<seconds>(input_local - market_open);
+  int slot =
+      static_cast<int>((delta.count() + 1800) / 3600);  // round to nearest hour
+  auto aligned = market_open + hours{slot};
+
+  // Final safety clamp
+  if (aligned > last_slot)
+    aligned = last_slot;
+
+  return std::format("{:%Y-%m-%d %H:%M:%S}",
+                     zoned_time{"America/New_York", aligned});
+}
+
 template <>
 std::string to_str(const Trade& t) {
-  return std::format("{:<12} {:<6} {:<4} {:>6.2f} @ {:>6.2f}",                //
-                     t.date, t.ticker,                                        //
+  return std::format("{},{},{},{:.2f},{:.2f}",                                //
+                     closest_nyse_aligned_time(t.date), t.ticker,             //
                      (t.action == Action::BUY ? "BUY" : "SELL"),              //
                      double(t.qty) / FLOAT_SCALE, double(t.px) / FLOAT_SCALE  //
   );
@@ -128,7 +174,7 @@ std::string to_str(const SignalType& type) {
     case SignalType::HoldCautiously:
       return "Hold cautiously";
     case SignalType::Mixed:
-      return "Confusing";
+      return "Mixed";
     default:
       return "";
   }
@@ -146,9 +192,10 @@ std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
     auto type_str = to_str(sig.type);
     auto& reasons =
         sig.type == SignalType::Entry ? sig.entry_reasons : sig.exit_reasons;
-    auto reason_str = join(reasons, to_str<Reason>, ", ");
+    auto reason_raw = join(reasons, to_str<Reason>, ", ");
+    auto reason_str = reason_raw == "" ? "" : " (" + reason_raw + ")";
 
-    result += std::format("   Signal: {} ({})", type_str, reason_str);
+    result += std::format("   Signal: {}{}", type_str, reason_str);
   } else {
     result += "   Hints: ";
   }
@@ -365,7 +412,7 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   std::string body;
 
   for (const auto& [symbol, ticker] : p.tickers) {
-    if (ticker.signal.type == SignalType::None)
+    if (ticker.signal.type == SignalType::Skip)
       continue;
 
     const auto& m = ticker.metrics;

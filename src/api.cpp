@@ -188,7 +188,7 @@ TD::TD(size_t n_tickers) : interval{get_interval(n_tickers)} {
 int TD::try_get_key() {
   TimePoint now = Clock::now();
 
-  for (int i = 0; i < keys.size(); i++) {
+  for (size_t i = 0; i < keys.size(); i++) {
     auto k = idx;
     idx = (idx + 1) % keys.size();
 
