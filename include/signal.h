@@ -59,8 +59,25 @@ struct Hint {
   bool operator<(const Hint& other) const { return severity < other.severity; }
 };
 
+enum class Confidence {
+  StrongUptrend,
+  ModerateUptrend,
+  NeutralOrSideways,
+  Bearish,
+};
+
+struct Filter {
+  Confidence confidence;
+  std::string str;
+
+  Filter(Confidence confidence) : confidence{confidence}, str{""} {}
+  Filter(Confidence confidence, const std::string& str)
+      : confidence{confidence}, str{str} {}
+};
+
 struct Metrics;
 
+using filter_f = Filter (*)(const Metrics&);
 using signal_f = Reason (*)(const Metrics&);
 using hint_f = Hint (*)(const Metrics&);
 

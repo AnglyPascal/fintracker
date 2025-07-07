@@ -160,23 +160,6 @@ void OpenPositions::send_updates(const Trades& new_trades,
     TG::send(msg.str());
 }
 
-void OpenPositions::send_current_positions(const std::string& ticker) const {
-  std::ostringstream msg;
-  msg << "🗿 *Open Positions*\n\n";
-
-  if (ticker == "") {
-    for (auto [symbol, position] : positions)
-      msg << position_for_tg_str(symbol, position, 0);
-  } else {
-    auto it = positions.find(ticker);
-    if (it != positions.end())
-      msg << position_for_tg_str(ticker, it->second, 0);
-  }
-
-  if (!positions.empty())
-    TG::send(msg.str());
-}
-
 Position* OpenPositions::get_position(const std::string& symbol) {
   auto it = positions.find(symbol);
   return it == positions.end() ? nullptr : &it->second;
@@ -186,3 +169,4 @@ const Position* OpenPositions::get_position(const std::string& symbol) const {
   auto it = positions.find(symbol);
   return it == positions.end() ? nullptr : &it->second;
 }
+

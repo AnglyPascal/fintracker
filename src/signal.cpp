@@ -13,6 +13,74 @@ inline T PREV(const std::vector<T>& v) {
   return v.size() < 2 ? T{} : v[v.size() - 2];
 }
 
+// Filters
+
+Filter evaluate_daily_trend(const Metrics& m) {
+  auto& ind = m.indicators_1d;
+  auto& ema = ind.trends.ema21.top_trends;
+  auto& rsi = ind.rsi.values;
+
+  if (ema.empty() || rsi.empty())
+    return Confidence::NeutralOrSideways;
+
+  auto& best = ema[0];
+  double slope = best.slope();
+  double r2 = best.r2;
+  double rsi_val = rsi.back();
+
+  if (slope > 0.08 && r2 > 0.8 && rsi_val > 55)
+    return Confidence::StrongUptrend;
+  if (slope > 0.02 && r2 > 0.6 && rsi_val > 50)
+    return Confidence::ModerateUptrend;
+  if (rsi_val > 45)
+    return Confidence::NeutralOrSideways;
+  return Confidence::Bearish;
+}
+
+Filter evaluate_four_hour_trend(const Metrics& m) {
+  auto& ind = m.indicators_4h;
+
+  auto& ema_trend = ind.trends.ema21.top_trends;
+  auto& rsi_vals = ind.rsi.values;
+  auto& rsi_trend = ind.trends.rsi.top_trends;
+
+  if (ema_trend.empty() || rsi_vals.empty())
+    return Confidence::NeutralOrSideways;
+
+  auto& ema = ema_trend[0];
+  double ema_slope = ema.slope();
+  double ema_r2 = ema.r2;
+
+  double rsi_val = rsi_vals.back();
+  double rsi_slope = 0.0;
+  double rsi_r2 = 0.0;
+  if (!rsi_trend.empty()) {
+    rsi_slope = rsi_trend[0].slope();
+    rsi_r2 = rsi_trend[0].r2;
+  }
+
+  // Strong Uptrend: clear EMA rise + solid RSI
+  if (ema_slope > 0.10 && ema_r2 > 0.8 && rsi_val > 55 && rsi_slope > 0.1 &&
+      rsi_r2 > 0.7)
+    return Confidence::StrongUptrend;
+
+  // Moderate Uptrend: some slope or RSI support
+  if ((ema_slope > 0.03 && ema_r2 > 0.6 && rsi_val > 50) ||
+      (rsi_slope > 0.05 && rsi_r2 > 0.6 && rsi_val > 50))
+    return Confidence::ModerateUptrend;
+
+  // Weak Neutral Zone
+  if (rsi_val > 45)
+    return Confidence::NeutralOrSideways;
+
+  return Confidence::Bearish;
+}
+
+inline constexpr filter_f filters[] = {
+    evaluate_daily_trend,
+    evaluate_four_hour_trend,
+};
+
 // Entry reasons
 
 inline Reason ema_crossover_entry(const Metrics& m) {
@@ -328,6 +396,13 @@ SignalType Signal::gen_signal(bool has_position) const {
 }
 
 Signal::Signal(const Metrics& m) noexcept {
+  if (!m.has_position())
+    for (auto f : filters)
+      if (auto [c, s] = f(m); c == Confidence::Bearish) {
+        type = SignalType::None;
+        return;
+      }
+
   // Hard entry signals
   for (auto f : entry_funcs)
     if (auto r = f(m); r.type != ReasonType::None) {

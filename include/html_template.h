@@ -7,10 +7,10 @@
 inline constexpr std::string_view html_template = R"(
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
     :root {{
       --font-size: 13px;
       --padding-cell: 0.25em 0.4em;
@@ -22,6 +22,10 @@ inline constexpr std::string_view html_template = R"(
 
       --color-signal-entry-bg: #c8facc;
       --color-signal-exit-bg: #ffd2d2;
+      --color-signal-watchlist-bg: #d2e6ff;
+      --color-signal-caution-bg: #fff5d2;
+      --color-signal-mixed-bg: #f5f5f5;
+
       --color-black: #000;
       --color-green: #008000;
       --color-red: #d10000;
@@ -37,7 +41,7 @@ inline constexpr std::string_view html_template = R"(
 
     table {{
       width: 100%;
-      table-layout: fixed;
+      <!-- table-layout: fixed; -->
       border-collapse: collapse;
     }}
 
@@ -72,16 +76,19 @@ inline constexpr std::string_view html_template = R"(
     }}
 
     tr.signal-watchlist {{
-      color: var(--color-green);
+      background-color: var(--color-signal-watchlist-bg);
+      color: var(--color-black);
     }}
 
     tr.signal-caution,
     tr.signal-holdcautiously {{
-      color: var(--color-red);
+      background-color: var(--color-signal-caution-bg);
+      color: var(--color-black);
     }}
 
     tr.signal-mixed {{
-      color: var(--color-yellow);
+      background-color: var(--color-signal-mixed-bg);
+      color: var(--color-black);
     }}
 
     /* Column collapse behavior */
@@ -97,9 +104,14 @@ inline constexpr std::string_view html_template = R"(
 
     th.collapsed,
     td.collapsed {{
-      width: 10px;
+      width: 13px;
       padding: 0;
       overflow: hidden;
+    }}
+
+    td.collapsed {{
+      visibility: collapse;
+      white-space: nowrap;
     }}
 
     .toggle-btn::after {{
@@ -181,88 +193,193 @@ inline constexpr std::string_view html_template = R"(
       td.collapsed {{
         display: none;
       }}
+
+      .signal-details-row {{
+        background-color: #fdfdfd;
+        font-size: 0.85em;
+        line-height: 1.2;
+        padding: 0;
+      }}
+
+      .signal-details {{
+        padding: 0.1em 0.2em;
+        margin: 0;
+        color: #333;
+        white-space: pre-wrap;
+        line-height: 1.2;
+      }}
+
+      .signal-details strong {{
+        display: inline-block;
+        font-weight: 600;
+        margin: 0 0 0.1em 0;
+        padding: 0;
+      }}
+
+      .signal-details span {{
+        display: block;
+        margin: 0;
+        padding: 0;
+      }}
+
+      #signal-filters button {{
+        font-family: monospace;
+        font-size: 0.85em;
+        margin-right: 0.3em;
+        padding: 0.3em 0.6em;
+        border: 1px solid #aaa;
+        border-radius: 4px;
+        background-color: #eee;
+        color: #333;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }}
+
+      #signal-filters button:hover {{
+        background-color: #ddd;
+      }}
+
+      #signal-filters button.active {{
+        background-color: #333;
+        color: #fff;
+        border-color: #333;
+      }}
     }}
-  </style>
-</head>
+    </style>
+  </head>
 
-<body>
-<h2>Portfolio Overview</h2>
-<div class="table-wrapper">
-  <table>
-    <thead>
-      <tr>
-        <th>
-          <div class="col-header" onclick=" toggleColumn(1) ">
-            <span class="label">Signal</span>
-            <span class="toggle-btn"></span>
-          </div>
-        </th>
-        <th>
-          <div class="col-header" onclick=" toggleColumn(2) ">
-            <span class="label">Symbol</span>
-            <span class="toggle-btn"></span>
-          </div>
-        </th>
-        <th>
-          <div class="col-header" onclick=" toggleColumn(3) ">
-            <span class="label">Price</span>
-            <span class="toggle-btn"></span>
-          </div>
-        </th>
-        <th>
-          <div class="col-header" onclick=" toggleColumn(4) ">
-            <span class="label">EMA9/21</span>
-            <span class="toggle-btn"></span>
-          </div>
-        </th>
-        <th>
-          <div class="col-header" onclick=" toggleColumn(5) ">
-            <span class="label">RSI</span>
-            <span class="toggle-btn"></span>
-          </div>
-        </th>
-        <th>
-          <div class="col-header" onclick=" toggleColumn(6) ">
-            <span class="label">Position</span>
-            <span class="toggle-btn"></span>
-          </div>
-        </th>
-        <th>
-          <div class="col-header" onclick=" toggleColumn(7) ">
-            <span class="label">Stop Loss</span>
-            <span class="toggle-btn"></span>
-          </div>
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      {}
-    </tbody>
-  </table>
-</div>
+  <body>
+    <h2>Portfolio Overview</h2>
 
-<script>
-function toggleColumn(colIndex) {{
-  const th = document.querySelector(`th:nth-child(${{colIndex}})`);
-  const tds = document.querySelectorAll(`td:nth-child(${{colIndex}})`);
+    <div id="signal-filters" style="margin-bottom: 0.5em;">
+      <button class="filter-btn active" 
+              data-type="entry" onclick="toggleSignal(this) ">Entry</button>
+      <button class="filter-btn active" 
+              data-type="exit" onclick="toggleSignal(this) ">Exit</button>
+      <button class="filter-btn active" 
+              data-type="watchlist" onclick="toggleSignal(this) ">Watchlist</button>
+      <button class="filter-btn active" 
+              data-type="caution" onclick="toggleSignal(this) ">Caution</button>
+      <button class="filter-btn active" 
+              data-type="holdcautiously" 
+              onclick="toggleSignal(this) ">Hold Cautiously</button>
+      <button class="filter-btn active" 
+              data-type="mixed" onclick="toggleSignal(this) ">Mixed</button>
+      <button onclick="showAllSignals() ">Show All</button>
+    </div>
 
-  const isCollapsed = th.classList.toggle("collapsed");
-  tds.forEach(td => {{
-    if (isCollapsed) td.classList.add("collapsed");
-    else td.classList.remove("collapsed");
-  }});
-}}
-</script>
-</body>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(1) ">
+                <span class="label">Signal</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(2) ">
+                <span class="label">Symbol</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(3) ">
+                <span class="label">Price</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(4) ">
+                <span class="label">EMA9/21</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(5) ">
+                <span class="label">RSI</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(6) ">
+                <span class="label">Position</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(7) ">
+                <span class="label">Stop Loss</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {}
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      function toggleColumn(colIndex) {{
+        const th = document.querySelector(`th:nth-child(${{colIndex}})`);
+        const tds = document.querySelectorAll(`td:nth-child(${{colIndex}})`);
+
+        const isCollapsed = th.classList.toggle("collapsed");
+        tds.forEach(td => {{
+          if (isCollapsed) td.classList.add("collapsed");
+          else td.classList.remove("collapsed");
+        }});
+      }}
+
+      function toggleSignalDetails(row, detailRowId) {{
+        const detailRow = document.getElementById(detailRowId);
+        if (!detailRow) return;
+
+        const isVisible = detailRow.style.display !== "none";
+        detailRow.style.display = isVisible ? "none" : "table-row";
+      }}
+
+      function toggleSignal(button) {{
+        const type = button.dataset.type;
+        const rows = document.querySelectorAll(`tr.signal-${{type}}`);
+
+        const isActive = button.classList.toggle('active');
+        rows.forEach(row => {{
+          row.style.display = isActive ? '' : 'none';
+
+          // Hide detail row if it's visible
+          const detailRow = 
+            document.getElementById(`${{row.id.replace('row-', '')}}-details`);
+          if (detailRow && !isActive) detailRow.style.display = 'none';
+        }});
+      }}
+
+      function showAllSignals() {{
+        const signalRows = document.querySelectorAll('tr[id^="row-"]');
+        signalRows.forEach(row => row.style.display = '');
+
+        const detailRows = document.querySelectorAll('.signal-details-row');
+        detailRows.forEach(row => row.style.display = 'none');
+
+        const buttons = document.querySelectorAll('#signal-filters .filter-btn');
+        buttons.forEach(btn => btn.classList.add('active'));
+      }}
+    </script>
+  </body>
 </html>
 )";
 
 inline constexpr std::string_view html_row_template = R"(
-  <tr class="{}">
+  <tr class="{}" 
+      id="row-{}" 
+      onclick="toggleSignalDetails(this, '{}-details') ">
     <td data-label="Signal">{}</td>
-    <td data-label="Symbol">{}</td>
+    <td data-label="Symbol"><a href="{}.html">{}</a></td>
     <td data-label="Price">{:.2f}</td>
-    <td data-label="EMA9/21">{:.2f} / {:.2f}</td>
+    <td data-label="EMA 9|21">{:<6.2f} | {:<6.2f}</td>
     <td data-label="RSI">{:.2f}</td>
     <td data-label="Position">{}</td>
     <td data-label="Stop Loss">{}</td>
@@ -270,10 +387,20 @@ inline constexpr std::string_view html_row_template = R"(
 )";
 
 inline constexpr std::string_view html_signal_template = R"(
-  <details>
-    <summary>{}</summary>
-    <div class="signal-details">{}</div>
-  </details>
+  <tr id="{}-details" 
+      class="signal-details-row" 
+      style="display:none">
+    <td colspan="3">
+      <div class="signal-details">
+        {}
+      </div>
+    </td>
+    <td colspan="4">
+      <div class="signal-details">
+        {}
+      </div>
+    </td>
+  </tr>
 )";
 
 inline constexpr std::string html_row_class(SignalType type) {

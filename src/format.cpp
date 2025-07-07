@@ -17,11 +17,23 @@ std::string to_str(const Candle& candle) {
 
 template <>
 std::string to_str(const Trade& t) {
-  return std::format("{:<10} {:<6} {:<4} {:>6.2f} @ {:>6.2f}",                //
+  return std::format("{:<12} {:<6} {:<4} {:>6.2f} @ {:>6.2f}",                //
                      t.date, t.ticker,                                        //
                      (t.action == Action::BUY ? "BUY" : "SELL"),              //
                      double(t.qty) / FLOAT_SCALE, double(t.px) / FLOAT_SCALE  //
   );
+}
+
+template <>
+std::string to_str(const Trades& t) {
+  std::string str = "Trades: \n";
+  for (auto& [symbol, trades] : t) {
+    str += std::format("\n• {}\n", symbol);
+    for (auto& trade : trades) {
+      str += std::format("  - {}\n", to_str(trade));
+    }
+  }
+  return str;
 }
 
 template <>
@@ -51,19 +63,6 @@ std::string to_str<FormatTarget::Telegram>(const Metrics& metrics) {
   return std::format(
       "   Px: {:.2f} | EMA 9/21: {}\n   RSI: {} | Pullback: {}\n",
       metrics.last_price(), ema_str, rsi_str, pb_str);
-}
-
-template <>
-std::string to_str<FormatTarget::Console>(const Metrics& metrics) {
-  const auto& ind = metrics.indicators_1h;
-
-  auto ema_str = std::format("{}/{}", to_str(ind.ema9), to_str(ind.ema21));
-  auto rsi_str = to_str(ind.rsi);
-  auto [high, pb] = metrics.pullback();
-  auto pb_str = std::format("{:.2f} ({:.2f}%)", high, pb);
-
-  return std::format("{:<8}{:<10.2f}{:<17}{:<10}{:<17}", metrics.symbol,
-                     metrics.last_price(), ema_str, rsi_str, pb_str);
 }
 
 template <>
@@ -173,26 +172,12 @@ std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Signal& s) {
+std::string to_str<FormatTarget::SignalExit>(const Signal& s) {
   std::ostringstream out;
-
-  if (!s.entry_reasons.empty()) {
-    out << "<div><b>Entry Reasons:</b><ul>";
-    for (const auto& r : s.entry_reasons)
-      out << std::format("<li>{}</li>", to_str(r));
-    out << "</ul></div>";
-  }
 
   if (!s.exit_reasons.empty()) {
     out << "<div><b>Exit Reasons:</b><ul>";
     for (const auto& r : s.exit_reasons)
-      out << std::format("<li>{}</li>", to_str(r));
-    out << "</ul></div>";
-  }
-
-  if (!s.entry_hints.empty()) {
-    out << "<div><b>Entry Hints:</b><ul>";
-    for (const auto& r : s.entry_hints)
       out << std::format("<li>{}</li>", to_str(r));
     out << "</ul></div>";
   }
@@ -208,50 +193,24 @@ std::string to_str<FormatTarget::HTML>(const Signal& s) {
 }
 
 template <>
-std::string to_str<FormatTarget::Console>(const Signal& sig) {
-  if (!sig.has_signal() && !sig.has_hints())
-    return "";
+std::string to_str<FormatTarget::SignalEntry>(const Signal& s) {
+  std::ostringstream out;
 
-  std::string result;
-
-  // --- Signal line ---
-  if (sig.has_signal()) {
-    auto type_str = to_str(sig.type);
-    auto& reasons =
-        sig.type == SignalType::Entry ? sig.entry_reasons : sig.exit_reasons;
-    auto reason_str = join(reasons, to_str<Reason>, ", ");
-
-    result += std::format("Signal: {}{} ({}){}", sig.color(), type_str,
-                          reason_str, RESET);
-  } else {
-    result += "Hints: ";
+  if (!s.entry_reasons.empty()) {
+    out << "<div><b>Entry Reasons:</b><ul>";
+    for (const auto& r : s.entry_reasons)
+      out << std::format("<li>{}</li>", to_str(r));
+    out << "</ul></div>";
   }
 
-  // --- Hints ---
-  std::string entry_str, exit_str;
-
-  if (!sig.entry_hints.empty()) {
-    entry_str = std::format(
-        "{}{}{}", GREEN,
-        join(sig.entry_hints, [](auto& hint) { return hint.str; }), RESET);
+  if (!s.entry_hints.empty()) {
+    out << "<div><b>Entry Hints:</b><ul>";
+    for (const auto& r : s.entry_hints)
+      out << std::format("<li>{}</li>", to_str(r));
+    out << "</ul></div>";
   }
 
-  if (!sig.exit_hints.empty()) {
-    exit_str = std::format(
-        "{}{}{}", RED,
-        join(sig.exit_hints, [](auto& hint) { return hint.str; }), RESET);
-  }
-
-  if (!entry_str.empty() || !exit_str.empty())
-    result += std::format(                                     //
-        "{}{}{}{}",                                            //
-        sig.has_signal() ? " | " : "",                         //
-        entry_str,                                             //
-        !entry_str.empty() && !exit_str.empty() ? " | " : "",  //
-        exit_str                                               //
-    );
-
-  return result;
+  return out.str();
 }
 
 std::string Signal::color_bg() const {
@@ -311,14 +270,6 @@ std::string to_str<FormatTarget::Telegram>(const StopLoss& sl) {
 }
 
 template <>
-std::string to_str<FormatTarget::Console>(const StopLoss& sl) {
-  if (sl.final_stop == 0.0)
-    return "";
-  return std::format("Stops: sw = {:.2f}, ema = {:.2f}, atr = {:.2f}",  //
-                     sl.swing_low, sl.ema_stop, sl.atr_stop);
-}
-
-template <>
 std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
   if (sl.final_stop == 0.0)
     return "";
@@ -344,18 +295,18 @@ std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
 
   auto metrics_str = to_str<FormatTarget::Telegram>(metrics);
   auto pos_line = ticker.pos_to_str(true);
-  auto stop_line = to_str<FormatTarget::Telegram>(metrics.stop_loss) + "\n";
+  auto stop_line = to_str<FormatTarget::Telegram>(metrics.stop_loss);
   auto signal_str = to_str<FormatTarget::Telegram>(signal);
 
   return std::format(
-      "{} *{}*{}\n"                      //
-      "{}"                               //
-      "{}"                               //
-      "{}\n",                            //
-      signal.emoji(), symbol, pos_line,  //
-      metrics_str,                       //
-      stop_line,                         //
-      signal_str                         //
+      "{} *{}*{}\n"                             //
+      "{}"                                      //
+      "{}"                                      //
+      "{}\n",                                   //
+      signal.emoji(), symbol, pos_line,         //
+      metrics_str,                              //
+      stop_line == "" ? "" : stop_line + "\n",  //
+      signal_str                                //
   );
 }
 
@@ -374,27 +325,6 @@ std::string to_str<FormatTarget::Alert>(const Ticker& ticker) {
   );
 }
 
-template <>
-std::string to_str<FormatTarget::Console>(const Ticker& ticker) {
-  auto& [symbol, p, t, metrics, signal, position] = ticker;
-
-  auto metrics_str = to_str<FormatTarget::Console>(metrics);
-  auto pos_line = ticker.pos_to_str(false);
-  auto stop_line = to_str<FormatTarget::Console>(metrics.stop_loss) + "\n";
-  auto signal_str = to_str<FormatTarget::Console>(signal);
-
-  return std::format(
-      "{}••{}  "                           //
-      "{}{}{}"                             //
-      "{}\n"                               //
-      "{}",                                //
-      signal.color_bg(), RESET,            //
-      signal.color(), metrics_str, RESET,  //
-      signal_str,                          //
-      pos_line                             //
-  );
-}
-
 std::string Ticker::pos_to_str(bool tg) const {
   if (position == nullptr || position->qty <= 0)
     return "";
@@ -407,46 +337,25 @@ std::string Ticker::pos_to_str(bool tg) const {
 
   auto pos_str = to_str(*position);
   return tg ? std::format(" | {}, {}", pos_str, pnl_str)
-            : std::format(                                //
-                  "->  {}{}{}, {} | {}\n",                //
-                  pnl > 0 ? GREEN : RED, pos_str, RESET,  //
-                  pnl_str,                                //
-                  has_position()
-                      ? ""
-                      : to_str<FormatTarget::Telegram>(metrics.stop_loss)  //
-              );
+            : std::format("{}, {}\n", pos_str, pnl_str);
 }
 
-void Portfolio::console_update() const {
-  std::system("clear");
-  std::string header = std::format(
-      "    "
-      "{:<8}"   // Ticker
-      "{:<10}"  // Price
-      "{:<17}"  // EMA
-      "{:<10}"  // RSI
-      "{:<17}"  // High (PB)
-      "\n",
-      "Ticker", "Price",              //
-      "EMA 9/21", "RSI", "High (PB)"  //
-  );
+template <>
+std::string to_str<FormatTarget::Telegram>(const OpenPositions& open,
+                                           const Tickers& tickers) {
+  auto& positions = open.get_positions();
 
-  std::cout << header << std::string(header.size(), '-') << std::endl;
-  for (const auto& [symbol, ticker] : tickers)
-    if (ticker.metrics.last_price() != 0)
-      std::cout << to_str<FormatTarget::Console>(ticker);
-  std::cout << std::endl;
-}
-
-std::string OpenPositions::to_str(bool tg) const {
   if (positions.empty())
-    return "";
+    return "No positions open";
 
   std::ostringstream msg;
   msg << "🗿 *Open Positions*\n\n";
 
-  for (auto [symbol, position] : positions)
-    msg << position_for_tg_str(symbol, position, 0);
+  for (auto [symbol, position] : positions) {
+    auto it = tickers.find(symbol);
+    double price = it == tickers.end() ? 0.0 : it->second.metrics.last_price();
+    msg << position_for_tg_str(symbol, position, position.pnl(price));
+  }
 
   return msg.str();
 }
@@ -456,25 +365,31 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   std::string body;
 
   for (const auto& [symbol, ticker] : p.tickers) {
+    if (ticker.signal.type == SignalType::None)
+      continue;
+
     const auto& m = ticker.metrics;
     const auto& ind = m.indicators_1h;
 
     auto row_class = html_row_class(ticker.signal.type);
-    auto signal_html = std::format(html_signal_template,  //
-                                   to_str(ticker.signal.type),
-                                   to_str<FormatTarget::HTML>(ticker.signal));
 
     double last_price = m.last_price();
     double ema9 = ind.ema9.values.empty() ? 0.0 : ind.ema9.values.back();
     double ema21 = ind.ema21.values.empty() ? 0.0 : ind.ema21.values.back();
     double rsi = ind.rsi.values.empty() ? 0.0 : ind.rsi.values.back();
 
-    auto pos_str = ticker.has_position() ? ticker.pos_to_str(false) : "-";
+    auto pos_str = ticker.has_position() ? ticker.pos_to_str(false) : "";
     auto stop_loss_str = to_str<FormatTarget::HTML>(m.stop_loss);
 
     body += std::format(html_row_template,  //
-                        row_class, signal_html, symbol, last_price, ema9, ema21,
-                        rsi, pos_str, stop_loss_str);
+                        row_class, symbol, symbol, to_str(ticker.signal.type),
+                        symbol, symbol, last_price, ema9, ema21, rsi, pos_str,
+                        stop_loss_str);
+
+    body += std::format(html_signal_template,  //
+                        symbol,                //
+                        to_str<FormatTarget::SignalEntry>(ticker.signal),
+                        to_str<FormatTarget::SignalExit>(ticker.signal));
   }
 
   return std::format(html_template, body);

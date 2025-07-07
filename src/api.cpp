@@ -283,3 +283,29 @@ TD::Result TD::time_series(const std::string& symbol, int n_days) {
 Candle TD::real_time(const std::string& symbol) {
   return api_call(symbol, 1).back();
 }
+
+bool wait_for_file(const std::string& path,
+                   int timeout_seconds,
+                   int poll_interval_ms) {
+  namespace fs = std::filesystem;
+
+  fs::path file_path(path);
+  auto start = std::chrono::steady_clock::now();
+
+  std::optional<fs::file_time_type> last_mod_time;
+
+  while (true) {
+    if (fs::exists(file_path)) {
+      auto mod_time = fs::last_write_time(file_path);
+      if (!last_mod_time || mod_time != *last_mod_time)
+        return true;
+    }
+
+    if (std::chrono::steady_clock::now() - start >
+        std::chrono::seconds(timeout_seconds)) {
+      return false;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(poll_interval_ms));
+  }
+}

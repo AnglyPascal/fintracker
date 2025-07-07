@@ -2,6 +2,7 @@
 #include "indicators.h"
 #include "signal.h"
 
+#include <iostream>
 #include <numeric>
 
 LinearRegression::LinearRegression(const std::vector<Point>& vals) noexcept {
@@ -66,9 +67,24 @@ TrendLines::TrendLines(const std::vector<double>& series,
 
   std::sort(candidates.begin(), candidates.end());
 
-  top_trends.assign(
-      candidates.begin(),
-      candidates.begin() + std::min<int>(top_n, candidates.size()));
+  auto n = std::min<int>(top_n, candidates.size());
+  int i = 0;
+  while (n > 0 && i < candidates.size()) {
+    auto& now = candidates[i++];
+
+    bool valid = true;
+    for (auto& trend : top_trends) {
+      if (std::abs(trend.period - now.period) <= 5) {
+        valid = false;
+        break;
+      }
+    }
+
+    if (valid) {
+      top_trends.emplace_back(now);
+      n--;
+    }
+  }
 }
 
 std::string TrendLines::to_str() const {

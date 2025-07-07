@@ -48,10 +48,15 @@ enum class FormatTarget {
   Alert,
   Console,
   HTML,
+  SignalEntry,
+  SignalExit,
 };
 
 template <FormatTarget target, typename T>
 std::string to_str(const T& t);
+
+template <FormatTarget target, typename T, typename S>
+std::string to_str(const T& t, const S& s);
 
 template <typename T>
 std::string to_str(const T& t);

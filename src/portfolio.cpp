@@ -63,6 +63,7 @@ Portfolio::Portfolio(const std::vector<SymbolInfo>& symbols) noexcept
     tickers.try_emplace(symbol, symbol, priority, std::move(candles),
                         update_interval, position);
   }
+  plot_all();
 }
 
 void Portfolio::update() {
@@ -72,6 +73,7 @@ void Portfolio::update() {
     ticker.metrics.add(candle, ticker.position);
     ticker.signal = Signal{ticker.metrics};
   }
+  plot_all();
 }
 
 void Portfolio::send_tg_update() const {
@@ -112,14 +114,14 @@ void Portfolio::send_tg_alert() const {
 }
 
 void Portfolio::send_updates() const {
-  console_update();
-
   if (count % 2 == 0)
     send_tg_update();
-
   send_tg_alert();
-
   count++;
+}
+
+void Portfolio::send_current_positions(const std::string&) const {
+  TG::send(to_str<FormatTarget::Telegram>(positions, tickers));
 }
 
 void Portfolio::status(const std::string& symbol) const {
@@ -141,6 +143,7 @@ void Portfolio::run() {
 
   while (true) {
     positions.update();
+
     if (!is_us_market_open_now()) {
       sleep(5);
       continue;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "format.h"
 #include "indicators.h"
 
 #include <chrono>
@@ -66,5 +67,6 @@ class OpenPositions {
   Position* get_position(const std::string& symbol);
   const Position* get_position(const std::string& symbol) const;
 
-  std::string to_str(bool tg = false) const;
+  const Positions& get_positions() const { return positions; };
+  const Trades& get_trades() const { return trades_by_ticker; }
 };

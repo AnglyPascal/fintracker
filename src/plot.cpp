@@ -6,12 +6,10 @@
 #include <thread>
 
 inline void trendlines_to_csv(auto& candles,
-                              const TrendLines& trend_lines,
+                              const TrendLine& trend_line,
                               const std::string& file_name) {
   std::ofstream f(file_name);
   f << "datetime,value\n";
-
-  auto trend_line = trend_lines.top_trends[0];
 
   auto period = trend_line.period;
   auto n = candles.size();
@@ -21,32 +19,6 @@ inline void trendlines_to_csv(auto& candles,
   }
   f.flush();
   f.close();
-}
-
-inline bool wait_for_file(const std::string& path,
-                          int timeout_seconds = 30,
-                          int poll_interval_ms = 500) {
-  namespace fs = std::filesystem;
-
-  fs::path file_path(path);
-  auto start = std::chrono::steady_clock::now();
-
-  std::optional<fs::file_time_type> last_mod_time;
-
-  while (true) {
-    if (fs::exists(file_path)) {
-      auto mod_time = fs::last_write_time(file_path);
-      if (!last_mod_time || mod_time != *last_mod_time)
-        return true;
-    }
-
-    if (std::chrono::steady_clock::now() - start >
-        std::chrono::seconds(timeout_seconds)) {
-      return false;
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(poll_interval_ms));
-  }
 }
 
 void Indicators::plot(const std::string& symbol) const {
@@ -71,27 +43,37 @@ void Indicators::plot(const std::string& symbol) const {
   f.flush();
   f.close();
 
-  trendlines_to_csv(candles, trends.price, "price_fit.csv");
-  trendlines_to_csv(candles, trends.ema21, "ema21_fit.csv");
-  trendlines_to_csv(candles, trends.rsi, "rsi_fit.csv");
+  if (!trends.price.top_trends.empty()) {
+    auto& top_trends = trends.price.top_trends;
+    for (int i = 0; i < top_trends.size(); i++)
+      trendlines_to_csv(candles, top_trends[i],
+                        std::format("price_fit_{}.csv", i));
+  }
+
+  // trendlines_to_csv(candles, trends.ema21, "ema21_fit.csv");
+  if (!trends.rsi.top_trends.empty()) {
+    auto& top_trends = trends.rsi.top_trends;
+    for (int i = 0; i < top_trends.size(); i++)
+      trendlines_to_csv(candles, top_trends[i],
+                        std::format("rsi_fit_{}.csv", i));
+  }
 
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   std::string cmd = "python3 scripts/plot_metrics.py " + symbol;
   std::system(cmd.c_str());
-
-  auto fname = symbol + ".html";
-  if (wait_for_file(fname))
-    TG::send_doc(fname, "Charts for " + symbol);
 }
 
 void Metrics::plot() const {
   indicators_1h.plot(symbol);
 }
 
-void Portfolio::plot(const std::string& ticker) const {
-  auto it = tickers.find(ticker);
-  if (it == tickers.end())
-    return;
-  it->second.metrics.plot();
+void Portfolio::plot_all() const {
+  auto td = std::thread(
+      [](auto* portfolio) {
+        for (auto& [symbol, ticker] : portfolio->tickers)
+          ticker.metrics.plot();
+      },
+      this);
+  td.detach();
 }

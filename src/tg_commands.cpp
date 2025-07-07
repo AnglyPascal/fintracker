@@ -1,6 +1,7 @@
 #include "tg_commands.h"
 
 #include "api.h"
+#include "format.h"
 #include "indicators.h"
 
 #include <ctime>
@@ -35,13 +36,13 @@ void handle_command(Portfolio& portfolio, std::istream& is) {
   if constexpr (command == Commands::STATUS) {
     portfolio.status(symbol);
   } else if constexpr (command == Commands::TRADES) {
-    std::string since;
-    is >> since;
-    TG::send(std::format("/trades not implemented: {} {}\n", symbol, since));
+    TG::send(to_str(portfolio.get_trades()));
   } else if constexpr (command == Commands::POSITIONS) {
     portfolio.send_current_positions(symbol);
   } else if constexpr (command == Commands::PLOTS) {
-    portfolio.plot(symbol);
+    auto fname = symbol + ".html";
+    if (wait_for_file(fname))
+      TG::send_doc(fname, "Charts for " + symbol);
   }
 }
 

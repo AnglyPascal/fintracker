@@ -57,16 +57,14 @@ class Portfolio {
   void update();
 
  public:
-  void send_current_positions(const std::string& ticker) const {
-    positions.send_current_positions(ticker);
-  }
+  void send_current_positions(const std::string& ticker) const;
   void status(const std::string& ticker) const;
+  const Trades& get_trades() const { return positions.get_trades(); }
 
  private:
   mutable int last_tg_update_msg_id = -1;
   void send_tg_update() const;
   void send_tg_alert() const;
-  void console_update() const;
 
   void send_updates() const;
   void write_html() const;
@@ -76,7 +74,10 @@ class Portfolio {
 
   void debug() const;
   void run();
+
   void plot(const std::string& ticker) const;
+  void plot_all() const;
+
 
   template <FormatTarget target, typename T>
   friend std::string to_str(const T& t);
