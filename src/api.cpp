@@ -1,10 +1,11 @@
 #include "api.h"
+#include "indicators.h"
 
 #include <cpr/cpr.h>
-#include <curl/curl.h>
+#include <nlohmann/json.hpp>
+
 #include <format>
 #include <iostream>
-#include <nlohmann/json.hpp>
 #include <unordered_map>
 
 using nlohmann::json;
@@ -34,6 +35,9 @@ using nlohmann::json;
 #endif
 
 int TG::send(const std::string& text) {
+  if (text == "")
+    return -1;
+
   auto url =
       std::format("https://api.telegram.org/bot{}/sendMessage", TG_TOKEN);
   cpr::Response r = cpr::Post(cpr::Url{url},
@@ -41,7 +45,7 @@ int TG::send(const std::string& text) {
                                            {"text", text},
                                            {"parse_mode", "Markdown"}});
 
-  if (r.status_code != 200) {
+  if (r.status_code != 200 || r.text == "") {
     std::cerr << "[tg] Error " << r.status_code << ": " << r.text << std::endl
               << text << std::endl;
     return -1;
@@ -65,12 +69,17 @@ int TG::pin_message(int message_id) {
     return -1;
   }
 
-  auto json = json::parse(r.text);
-  if (json.contains("ok") && json["ok"].get<bool>() == true)
-    return 0;
+  try {
+    auto json = json::parse(r.text);
+    if (json.contains("ok") && json["ok"].get<bool>() == true)
+      return 0;
 
-  std::cerr << "[tg] Failed to pin message: " << r.text << std::endl;
-  return -1;
+    std::cerr << "[tg] Failed to pin message: " << r.text << std::endl;
+    return -1;
+  } catch (...) {
+    std::cerr << "[tg] unexpected error: " << r.text << std::endl;
+    return -1;
+  }
 }
 
 int TG::edit_msg(int message_id, const std::string& text) {
@@ -89,12 +98,17 @@ int TG::edit_msg(int message_id, const std::string& text) {
     return -1;
   }
 
-  auto json = json::parse(r.text);
-  if (json.contains("ok") && json["ok"].get<bool>() == true)
-    return 0;
+  try {
+    auto json = json::parse(r.text);
+    if (json.contains("ok") && json["ok"].get<bool>() == true)
+      return 0;
 
-  std::cerr << "[tg] Failed to edit message: " << r.text << std::endl;
-  return -1;
+    std::cerr << "[tg] Failed to edit message: " << r.text << std::endl;
+    return -1;
+  } catch (...) {
+    std::cerr << "[tg] unexpected error: " << r.text << std::endl;
+    return -1;
+  }
 }
 
 std::tuple<bool, std::string, int> TG::receive(int last_update_id) {
@@ -148,14 +162,16 @@ int TG::delete_msg(int message_id) {
   return 0;
 }
 
-int TG::send_doc(const std::string& doc_name, const std::string& caption) {
+int TG::send_doc(const std::string& fname,
+                 const std::string& copy_name,
+                 const std::string& caption) {
   auto url =
       std::format("https://api.telegram.org/bot{}/sendDocument", TG_TOKEN);
 
   cpr::Multipart multipart{
       {"chat_id", TG_CHAT_ID},
       {"caption", caption},
-      {"document", cpr::File{doc_name, doc_name}, "text/html"}};
+      {"document", cpr::File{fname, copy_name}, "text/html"}};
 
   cpr::Response r = cpr::Post(cpr::Url{url}, multipart);
 

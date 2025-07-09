@@ -1,14 +1,14 @@
 #pragma once
 
 #include "api.h"
-#include "format.h"
 #include "indicators.h"
 #include "positions.h"
-#include "prediction.h"
 #include "signal.h"
 
 #include <chrono>
 #include <map>
+#include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <vector>
 
@@ -17,14 +17,12 @@ using TimePoint = Clock::time_point;
 
 struct Ticker {
   const std::string symbol;
-  int priority;  // 1 = high, 2 = low
+  int priority;  // 1 = high, 2 = medium, 3 = low
 
   TimePoint last_polled;
 
   Metrics metrics;
   Signal signal = {};
-
-  const Position* position = nullptr;
 
   Ticker(const std::string& symbol,
          int priority,
@@ -41,44 +39,60 @@ struct Ticker {
 using Tickers = std::map<std::string, Ticker>;
 using SymbolInfo = std::pair<std::string, int>;
 
+enum class FormatTarget;
+
 class Portfolio {
+  std::vector<SymbolInfo> symbols;
   TD td;
 
   Tickers tickers;
   OpenPositions positions;
 
   TimePoint last_updated;
-  minutes update_interval;
+  const minutes update_interval;
 
-  mutable int count = 0;
-
- private:
-  int get_priority(const Ticker& ticker) const;
-  void update();
+  mutable std::shared_mutex mtx;
 
  public:
-  void send_current_positions(const std::string& ticker) const;
-  void status(const std::string& ticker) const;
-  const Trades& get_trades() const { return positions.get_trades(); }
-
- private:
-  mutable int last_tg_update_msg_id = -1;
-  void send_tg_update() const;
-  void send_tg_alert() const;
-
-  void send_updates() const;
-  void write_html() const;
-
- public:
-  Portfolio(const std::vector<SymbolInfo>& symbols) noexcept;
-
-  void debug() const;
+  Portfolio() noexcept;
   void run();
 
-  void plot(const std::string& ticker) const;
-  void plot_all() const;
+  template <typename... Args>
+  auto reader_lock(Args&&... args) const {
+    return std::shared_lock(mtx, std::forward<Args>(args)...);
+  }
 
+  template <typename... Args>
+  auto writer_lock(Args&&... args) {
+    return std::unique_lock(mtx, std::forward<Args>(args)...);
+  }
+
+  void add_trade(const Trade& trade) const;
+
+ private:
+  void add_candle();
+
+  void plot(const std::string& ticker) const;
+  void write_page() const;
+
+  static std::vector<SymbolInfo> read_symbols();
+
+  friend class Notifier;
 
   template <FormatTarget target, typename T>
   friend std::string to_str(const T& t);
+
+ public:  // getters
+  const Trades& get_trades() const { return positions.get_trades(); }
+  const Positions& get_positions() const { return positions.get_positions(); }
+
+  const Ticker* get_ticker(const std::string& symbol) const {
+    auto it = tickers.find(symbol);
+    return it == tickers.end() ? nullptr : &it->second;
+  }
+
+  bool is_tracking(const std::string& symbol) const {
+    return tickers.find(symbol) != tickers.end();
+  }
 };
+

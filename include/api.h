@@ -1,6 +1,5 @@
 #pragma once
 
-#include "indicators.h"
 #include "times.h"
 
 #include <chrono>
@@ -21,7 +20,8 @@ class TG {
 
  public:
   static int send(const std::string& text);
-  static int send_doc(const std::string& doc_name,
+  static int send_doc(const std::string& fname,
+                      const std::string& copy_name,
                       const std::string& caption = "");
 
   static int pin_message(int message_id);
@@ -36,6 +36,8 @@ struct APIKey {
   int daily_calls = 0;
   std::deque<TimePoint> call_timestamps = {};  // to enforce 8/min
 };
+
+struct Candle;
 
 class TD {
   using Result = std::vector<Candle>;

@@ -61,3 +61,13 @@ std::string to_str(const T& t, const S& s);
 template <typename T>
 std::string to_str(const T& t);
 
+template <typename It>
+inline std::string join(It start, It end, std::string sep = ",") {
+  std::string result;
+  for (auto it = start; it != end; it++) {
+    result += to_str(*it);
+    if (it != end - 1)
+      result += sep;
+  }
+  return result;
+}

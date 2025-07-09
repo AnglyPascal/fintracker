@@ -20,7 +20,6 @@ struct Candle {
   SysTimePoint time() const;
 
   double true_range(double prev_close) const;
-  static Candle combine(const std::vector<Candle>& group);
 };
 
 struct EMA {
@@ -112,11 +111,10 @@ struct Position;
 struct StopLoss {
   double swing_low = 0.0;
   double ema_stop = 0.0;
-
-  double stop_pct = 0.0;
   double atr_stop = 0.0;
-
   double final_stop = 0.0;
+  double stop_pct = 0.0;
+  bool is_trailing = false;
 
   StopLoss() noexcept = default;
   StopLoss(const Indicators& ind, const Position* pos) noexcept;
@@ -127,12 +125,16 @@ struct Pullback {
   double pb;
 };
 
+std::vector<Candle> downsample(const std::vector<Candle>& candles,
+                               minutes source,
+                               minutes target);
+
 struct Metrics {
   const std::string& symbol;
   std::vector<Candle> candles;
   const minutes interval;
 
-  Indicators indicators_1h, indicators_4h, indicators_1d;
+  Indicators indicators_1h;
   StopLoss stop_loss;
   const Position* position;
 
@@ -143,15 +145,12 @@ struct Metrics {
 
   void add(const Candle& candle, const Position* position) noexcept;
 
-  double last_price() const;
-  const std::string& last_updated() const;
+  auto last_price() const { return candles.back().close; }
+  auto last_updated() const { return candles.back().datetime; }
 
   Pullback pullback(size_t lookback = 360) const;
   bool has_position() const;
 
   void plot() const;
-
- private:
-  std::vector<Candle> downsample(minutes target) const;
 };
 

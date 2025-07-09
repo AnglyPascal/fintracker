@@ -1,14 +1,8 @@
 #include "portfolio.h"
-#include "api.h"
-#include "format.h"
 
-#include <cassert>
-#include <cmath>
-#include <format>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <sstream>
+#include <mutex>
 #include <thread>
 
 inline bool is_us_market_open_now() {
@@ -37,137 +31,115 @@ Ticker::Ticker(const std::string& symbol,
       priority{priority},
       last_polled{Clock::now()},
       metrics{this->symbol, std::move(candles), update_interval, position},
-      signal{metrics},
-      position{position}  //
+      signal{metrics}  //
 {}
 
 bool Ticker::has_position() const {
-  return position != nullptr && position->qty != 0;
+  return metrics.position != nullptr && metrics.position->qty != 0;
 }
 
-int Portfolio::get_priority(const Ticker& ticker) const {
-  if (positions.get_position(ticker.symbol) != nullptr)
-    return 1;
-  return ticker.priority;
+std::vector<SymbolInfo> Portfolio::read_symbols() {
+  std::vector<SymbolInfo> symbols;
+  std::ifstream file("data/tickers.csv");
+  std::string line;
+
+  std::getline(file, line);
+
+  while (std::getline(file, line)) {
+    std::istringstream ss(line);
+    std::string add, symbol, tier_str;
+
+    if (std::getline(ss, add, ',') && std::getline(ss, symbol, ',') &&
+        std::getline(ss, tier_str)) {
+      if (add == "+")
+        symbols.push_back({symbol, std::stoi(tier_str)});
+    }
+  }
+
+  return symbols;
 }
 
-Portfolio::Portfolio(const std::vector<SymbolInfo>& symbols) noexcept
-    : td{symbols.size()},
+Portfolio::Portfolio() noexcept
+    : symbols{Portfolio::read_symbols()},
+      td{symbols.size()},
       positions{},
       last_updated{Clock::now()},   //
       update_interval{td.interval}  //
 {
-  for (auto& [symbol, priority] : symbols)
+#ifndef NDEBUG
+  std::cout << "Update interval " << update_interval << std::endl;
+#endif
+
+  for (auto& [symbol, priority] : symbols) {
+    auto candles = td.time_series(symbol);
+
+    // if filters reject this ticker, don't add it
+    auto add = filter(candles, update_interval);
+    if (!add) {
+#ifndef NDEBUG
+      std::cout << "Skipping " << symbol << std::endl;
+#endif
+      continue;
+    }
+
     tickers.try_emplace(symbol,  //
-                        symbol, priority, td.time_series(symbol),
-                        update_interval, positions.get_position(symbol));
-
-  plot_all();
-}
-
-void Portfolio::update() {
-  for (auto& [symbol, ticker] : tickers) {
-    auto candle = td.real_time(symbol);
-    ticker.position = positions.get_position(symbol);
-    ticker.metrics.add(candle, ticker.position);
-    ticker.signal = Signal{ticker.metrics};
+                        symbol, priority, std::move(candles), update_interval,
+                        positions.get_position(symbol));
   }
-  plot_all();
+
+  write_page();
+
+#ifndef NDEBUG
+  std::cout << "Init at " << current_datetime() << std::endl;
+#endif
 }
 
-void Portfolio::send_tg_update() const {
-  write_html();
-  if (last_tg_update_msg_id != -1)
-    TG::delete_msg(last_tg_update_msg_id);
+void Portfolio::add_candle() {
+  {
+    auto lock = writer_lock();
+    last_updated = Clock::now();
 
-  last_tg_update_msg_id = TG::send_doc("portfolio.html", "Portfolio overview");
-  if (last_tg_update_msg_id != -1)
-    TG::pin_message(last_tg_update_msg_id);
+    for (auto& [symbol, ticker] : tickers) {
+      auto candle = td.real_time(symbol);
+
+      ticker.metrics.add(candle, positions.get_position(symbol));
+      ticker.signal = Signal{ticker.metrics};
+    }
+  }
+
+  write_page();
+
+#ifndef NDEBUG
+  std::cout << "Updated at " << current_datetime() << std::endl;
+#endif
 }
 
-void Portfolio::send_tg_alert() const {
-  std::ostringstream msg;
-  msg << "📊 *Market Update*\n\n";
+void Portfolio::add_trade(const Trade& trade) const {
+  auto portfolio = const_cast<Portfolio*>(this);
+  auto lock = portfolio->writer_lock();
+  portfolio->positions.add_trade(trade);
 
-  for (auto& [symbol, ticker] : tickers)
-    if (ticker.signal.type == SignalType::Exit)
-      msg << to_str<FormatTarget::Alert>(ticker);
-
-  for (auto& [symbol, ticker] : tickers)
-    if (ticker.signal.type == SignalType::HoldCautiously)
-      msg << to_str<FormatTarget::Alert>(ticker);
-
-  for (auto& [symbol, ticker] : tickers)
-    if (ticker.signal.type == SignalType::Entry)
-      msg << to_str<FormatTarget::Alert>(ticker);
-
-  for (auto& [symbol, ticker] : tickers)
-    if (ticker.signal.type == SignalType::Watchlist)
-      msg << to_str<FormatTarget::Alert>(ticker);
-
-  for (auto& [symbol, ticker] : tickers)
-    if (ticker.signal.type == SignalType::Caution)
-      msg << to_str<FormatTarget::Alert>(ticker);
-
-  TG::send(msg.str());
+  auto& metrics = portfolio->tickers.at(trade.ticker).metrics;
+  metrics.position = positions.get_position(trade.ticker);
 }
 
-void Portfolio::send_updates() const {
-  if (count % 2 == 0)
-    send_tg_update();
-  send_tg_alert();
-  count++;
-}
-
-void Portfolio::send_current_positions(const std::string&) const {
-  TG::send(to_str<FormatTarget::Telegram>(positions, tickers));
-}
-
-void Portfolio::status(const std::string& symbol) const {
-  if (symbol == "")
-    return send_tg_update();
-
-  auto it = tickers.find(symbol);
-  if (it == tickers.end())
-    TG::send(std::format("ticker {} is not being tracked\n", symbol));
-  else
-    TG::send(std::format("{}", to_str<FormatTarget::Telegram>(it->second)));
+inline auto sleep(auto mins) {
+  return std::this_thread::sleep_for(std::chrono::minutes(mins));
 }
 
 void Portfolio::run() {
-  send_updates();
-  auto sleep = [](double mins) {
-    std::this_thread::sleep_for(std::chrono::seconds(unsigned(mins * 60)));
-  };
+  sleep(update_interval);
+  while (!is_us_market_open_now())
+    sleep(1);
+
+  while (is_us_market_open_now()) {
+    add_candle();
+    sleep(update_interval);
+  }
 
   while (true) {
-    positions.update();
-
-    if (!is_us_market_open_now()) {
-      sleep(5);
-      continue;
-    }
-
-    auto now = Clock::now();
-    if (now < last_updated + minutes(update_interval)) {
-      sleep(0.5);
-      continue;
-    }
-
-    update();
-    send_updates();
-
-    last_updated = now;
-    debug();
-
+    // TODO: give daily report?
     sleep(1);
   }
 }
 
-void Portfolio::debug() const {}
-
-void Portfolio::write_html() const {
-  std::ofstream file("portfolio.html");
-  file << to_str<FormatTarget::HTML>(*this);
-  file.close();
-}

@@ -1,6 +1,6 @@
 #include "positions.h"
-#include "api.h"
-#include "format.h"
+#include "api.h"     // FIXME: remove this, move it to notifier
+#include "format.h"  // same
 
 #include <cmath>
 #include <filesystem>
@@ -14,50 +14,23 @@
 Position operator-(const Position& lhs, const Position& rhs) {
   auto diff_qty = lhs.qty - rhs.qty;
   auto diff_cost = lhs.cost - rhs.cost;
-  int diff_px = diff_qty != 0 ? std::round(double(diff_cost) / diff_qty) : 0;
-  return {diff_qty, diff_px, diff_cost};
+  auto diff_px = diff_qty != 0 ? std::round(double(diff_cost) / diff_qty) : 0;
+  return {diff_qty, diff_px, diff_cost, 0.0};
 }
 
 double Position::pnl(double price) const {
-  auto value = price * qty / FLOAT_SCALE;
-  return value - (double)(cost) / COST_SCALE;
+  return price * qty - cost;
 }
 
 double Position::pct(double price) const {
-  auto abs_cost = std::abs((double)(cost)) / COST_SCALE;
-  return (cost != 0) ? pnl(price) / abs_cost * 100.0 : 0.0;
-}
-
-double Position::price() const {
-  return (double)px / FLOAT_SCALE;
-}
-
-double Position::quantity() const {
-  return (double)qty / FLOAT_SCALE;
-}
-
-OpenPositions::OpenPositions() noexcept {
-  update();
-}
-
-bool OpenPositions::has_positions_changed() {
-  if (!std::filesystem::exists(POSITIONS_FILE))
-    return false;
-
-  auto ftime = std::filesystem::last_write_time(POSITIONS_FILE);
-  auto systime = std::chrono::clock_cast<std::chrono::system_clock>(ftime);
-  auto cftime = std::chrono::system_clock::to_time_t(systime);
-
-  bool changed = cftime != positions_file_mtime;
-  positions_file_mtime = cftime;
-  return changed;
+  return (cost != 0) ? pnl(price) / std::abs(cost) * 100 : 0.0;
 }
 
 inline std::pair<Position, int> position_from_trades(
     const std::vector<Trade>& trades) {
-  int net_qty = 0;
-  int total_cost = 0;
-  int pnl = 0;
+  double net_qty = 0;
+  double total_cost = 0;
+  double pnl = 0;
 
   for (const Trade& t : trades) {
     int mult = t.action == Action::BUY ? 1 : -1;
@@ -65,19 +38,16 @@ inline std::pair<Position, int> position_from_trades(
     total_cost += t.fees + mult * t.qty * t.px;
 
     if (net_qty == 0) {
-      pnl -= double(total_cost) / COST_SCALE;
+      pnl -= total_cost;
       total_cost = 0;
     }
   }
 
-  int px = std::round(double(total_cost) / net_qty);
-  return {Position{net_qty, px, total_cost}, pnl};
+  auto px = total_cost / net_qty;
+  return {Position{net_qty, px, total_cost, 0.0}, pnl};
 }
 
-void OpenPositions::update() {
-  if (!has_positions_changed())
-    return;
-
+OpenPositions::OpenPositions() noexcept {
   std::ifstream file(POSITIONS_FILE);
   if (!file.is_open()) {
     std::cerr << "Could not open positions file.\n";
@@ -85,15 +55,9 @@ void OpenPositions::update() {
   }
 
   std::string line;
-  for (int i = 0; i < positions_file_line; i++)
-    getline(file, line);  // skip header
-
-  bool first_run = positions_file_line == 1;
-  Trades new_trades_by_ticker;
+  getline(file, line);  // skip header
 
   while (getline(file, line)) {
-    positions_file_line++;
-
     std::istringstream ss(line);
     std::string date, ticker, action_str, qty_str, price_str, fees_str;
 
@@ -105,67 +69,35 @@ void OpenPositions::update() {
     getline(ss, fees_str, ',');
 
     auto action = action_str == "BUY" ? Action::BUY : Action::SELL;
-    int qty = std::round(std::stod(qty_str) * FLOAT_SCALE);
-    int px = std::round(std::stod(price_str) * FLOAT_SCALE);
-    int fees = std::round(std::stod(fees_str) * FLOAT_SCALE * FLOAT_SCALE);
+    auto qty = std::stod(qty_str);
+    auto px = std::stod(price_str);
+    auto fees = std::stod(fees_str);
 
-    auto& trade = trades_by_ticker[ticker].emplace_back(date, ticker, action,
-                                                        qty, px, fees);
-    new_trades_by_ticker[ticker].emplace_back(trade);
+    trades_by_ticker[ticker].emplace_back(date, ticker, action, qty, px, fees);
   }
-
-  Positions new_positions;
 
   for (const auto& [ticker, trades] : trades_by_ticker) {
     auto [pos, pnl] = position_from_trades(trades);
     if (pos.qty > 0)
-      new_positions.try_emplace(ticker, pos);
+      positions.try_emplace(ticker, pos);
   }
-
-  if (!first_run)
-    send_updates(new_trades_by_ticker, positions);
-  std::swap(positions, new_positions);
 }
 
-inline std::string position_for_tg_str(const std::string& symbol,
-                                       const Position& pos,
-                                       double pnl) {
-  auto [qty, px, cost] = pos;
+void OpenPositions::add_trade(const Trade& trade) {
+  auto& ticker = trade.ticker;
+  trades_by_ticker[ticker].emplace_back(trade);
 
-  double total = (double)(cost) / COST_SCALE;
-  double gain = (total != 0) ? pnl / std::abs(total) * 100.0 : 0.0;
-  auto pnl_str = std::format(" | PnL: {:+.2f} ({:+.2f}%)\n", pnl, gain);
+  auto [net_pos, pnl] = position_from_trades(trades_by_ticker.at(ticker));
+  if (net_pos.qty > 0)
+    positions[ticker] = net_pos;
 
-  return std::format("- {:<7}{}{}{}\n", symbol, (qty > 0 ? " +" : " "),
-                     to_str(pos), (qty > 0 ? "" : pnl_str));
-}
-
-void OpenPositions::send_updates(const Trades& new_trades,
-                                 const Positions& old_positions) const {
-  if (new_trades.empty())
-    return;
-
-  std::ostringstream msg;
-  msg << "🔄 *Position Update*\n\n";
-
-  for (auto& [symbol, trades] : new_trades) {
-    auto [diff, pnl] = position_from_trades(trades);
-    if (diff.qty < 0) {
-      if (auto it = old_positions.find(symbol); it != old_positions.end()) {
-        auto& pos = it->second;
-        if (pos.qty + diff.qty == 0)
-          pnl -= diff.cost + pos.cost;
-      }
-    }
-    msg << position_for_tg_str(symbol, diff, (double)pnl / COST_SCALE);
-  }
-
-  TG::send(msg.str());
-}
-
-Position* OpenPositions::get_position(const std::string& symbol) {
-  auto it = positions.find(symbol);
-  return it == positions.end() ? nullptr : &it->second;
+  if (trade.action == Action::BUY)
+    TG::send(std::format("➕ Bought: {} {} @ {}", ticker, trade.qty, trade.px));
+  else if (net_pos.qty > 0)
+    TG::send(std::format("➖ Sold: {} {} @ {}", ticker, trade.qty, trade.px));
+  else
+    TG::send(std::format("✔️ Closed: {} {} @ {}, {}", ticker, trade.qty,
+                         trade.px, pnl));
 }
 
 const Position* OpenPositions::get_position(const std::string& symbol) const {

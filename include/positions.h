@@ -1,6 +1,5 @@
 #pragma once
 
-#include "format.h"
 #include "indicators.h"
 
 #include <chrono>
@@ -14,26 +13,22 @@ enum class Action {
   SELL,
 };
 
-inline constexpr uint32_t FLOAT_SCALE = 100;
-inline constexpr uint32_t COST_SCALE = FLOAT_SCALE * FLOAT_SCALE;
-
 struct Trade {
   std::string date;  // ISO format YYYY-MM-DD
   std::string ticker;
   Action action;  // "BUY" or "SELL"
 
-  int qty;
-  int px;
-  int fees;  // actual = fees / FLOAT_SCALE^2;
+  double qty;
+  double px;
+  double fees;
 };
 
 struct Position {
-  int qty = 0;  // actual = qty / FLOAT_SCALE
-  int px = 0;
-  int cost = 0;
+  double qty = 0;
+  double px = 0;
+  double cost = 0;
 
-  double quantity() const;
-  double price() const;
+  mutable double max_price_seen = 0.0;
 
   double pnl(double price) const;
   double pct(double price) const;
@@ -49,20 +44,13 @@ class OpenPositions {
   Positions positions;
   double total_pnl = 0;
 
-  time_t positions_file_mtime = 0;
-  int positions_file_line = 1;
-
- private:
-  bool has_positions_changed();
-
  public:
   OpenPositions() noexcept;
+  void add_trade(const Trade& trade);
 
-  void update();
   void send_updates(const Trades& trades, const Positions& old_positions) const;
   void send_current_positions(const std::string& ticker) const;
 
-  Position* get_position(const std::string& symbol);
   const Position* get_position(const std::string& symbol) const;
 
   const Positions& get_positions() const { return positions; };

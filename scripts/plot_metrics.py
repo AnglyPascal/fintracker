@@ -7,27 +7,23 @@ import numpy as np
 
 symbol = sys.argv[1]
 
-trades_df = pd.read_csv("trades.csv")
-trades_df["datetime"] = pd.to_datetime(
-    trades_df["datetime"]
-)  # .dt.strftime("%b %d %H:%M")
+trades_df = pd.read_csv("page/trades.csv")
+trades_df["datetime"] = pd.to_datetime(trades_df["datetime"]).dt.strftime("%b %d %H:%M")
 
 buy_trades = trades_df[trades_df["action"] == "BUY"]
 sell_trades = trades_df[trades_df["action"] == "SELL"]
 
-data_df = pd.read_csv("data.csv")
-datetime = pd.to_datetime(data_df["datetime"])  # .dt.strftime("%b %d %H:%M")
+data_df = pd.read_csv("page/data.csv")
+datetime = pd.to_datetime(data_df["datetime"]).dt.strftime("%b %d %H:%M")
 
 
 def read_fits(name, n_fits=3):
     fits = []
     for i in range(n_fits):
-        fname = f"{name}_fit_{i}.csv"
+        fname = f"page/{name}_fit_{i}.csv"
         if os.path.isfile(fname):
             fit = pd.read_csv(fname)
-            fit["datetime"] = pd.to_datetime(
-                fit["datetime"]
-            )  # .dt.strftime("%b %d %H:%M")
+            fit["datetime"] = pd.to_datetime(fit["datetime"]).dt.strftime("%b %d %H:%M")
             fits.append(fit)
     return fits
 
@@ -35,14 +31,18 @@ def read_fits(name, n_fits=3):
 price_fits = read_fits("price")
 rsi_fits = read_fits("rsi")
 
-# Create subplots
 fig = make_subplots(
-    rows=3,
+    rows=4,
     cols=1,
     shared_xaxes=True,
-    vertical_spacing=0.05,
-    row_heights=[0.5, 0.25, 0.25],
-    subplot_titles=(f"{symbol} Price with EMA9 and EMA21", "RSI (1h)", "MACD (1h)"),
+    vertical_spacing=0.04,
+    row_heights=[0.45, 0.1, 0.2, 0.2],
+    subplot_titles=(
+        f"{symbol} Price with EMA9 and EMA21",
+        "Volume",
+        "RSI (1h)",
+        "MACD (1h)",
+    ),
 )
 
 
@@ -55,7 +55,7 @@ def line_style(color, dash=None, width=1.2):
 fig.add_trace(
     go.Scatter(
         x=datetime,
-        y=data_df["price"],
+        y=data_df["close"],
         name="Price",
         line=line_style("black", width=1.5),
     ),  # slightly bolder
@@ -84,6 +84,24 @@ fig.add_trace(
     row=1,
     col=1,
 )
+
+# Normalize volume to [0, 1] so it fits within ~1/3 of price chart
+max_volume = data_df["volume"].max()
+volume_scale = 0.33 * data_df["close"].max() / max_volume
+colors = np.where(data_df["close"] >= data_df["open"], "green", "red")
+
+fig.add_trace(
+    go.Bar(
+        x=datetime,
+        y=data_df["volume"],
+        marker_color=colors,
+        name="Volume",
+        opacity=0.4,
+    ),
+    row=2,
+    col=1,
+)
+
 
 # Add trades
 
@@ -122,12 +140,12 @@ fig.add_trace(
         name="RSI (1h)",
         line=line_style("purple", width=1.2),
     ),  # purple, default width
-    row=2,
+    row=3,
     col=1,
 )
 
-fig.add_hline(y=70, line=line_style("red", width=1.0, dash="dash"), row=2, col=1)
-fig.add_hline(y=30, line=line_style("blue", width=1.0, dash="dash"), row=2, col=1)
+fig.add_hline(y=70, line=line_style("red", width=1.0, dash="dash"), row=3, col=1)
+fig.add_hline(y=30, line=line_style("blue", width=1.0, dash="dash"), row=3, col=1)
 
 # --- 3. MACD ---
 fig.add_trace(
@@ -137,7 +155,7 @@ fig.add_trace(
         name="MACD",
         line=line_style("blue", width=1.2),
     ),  # blue, straight
-    row=3,
+    row=4,
     col=1,
 )
 
@@ -148,7 +166,7 @@ fig.add_trace(
         name="Signal",
         line=line_style("orange", width=1.2),
     ),  # orange, straight
-    row=3,
+    row=4,
     col=1,
 )
 
@@ -174,16 +192,12 @@ def find_cross_points_with_polarity(x, y_fast, y_slow):
             bearish_x.append(x_val)
             bearish_y.append(y_avg)
 
-    return (pd.to_datetime(bullish_x), bullish_y), (
-        pd.to_datetime(bearish_x),
-        bearish_y,
-    )
+    return (bullish_x, bullish_y), (bearish_x, bearish_y)
 
 
 # --- MACD/Signal Crosses ---
-(macd_bull_x, macd_bull_y), (macd_bear_x, macd_bear_y) = (
-    find_cross_points_with_polarity(datetime, data_df["macd"], data_df["signal"])
-)
+macd = find_cross_points_with_polarity(datetime, data_df["macd"], data_df["signal"])
+(macd_bull_x, macd_bull_y), (macd_bear_x, macd_bear_y) = macd
 
 fig.add_trace(
     go.Scatter(
@@ -193,7 +207,7 @@ fig.add_trace(
         name="MACD Bullish",
         marker=dict(color="green", size=6, symbol="circle"),
     ),
-    row=3,
+    row=4,
     col=1,
 )
 
@@ -205,14 +219,13 @@ fig.add_trace(
         name="MACD Bearish",
         marker=dict(color="red", size=6, symbol="circle"),
     ),
-    row=3,
+    row=4,
     col=1,
 )
 
 # --- EMA9/EMA21 Crosses ---
-(ema_bull_x, ema_bull_y), (ema_bear_x, ema_bear_y) = find_cross_points_with_polarity(
-    datetime, data_df["ema9"], data_df["ema21"]
-)
+ema = find_cross_points_with_polarity(datetime, data_df["ema9"], data_df["ema21"])
+(ema_bull_x, ema_bull_y), (ema_bear_x, ema_bear_y) = ema
 
 fig.add_trace(
     go.Scatter(
@@ -264,12 +277,12 @@ def add_fits(fits, row, col, name):
 
 
 add_fits(price_fits, 1, 1, "Price")
-add_fits(rsi_fits, 2, 1, "RSI")
+add_fits(rsi_fits, 3, 1, "RSI")
 
 # Layout
 fig.update_layout(
-    height=800,
-    width=1200,
+    height=900,
+    width=1500,
     showlegend=True,
     title_text=f"Technical Indicators for {symbol}",
     margin=dict(t=80, b=40),
@@ -294,7 +307,7 @@ fig.update_xaxes(
 )
 
 # Get the subset of data for y-axis zooming
-subset_price = data_df["price"].iloc[start_idx : end_idx + 1]
+subset_price = data_df["close"].iloc[start_idx : end_idx + 1]
 smax = abs(subset_price.max())
 ymin = subset_price.min() - smax * 0.02
 ymax = subset_price.max() + smax * 0.02
@@ -304,8 +317,14 @@ subset_macd = data_df["macd"].iloc[start_idx : end_idx + 1]
 smax = max(abs(subset_macd.max()), abs(subset_macd.min()))
 ymin = subset_macd.min() - smax * 0.15
 ymax = subset_macd.max() + smax * 0.15
-fig.update_yaxes(range=[ymin, ymax], row=3, col=1)
+fig.update_yaxes(range=[ymin, ymax], row=4, col=1)
+
+subset_volume = data_df["volume"].iloc[start_idx : end_idx + 1]
+smax = max(abs(subset_volume.max()), abs(subset_volume.min()))
+ymin = subset_volume.min()
+ymax = subset_volume.max() + smax * 0.05
+fig.update_yaxes(range=[ymin, ymax], row=2, col=1)
 
 # Save as interactive HTML
-output_file = f"{symbol}.html"
+output_file = f"page/{symbol}.html"
 fig.write_html(output_file)

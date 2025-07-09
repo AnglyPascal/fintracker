@@ -1,37 +1,12 @@
 #include "indicators.h"
-#include "api.h"
 #include "positions.h"
-#include "signal.h"
 
 #include <cassert>
 #include <numeric>
 
-/*
- * Things that need to be on the tg updates
- * */
-
 double Candle::true_range(double prev_close) const {
   return std::max(
       {high - low, std::abs(high - prev_close), std::abs(low - prev_close)});
-}
-
-Candle Candle::combine(const std::vector<Candle>& group) {
-  assert(!group.empty());
-  Candle out;
-
-  out.datetime = group.front().datetime;  // start time of the group
-  out.open = group.front().open;
-  out.close = group.back().close;
-  out.volume = 0;
-  out.high = group.front().high;
-  out.low = group.front().low;
-
-  for (auto const& c : group) {
-    out.high = std::max(out.high, c.high);
-    out.low = std::min(out.low, c.low);
-    out.volume += c.volume;
-  }
-  return out;
 }
 
 std::string Candle::day() const {
@@ -221,25 +196,50 @@ void Indicators::add(const Candle& candle) noexcept {
   ema21.add(candle);
   ema50.add(candle);
   rsi.add(candle);
+  macd.add(candle);
   atr.add(candle);
 
   trends = Trends{*this};
 }
 
-std::vector<Candle> Metrics::downsample(std::chrono::minutes target) const {
-  assert(target.count() % interval.count() == 0);
+inline Candle combine(auto start, auto end) {
+  assert(start != end);
+  Candle out;
+
+  out.datetime = start->datetime;  // start time of the group
+  out.open = start->open;
+  out.close = (end - 1)->close;
+  out.volume = 0;
+  out.high = start->high;
+  out.low = start->low;
+
+  for (auto it = start; it != end; it++) {
+    out.high = std::max(out.high, it->high);
+    out.low = std::min(out.low, it->low);
+    out.volume += it->volume;
+  }
+  return out;
+}
+
+std::vector<Candle> downsample(const std::vector<Candle>& candles,
+                               minutes source,
+                               minutes target) {
+  if (candles.empty())
+    return {};
+
+  assert(target.count() % source.count() == 0);
 
   std::vector<Candle> out, bucket;
   std::string current_day = candles.front().day();
   SysTimePoint bucket_time;
 
-  for (auto const& c : candles) {
+  for (const auto& c : candles) {
     auto now = c.time();
     auto day = c.day();
 
     if (day != current_day) {
       if (!bucket.empty()) {
-        out.push_back(Candle::combine(bucket));
+        out.push_back(combine(bucket.begin(), bucket.end()));
         bucket.clear();
       }
       current_day = day;
@@ -249,7 +249,7 @@ std::vector<Candle> Metrics::downsample(std::chrono::minutes target) const {
     auto end = bucket_time + target;
     if (end <= now) {
       if (!bucket.empty()) {
-        out.push_back(Candle::combine(bucket));
+        out.push_back(combine(bucket.begin(), bucket.end()));
         bucket.clear();
       }
       bucket_time += target;
@@ -259,7 +259,7 @@ std::vector<Candle> Metrics::downsample(std::chrono::minutes target) const {
   }
 
   if (!bucket.empty())
-    out.push_back(Candle::combine(bucket));
+    out.push_back(combine(bucket.begin(), bucket.end()));
 
   return out;
 }
@@ -271,12 +271,13 @@ Metrics::Metrics(const std::string& symbol,
     : symbol{symbol},
       candles{std::move(candles)},
       interval{interval},
-      indicators_1h{downsample(H_1), H_1},  //
-      indicators_4h{downsample(H_4), H_4},  //
-      indicators_1d{downsample(D_1), D_1},  //
-      stop_loss{indicators_1h, position},   //
-      position{position}                    //
-{}
+      indicators_1h{downsample(this->candles, interval, H_1), H_1},  //
+      stop_loss{indicators_1h, position},                            //
+      position{position}                                             //
+{
+  if (has_position())
+    position->max_price_seen = std::max(position->max_price_seen, last_price());
+}
 
 bool Metrics::has_position() const {
   return position != nullptr && position->qty != 0;
@@ -285,21 +286,19 @@ bool Metrics::has_position() const {
 void Metrics::add(const Candle& candle, const Position* position) noexcept {
   candles.push_back(candle);
 
-  for (auto& indicators : std::initializer_list<Indicators*>{
-           &indicators_1h, &indicators_4h, &indicators_1d}) {
-    size_t skip = indicators->interval / interval;
-    if (candles.size() % skip == 0) {
-      std::vector<Candle> group(candles.end() - skip, candles.end());
-      indicators->add(Candle::combine(group));
-    }
-  }
+  auto add_to_ind = [&](auto& ind) {
+    size_t skip = ind.interval / interval;
+    if (candles.size() % skip == 0)
+      ind.add(combine(candles.end() - skip, candles.end()));
+  };
+
+  add_to_ind(indicators_1h);
 
   this->position = position;
-  stop_loss = StopLoss{indicators_1h, position};
-}
+  if (position != nullptr)
+    position->max_price_seen = std::max(position->max_price_seen, candle.close);
 
-double Metrics::last_price() const {
-  return candles.back().close;
+  stop_loss = StopLoss{indicators_1h, position};
 }
 
 Pullback Metrics::pullback(size_t lookback) const {
@@ -313,10 +312,6 @@ Pullback Metrics::pullback(size_t lookback) const {
   return {high, (high - last_price()) / high * 100.0};
 }
 
-const std::string& Metrics::last_updated() const {
-  return candles.back().datetime;
-}
-
 StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
   if (pos == nullptr || pos->qty == 0)
     return;
@@ -324,27 +319,48 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
   auto& candles = ind.candles;
   auto& ema21 = ind.ema21.values;
 
-  if (candles.size() < 5 || ema21.size() < 1)
-    return;
+  double price = candles.back().close;
+  double atr = ind.atr.val;
+  double entry_price = pos->px;
+  double gain = price - entry_price;
 
-  constexpr int N = 10;  // lookback window for swing low
-  auto n = std::min<int>(N, candles.size());
+  is_trailing = (gain > atr);  // trailing kicks in after ~1R move
 
-  swing_low = std::numeric_limits<double>::max();
-  for (size_t i = candles.size() - n; i < candles.size(); ++i)
-    swing_low = std::min(swing_low, candles[i].low);
+  // Initial Stop
+  if (!is_trailing) {
+    constexpr size_t N = 10;
+    auto n = std::min(N, candles.size());
 
-  auto buffer = 0.015 * candles.back().close;  // fallback buffer (1.5%)
-  auto ema21_val = ema21.back();
+    swing_low = std::numeric_limits<double>::max();
+    for (size_t i = candles.size() - n; i < candles.size(); ++i)
+      swing_low = std::min(swing_low, candles[i].low);
 
-  ema_stop = ema21_val - buffer;
+    auto buffer = 0.015 * price;
+    ema_stop = ema21.back() - buffer;
 
-  // Round down slightly to avoid triggering on noise
-  auto best = std::min(swing_low, ema_stop) * 0.999;
+    auto best = std::min(swing_low, ema_stop) * 0.999;
+    atr_stop = entry_price - 2.0 * atr;
 
-  auto price = pos->price();
-  stop_pct = (2 * ind.atr.val) / price;
-  atr_stop = price - 2 * ind.atr.val;
+    final_stop = std::max(best, atr_stop);
+    stop_pct = (entry_price - final_stop) / entry_price;
+  }
 
-  final_stop = std::max(best, atr_stop);
+  // Trailing Stop
+  else {
+    auto max_price = pos->max_price_seen;
+
+    atr_stop = max_price - 1.5 * atr;
+
+    constexpr size_t N = 8;
+    auto n = std::min(N, candles.size());
+
+    swing_low = std::numeric_limits<double>::max();
+    for (size_t i = candles.size() - n; i < candles.size(); ++i)
+      swing_low = std::min(swing_low, candles[i].low);
+
+    swing_low *= 0.998;  // Slack below recent lows
+
+    final_stop = std::max(swing_low, atr_stop);
+    stop_pct = (price - final_stop) / price;
+  }
 }

@@ -11,26 +11,27 @@ inline constexpr std::string_view html_template = R"(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-:root {{
-  --font-size: 13px;
-  --padding-cell: 0.25em 0.4em;
-  --padding-mobile: 0.2em 0.3em;
-  --row-gap: 0.4em;
-  --color-border: #ccc;
-  --color-header: #f0f0f0;
-  --color-hover: #f5f5f5;
 
-  --color-signal-entry-bg: #c8facc;
-  --color-signal-exit-bg: #ffd2d2;
-  --color-signal-watchlist-bg: #d2e6ff;
-  --color-signal-caution-bg: #fff5d2;
-  --color-signal-mixed-bg: #f5f5f5;
+    :root {{
+      --font-size: 13px;
+      --padding-cell: 0.25em 0.4em;
+      --padding-mobile: 0.2em 0.3em;
+      --row-gap: 0.4em;
+      --color-border: #ccc;
+      --color-header: #f0f0f0;
+      --color-hover: #f5f5f5;
 
-  --color-black: #000;
-  --color-green: #008000;
-  --color-red: #d10000;
-  --color-yellow: #b58900;
-}}
+      --color-signal-entry-bg: #c8facc;
+      --color-signal-exit-bg: #ffd2d2;
+      --color-signal-watchlist-bg: #d2e6ff;
+      --color-signal-caution-bg: #fff5d2;
+      --color-signal-mixed-bg: #f5f5f5;
+
+      --color-black: #000;
+      --color-green: #008000;
+      --color-red: #d10000;
+      --color-yellow: #b58900;
+    }}
 
     body {{
       font-family: monospace;
@@ -222,6 +223,7 @@ inline constexpr std::string_view html_template = R"(
 
   <body>
     <h2>Portfolio Overview</h2>
+    <div style="margin-bottom: 1em"> <b>Updated</b>: {}</div>
 
     <div id="signal-filters" style="margin-bottom: 0.5em;">
       <button class="filter-btn active" 
@@ -362,12 +364,12 @@ inline constexpr std::string_view html_signal_template = R"(
   <tr id="{}-details" 
       class="signal-details-row" 
       style="display:none">
-    <td colspan="3">
+    <td colspan="4">
       <div class="signal-details">
         {}
       </div>
     </td>
-    <td colspan="4">
+    <td colspan="3">
       <div class="signal-details">
         {}
       </div>
@@ -393,3 +395,239 @@ inline constexpr std::string html_row_class(SignalType type) {
       return "";
   }
 }
+
+inline constexpr std::string_view trades_template = R"(
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+
+    :root {{
+      --font-size: 13px;
+      --padding-cell: 0.25em 0.4em;
+      --padding-mobile: 0.2em 0.3em;
+      --row-gap: 0.4em;
+      --color-border: #ccc;
+      --color-header: #f0f0f0;
+      --color-hover: #f5f5f5;
+
+      --color-buy: #c8facc;
+      --color-sell: #ffd2d2;
+
+      --color-black: #000;
+      --color-green: #008000;
+      --color-red: #d10000;
+      --color-yellow: #b58900;
+    }}
+
+    body {{
+      font-family: monospace;
+      font-size: var(--font-size);
+      margin: 0.5em;
+      background-color: #fff;
+    }}
+
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+    }}
+
+    th, td {{
+      border: 1px solid var(--color-border);
+      padding: var(--padding-cell);
+      text-align: left;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      overflow: hidden;
+      transition: all 0.2s ease;
+      font: 11px;
+    }}
+
+    th {{
+      background-color: var(--color-header);
+      cursor: pointer;
+      user-select: none;
+    }}
+
+    tr:hover {{
+      background-color: var(--color-hover);
+    }}
+
+    tr.buy {{
+      background-color: var(--color-buy);
+      color: var(--color-black);
+    }}
+
+    tr.sell {{
+      background-color: var(--color-sell);
+      color: var(--color-black);
+    }}
+
+    /* Column collapse behavior */
+    th .col-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}tumi pora
+
+    .collapsed .label {{
+      display: none;
+    }}
+
+    th.collapsed,
+    td.collapsed {{
+      width: 11px;
+      padding: 0;
+      overflow: hidden;
+    }}
+
+    td.collapsed {{
+      visibility: collapse;
+      white-space: nowrap;
+    }}
+
+    .toggle-btn::after {{
+      content: "▼";
+      font-size: 0.9em;
+      color: #666;
+    }}
+
+    th.collapsed .toggle-btn::after {{
+      content: "▶";
+    }}
+
+    </style>
+
+    <style>
+    /* Mobile support */
+    @media (max-width: 768px) {{
+      table, thead, tbody, th, td, tr {{
+        display: block;
+        width: 100%;
+          padding-right: 1em;
+      }}
+
+      thead {{
+        display: none;
+      }}
+
+      tr {{
+        margin-bottom: var(--row-gap);
+        border: 1px solid var(--color-border);
+        border-radius: 4px;
+        padding: 0.3em;
+        background-color: #fff;
+      }}
+
+      td {{
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap; /* Allows wrapping to avoid overflow */
+        padding: var(--padding-mobile);
+        border: none;
+        border-bottom: 1px solid var(--color-border);
+        width: 100%;
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+      }}
+
+      td:last-child {{
+        border-bottom: none;
+      }}
+
+      td::before {{
+        content: attr(data-label);
+        font-weight: bold;
+        color: #666;
+      }}
+
+      td.collapsed::before {{
+        display: none;
+      }}
+
+      td.collapsed {{
+        display: none;
+      }}
+    }}
+    </style>
+  </head>
+
+  <body>
+    <h2>Trades Overview</h2>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(1) ">
+                <span class="label">Time</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(2) ">
+                <span class="label">Symbol</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(3) ">
+                <span class="label">Action</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(4) ">
+                <span class="label">Quantity</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(5) ">
+                <span class="label">Price</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(6) ">
+                <span class="label">Fees</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {}
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      function toggleColumn(colIndex) {{
+        const th = document.querySelector(`th:nth-child(${{colIndex}})`);
+        const tds = document.querySelectorAll(`td:nth-child(${{colIndex}})`);
+
+        const isCollapsed = th.classList.toggle("collapsed");
+        tds.forEach(td => {{
+          if (isCollapsed) td.classList.add("collapsed");
+          else td.classList.remove("collapsed");
+        }});
+      }}
+    </script>
+  </body>
+</html>
+)";
+
+inline constexpr std::string_view trades_row_template = R"(
+  <tr class="{}">
+    <td data-label="Time">{}</td>
+    <td data-label="Symbol"><a href="{}.html">{}</a></td>
+    <td data-label="Action">{}</td>
+    <td data-label="Quantity">{:.2f}</td>
+    <td data-label="Price">{:.2f}</td>
+    <td data-label="Fees">{:.2f}</td>
+  </tr>
+)";
