@@ -6,7 +6,9 @@
 #include <unordered_map>
 #include <vector>
 
-enum class Severity { Urgent = 0, High = 1, Medium = 2, Low = 3 };
+enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
+
+enum class Source { Price, Stop, EMA, RSI, MACD, None };
 
 enum class SignalType {
   None,            // No action
@@ -42,9 +44,12 @@ enum class ReasonType {
 struct Reason {
   ReasonType type;
   Severity severity;
+  Source src = Source::None;
 
   Reason(ReasonType type) : type{type}, severity{Severity::Low} {}
   Reason(ReasonType type, Severity severity) : type{type}, severity{severity} {}
+  Reason(ReasonType type, Severity severity, Source src)
+      : type{type}, severity{severity}, src{src} {}
 
   bool operator<(const Reason& other) const {
     return severity < other.severity;
@@ -81,9 +86,12 @@ enum class HintType {
 struct Hint {
   HintType type;
   Severity severity;
+  Source src = Source::None;
 
   Hint(HintType type) : type{type}, severity{Severity::Low} {}
   Hint(HintType type, Severity severity) : type{type}, severity{severity} {}
+  Hint(HintType type, Severity severity, Source src)
+      : type{type}, severity{severity}, src{src} {}
 
   bool operator<(const Hint& other) const { return severity < other.severity; }
 };

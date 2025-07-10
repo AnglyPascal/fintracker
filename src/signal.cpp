@@ -98,14 +98,14 @@ inline Reason ema_crossover_entry(const Metrics& m) {
   auto& ema9 = m.indicators_1h.ema9.values;
   auto& ema21 = m.indicators_1h.ema21.values;
   if (PREV(ema9) <= PREV(ema21) && LAST(ema9) > LAST(ema21))
-    return {ReasonType::EmaCrossover, Severity::High};
+    return {ReasonType::EmaCrossover, Severity::High, Source::EMA};
   return ReasonType::None;
 }
 
 inline Reason rsi_cross_50_entry(const Metrics& m) {
   auto& rsi = m.indicators_1h.rsi.values;
   if (PREV(rsi) < 50 && LAST(rsi) >= 50)
-    return {ReasonType::RsiCross50, Severity::Medium};
+    return {ReasonType::RsiCross50, Severity::Medium, Source::RSI};
   return ReasonType::None;
 }
 
@@ -119,7 +119,7 @@ inline Reason pullback_bounce_entry(const Metrics& m) {
   bool ema9_above_ema21 = LAST(ema9) > LAST(ema21);
 
   if (dipped_below_ema21 && recovered_above_ema21 && ema9_above_ema21)
-    return {ReasonType::PullbackBounce, Severity::Urgent};
+    return {ReasonType::PullbackBounce, Severity::Urgent, Source::Price};
 
   return ReasonType::None;
 }
@@ -127,7 +127,7 @@ inline Reason pullback_bounce_entry(const Metrics& m) {
 inline Reason macd_histogram_cross_entry(const Metrics& m) {
   auto& hist = m.indicators_1h.macd.histogram;
   if (PREV(hist) < 0 && LAST(hist) >= 0)
-    return {ReasonType::MacdHistogramCross, Severity::Medium};
+    return {ReasonType::MacdHistogramCross, Severity::Medium, Source::MACD};
   return ReasonType::None;
 }
 
@@ -137,7 +137,7 @@ inline Reason ema_crossdown_exit(const Metrics& m) {
   auto& ema9 = m.indicators_1h.ema9.values;
   auto& ema21 = m.indicators_1h.ema21.values;
   if (PREV(ema9) >= PREV(ema21) && LAST(ema9) < LAST(ema21))
-    return {ReasonType::EmaCrossdown, Severity::High};
+    return {ReasonType::EmaCrossdown, Severity::High, Source::EMA};
   return ReasonType::None;
 }
 
@@ -145,14 +145,14 @@ inline Reason macd_bearish_cross_exit(const Metrics& m) {
   auto& macd = m.indicators_1h.macd.macd_line;
   auto& signal = m.indicators_1h.macd.signal_line;
   if (PREV(macd) >= PREV(signal) && LAST(macd) < LAST(signal))
-    return {ReasonType::MacdBearishCross, Severity::High};
+    return {ReasonType::MacdBearishCross, Severity::High, Source::MACD};
   return ReasonType::None;
 }
 
 inline Reason stop_loss_exit(const Metrics& m) {
   auto price = m.last_price();
   if (price < m.stop_loss.final_stop)
-    return {ReasonType::StopLossHit, Severity::Urgent};
+    return {ReasonType::StopLossHit, Severity::Urgent, Source::Stop};
   return ReasonType::None;
 }
 
@@ -179,7 +179,7 @@ inline Hint ema_converging_hint(const Metrics& m) {
 
   if (LAST(ema9) < LAST(ema21) && curr_dist < prev_dist &&
       curr_dist / LAST(ema21) < 0.01) {
-    return {HintType::Ema9ConvEma21, Severity::Low};
+    return {HintType::Ema9ConvEma21, Severity::Low, Source::EMA};
   }
 
   return HintType::None;
@@ -188,14 +188,14 @@ inline Hint ema_converging_hint(const Metrics& m) {
 inline Hint rsi_approaching_50_hint(const Metrics& m) {
   auto& rsi = m.indicators_1h.rsi.values;
   if (PREV(rsi) < LAST(rsi) && LAST(rsi) > 45 && LAST(rsi) < 50)
-    return {HintType::RsiConv50, Severity::Low};
+    return {HintType::RsiConv50, Severity::Low, Source::RSI};
   return HintType::None;
 }
 
 inline Hint macd_histogram_rising_hint(const Metrics& m) {
   auto& hist = m.indicators_1h.macd.histogram;
   if (PREV(hist) < LAST(hist) && LAST(hist) < 0)
-    return {HintType::MacdRising, Severity::Medium};
+    return {HintType::MacdRising, Severity::Medium, Source::MACD};
   return HintType::None;
 }
 
@@ -210,7 +210,7 @@ inline Hint ema_diverging_hint(const Metrics& m) {
 
   if (LAST(ema9) > LAST(ema21) && curr_dist > prev_dist &&
       curr_dist / LAST(ema21) > 0.02) {
-    return {HintType::Ema9DivergeEma21, Severity::Low};
+    return {HintType::Ema9DivergeEma21, Severity::Low, Source::EMA};
   }
 
   return HintType::None;
@@ -220,7 +220,7 @@ inline Hint rsi_falling_from_overbought_hint(const Metrics& m) {
   double prev = PREV(m.indicators_1h.rsi.values);
   double now = LAST(m.indicators_1h.rsi.values);
   if (prev > 70 && now < prev && prev - now > 3.0)
-    return {HintType::RsiDropFromOverbought, Severity::Medium};
+    return {HintType::RsiDropFromOverbought, Severity::Medium, Source::RSI};
   return HintType::None;
 }
 
@@ -232,7 +232,7 @@ inline Hint macd_histogram_peaking_hint(const Metrics& m) {
   double h0 = hist.back();
 
   if (h2 < h1 && h1 > h0)
-    return {HintType::MacdPeaked, Severity::Medium};
+    return {HintType::MacdPeaked, Severity::Medium, Source::MACD};
 
   return HintType::None;
 }
@@ -248,7 +248,7 @@ inline Hint ema_flattens_hint(const Metrics& m) {
   bool is_close = dist / LAST(ema21) < 0.01;
 
   if (is_flat && is_close)
-    return {HintType::Ema9Flattening, Severity::Low};
+    return {HintType::Ema9Flattening, Severity::Low, Source::EMA};
 
   return HintType::None;
 }
@@ -262,10 +262,10 @@ inline Hint stop_proximity_hint(const Metrics& m) {
     return HintType::StopInATR;
 
   if (dist_pct < 0.02)
-    return {HintType::StopProximity, Severity::Urgent};
+    return {HintType::StopProximity, Severity::High, Source::Stop};
 
   if (dist < 1.0 * m.stop_loss.atr_stop - m.stop_loss.final_stop)
-    return {HintType::StopInATR, Severity::High};
+    return {HintType::StopInATR, Severity::High, Source::Stop};
 
   return HintType::None;
 }
@@ -273,7 +273,7 @@ inline Hint stop_proximity_hint(const Metrics& m) {
 inline Hint price_trending_upward_hint(const Metrics& m) {
   auto& best = m.indicators_1h.trends.price.top_trends[0];
   if (best.slope() > 0.2 && best.r2 > 0.8)
-    return {HintType::PriceTrendingUp, Severity::High};
+    return {HintType::PriceTrendingUp, Severity::Medium, Source::Price};
   return HintType::None;
 }
 
@@ -281,7 +281,7 @@ inline Hint price_trending_downward_hint(const Metrics& m) {
   auto& price = m.indicators_1h.trends.price;
   auto& best = price.top_trends[0];
   if (best.slope() < -0.2 && best.r2 > 0.8)
-    return {HintType::PriceTrendingDown, Severity::High};
+    return {HintType::PriceTrendingDown, Severity::Medium, Source::Price};
   return HintType::None;
 }
 
@@ -289,7 +289,7 @@ inline Hint ema21_trending_upward_hint(const Metrics& m) {
   auto& ema21 = m.indicators_1h.trends.ema21;
   auto& best = ema21.top_trends[0];
   if (best.slope() > 0.15 && best.r2 > 0.8)
-    return {HintType::Ema21TrendingUp, Severity::Medium};
+    return {HintType::Ema21TrendingUp, Severity::Medium, Source::EMA};
   return HintType::None;
 }
 
@@ -297,25 +297,25 @@ inline Hint ema21_trending_downward_hint(const Metrics& m) {
   auto& ema21 = m.indicators_1h.trends.ema21;
   auto& best = ema21.top_trends[0];
   if (best.slope() < -0.15 && best.r2 > 0.8)
-    return {HintType::Ema21TrendingDown, Severity::Medium};
+    return {HintType::Ema21TrendingDown, Severity::Medium, Source::EMA};
   return HintType::None;
 }
 
 inline Hint rsi_trending_upward_hint(const Metrics& m) {
   auto& best = m.indicators_1h.trends.rsi.top_trends[0];
   if (best.slope() > 0.3 && best.r2 > 0.85)
-    return {HintType::RsiTrendingUpStrongly, Severity::High};
+    return {HintType::RsiTrendingUpStrongly, Severity::High, Source::RSI};
   if (best.slope() > 0.15 && best.r2 > 0.8)
-    return {HintType::RsiTrendingUp, Severity::Medium};
+    return {HintType::RsiTrendingUp, Severity::Medium, Source::RSI};
   return HintType::None;
 }
 
 inline Hint rsi_trending_downward_hint(const Metrics& m) {
   auto& best = m.indicators_1h.trends.rsi.top_trends[0];
   if (best.slope() < -0.3 && best.r2 > 0.85)
-    return {HintType::RsiTrendingDownStrongly, Severity::High};
+    return {HintType::RsiTrendingDownStrongly, Severity::High, Source::RSI};
   if (best.slope() < -0.15 && best.r2 > 0.8)
-    return {HintType::RsiTrendingDown, Severity::Medium};
+    return {HintType::RsiTrendingDown, Severity::Medium, Source::RSI};
   return HintType::None;
 }
 
@@ -343,22 +343,11 @@ inline constexpr hint_f exit_hint_funcs[] = {
 };
 
 inline int severity_weight(Severity s) {
-  switch (s) {
-    case Severity::Low:
-      return 1;
-    case Severity::Medium:
-      return 2;
-    case Severity::High:
-      return 3;
-    case Severity::Urgent:
-      return 4;
-    default:
-      return 0;
-  }
+  return static_cast<int>(s);
 }
 
 SignalType Signal::gen_signal(bool has_position) const {
-  if (entry_score >= 5 && exit_score <= 2)
+  if (entry_score >= 6 && exit_score <= 2)
     return SignalType::Entry;
 
   if (exit_score >= 5 && entry_score <= 2)
@@ -382,12 +371,20 @@ SignalType Signal::gen_signal(bool has_position) const {
     return SignalType::Watchlist;
 
   if (strong_exit_hint)
-    return SignalType::Caution;
+    return has_position ? SignalType::HoldCautiously : SignalType::Caution;
 
   if (entry_score > 0 && exit_score > 0)
     return SignalType::Mixed;
 
   return SignalType::None;
+}
+
+inline bool volume_above_ma(const std::vector<Candle>& candles) {
+  double sum = 0;
+  for (size_t i = candles.size() - 21; i < candles.size() - 1; ++i)
+    sum += candles[i].volume;
+  double ma21 = sum / 21.0;
+  return candles.back().volume > ma21 * 1.25;  // +25% above 21‑period MA
 }
 
 inline Confirmation entry_confirmation_15m(const Metrics& m) {
@@ -401,6 +398,9 @@ inline Confirmation entry_confirmation_15m(const Metrics& m) {
 
   if (n < 5 || ind.ema21.values.size() < 1 || ind.rsi.values.size() < 2)
     return "";
+
+  if (!volume_above_ma(candles))
+    return "low volume";
 
   auto price = candles.back().close;
   auto ema21 = LAST(ind.ema21.values);
@@ -503,7 +503,7 @@ bool Signal::is_interesting() const {
 
   auto important = [](auto& iter) {
     for (auto& a : iter)
-      if (a.severity == Severity::Urgent)
+      if (a.severity >= Severity::High)
         return true;
     return false;
   };

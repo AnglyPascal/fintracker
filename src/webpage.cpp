@@ -60,6 +60,74 @@ void Metrics::plot() const {
  ******************************/
 
 template <>
+std::string to_str<FormatTarget::HTML>(const Hint& h) {
+  if (h.severity >= Severity::Urgent)
+    return std::format("<b>{}</b>", to_str(h.type));
+  return to_str(h.type);
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Reason& r) {
+  if (r.severity >= Severity::Urgent)
+    return std::format("<b>{}</b>", to_str(r.type));
+  return to_str(r.type);
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Signal& s) {
+  auto& conf = s.confirmations;
+  auto confirmation = s.type == SignalType::Entry
+                          ? std::format(" ({})", join(conf.begin(), conf.end()))
+                          : "";
+
+  std::string interesting;
+  auto add = [&interesting](auto& iter) {
+    for (auto& a : iter)
+      if (a.severity >= Severity::High) {
+        interesting += " " + to_str(a);
+      }
+  };
+
+  if (s.type == SignalType::Entry || s.type == SignalType::Watchlist ||
+      s.type == SignalType::Mixed) {
+    add(s.entry_reasons);
+    add(s.entry_hints);
+  }
+
+  if (s.type == SignalType::Exit || s.type == SignalType::HoldCautiously ||
+      s.type == SignalType::Mixed) {
+    add(s.exit_reasons);
+    add(s.exit_hints);
+  }
+
+  if (interesting == "")
+    return to_str(s.type) + confirmation;
+
+  return to_str(s.type) + ": " + interesting + confirmation;
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
+  std::string interesting;
+  auto add = [&interesting, &src](auto& iter) {
+    for (auto& a : iter) {
+      if (a.src != src)
+        continue;
+      if (a.severity >= Severity::Medium) {
+        interesting += " " + to_str<FormatTarget::HTML>(a);
+      }
+    }
+  };
+
+  add(s.entry_reasons);
+  add(s.entry_hints);
+  add(s.exit_reasons);
+  add(s.exit_hints);
+
+  return interesting;
+}
+
+template <>
 std::string to_str<FormatTarget::SignalExit>(const Signal& s) {
   std::ostringstream out;
 
@@ -105,9 +173,7 @@ template <>
 std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
   if (sl.final_stop == 0.0)
     return "";
-  return std::format("{}: sw={:.2f}, atr={:.2f}",
-                     sl.is_trailing ? "Trail" : "Stop", sl.swing_low,
-                     sl.atr_stop);
+  return std::format("sw={:.2f}, atr={:.2f}", sl.swing_low, sl.atr_stop);
 }
 
 template <>
@@ -116,27 +182,34 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
   for (auto& [symbol, ticker] : p.tickers) {
     auto& m = ticker.metrics;
-    auto& ind = m.indicators_1h;
 
     auto row_class = html_row_class(ticker.signal.type);
 
-    double last_price = m.last_price();
-    double ema9 = ind.ema9.values.empty() ? 0.0 : ind.ema9.values.back();
-    double ema21 = ind.ema21.values.empty() ? 0.0 : ind.ema21.values.back();
-    double rsi = ind.rsi.values.empty() ? 0.0 : ind.rsi.values.back();
+    auto ema = to_str<FormatTarget::HTML>(ticker.signal, Source::EMA);
+    auto rsi = to_str<FormatTarget::HTML>(ticker.signal, Source::RSI);
+    auto macd = to_str<FormatTarget::HTML>(ticker.signal, Source::MACD);
+    auto price = to_str<FormatTarget::HTML>(ticker.signal, Source::Price);
+    auto stop = to_str<FormatTarget::HTML>(ticker.signal, Source::Stop);
 
     auto pos_str = ticker.has_position() ? ticker.pos_to_str(false) : "";
-    auto stop_loss_str = to_str<FormatTarget::HTML>(m.stop_loss);
+    auto stop_loss_str =
+        ticker.has_position()
+            ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
+                          to_str<FormatTarget::HTML>(m.stop_loss))
+            : "";
 
-    auto& conf = ticker.signal.confirmations;
-    auto confirmation = ticker.signal.type == SignalType::Entry
-                            ? ": " + join(conf.begin(), conf.end())
-                            : "";
+    auto hide = [&]() {
+      if (m.has_position())
+        return false;
+      auto type = ticker.signal.type;
+      return (type == SignalType::Caution || type == SignalType::Mixed ||
+              type == SignalType::None);
+    };
 
-    body += std::format(
-        html_row_template,  //
-        row_class, symbol, symbol, to_str(ticker.signal.type) + confirmation,
-        symbol, symbol, last_price, ema9, ema21, rsi, pos_str, stop_loss_str);
+    body += std::format(html_row_template,  //
+                        row_class, symbol, hide() ? "display:none;" : "",
+                        symbol, to_str(ticker.signal.type), symbol, symbol,
+                        price + stop, ema, rsi, macd, pos_str, stop_loss_str);
 
     body += std::format(html_signal_template,  //
                         symbol,                //

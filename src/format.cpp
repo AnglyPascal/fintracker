@@ -117,9 +117,9 @@ std::string to_str(const HintType& h) {
   switch (h) {
     // Entry reasons
     case HintType::Ema9ConvEma21:
-      return "ema9 ↗ ema21";
+      return "ema9↗21";
     case HintType::RsiConv50:
-      return "rsi ↗ 50";
+      return "rsi↗50";
     case HintType::MacdRising:
       return "macd↗";
 
@@ -130,21 +130,21 @@ std::string to_str(const HintType& h) {
     case HintType::RsiTrendingUp:
       return "rsi↗";
     case HintType::RsiTrendingUpStrongly:
-      return "rsi↗!";
+      return "rsi⇗";
 
     // Exit hints
     case HintType::Ema9DivergeEma21:
-      return "ema9 ↘ ema21";
+      return "ema9↘21";
     case HintType::RsiDropFromOverbought:
       return "rsi⭛";
     case HintType::MacdPeaked:
-      return "macd⛰";
+      return "macd▲";
     case HintType::Ema9Flattening:
-      return "ema9 ↝ ema21";
+      return "ema9↝21";
     case HintType::StopProximity:
-      return "near stop";
+      return "stop⨯";
     case HintType::StopInATR:
-      return "stop inside atr zone";
+      return "stop!";
 
     case HintType::PriceTrendingDown:
       return "price↘";
@@ -153,7 +153,7 @@ std::string to_str(const HintType& h) {
     case HintType::RsiTrendingDown:
       return "rsi↘";
     case HintType::RsiTrendingDownStrongly:
-      return "rsi↘!";
+      return "rsi⇘";
 
     default:
       return "";
@@ -175,25 +175,25 @@ std::string to_str(const ReasonType& r) {
   switch (r) {
     // Entry reasons
     case ReasonType::EmaCrossover:
-      return "ema ⤯";
+      return "ema⤯";
     case ReasonType::RsiCross50:
-      return "rsi ↗ 50";
+      return "rsi⤯50";
     case ReasonType::PullbackBounce:
       return "pullback⤴";
     case ReasonType::MacdHistogramCross:
-      return "macd ⤯";
+      return "macd⤯";
 
     // Exit reasons
     case ReasonType::EmaCrossdown:
-      return "ema ⤰";
+      return "ema⤰";
     case ReasonType::RsiOverbought:
-      return "rsi ↱ 70";
+      return "rsi↱70";
     case ReasonType::MacdBearishCross:
-      return "macd ⤰";
-    case ReasonType::TimeExit:
-      return "timed exit";
+      return "macd⤰";
+    // case ReasonType::TimeExit:
+    //   return "exit⏲";
     case ReasonType::StopLossHit:
-      return "stop ⤰";
+      return "stop⤰";
 
     default:
       return "";

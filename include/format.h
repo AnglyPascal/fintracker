@@ -44,6 +44,7 @@ inline constexpr std::string BRIGHT_CYAN_BG = "\033[106m";
 inline constexpr std::string BRIGHT_WHITE_BG = "\033[107m";
 
 enum class FormatTarget {
+  None,
   Telegram,
   Alert,
   Console,
@@ -61,13 +62,19 @@ std::string to_str(const T& t, const S& s);
 template <typename T>
 std::string to_str(const T& t);
 
-template <typename It>
+template <typename It, FormatTarget target = FormatTarget::None>
 inline std::string join(It start, It end, std::string sep = ",") {
   std::string result;
+
   for (auto it = start; it != end; it++) {
-    result += to_str(*it);
+    if constexpr (target == FormatTarget::None)
+      result += to_str(*it);
+    else
+      result += to_str<target>(*it);
+
     if (it != end - 1)
       result += sep;
   }
+
   return result;
 }

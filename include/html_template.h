@@ -11,7 +11,8 @@ inline constexpr std::string_view html_template = R"(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-
+      @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Share+Tech+Mono&display=swap');
+      
     :root {{
       --font-size: 13px;
       --padding-cell: 0.25em 0.4em;
@@ -34,7 +35,7 @@ inline constexpr std::string_view html_template = R"(
     }}
 
     body {{
-      font-family: monospace;
+      font-family: "Share Tech Mono", monospace;
       font-size: var(--font-size);
       margin: 0.5em;
       background-color: #fff;
@@ -160,6 +161,10 @@ inline constexpr std::string_view html_template = R"(
     <style>
     /* Mobile support */
     @media (max-width: 768px) {{
+      body {{
+        font-size: 18px;
+      }}
+
       table, thead, tbody, th, td, tr {{
         display: block;
         width: 100%;
@@ -232,13 +237,15 @@ inline constexpr std::string_view html_template = R"(
               data-type="exit" onclick="toggleSignal(this) ">Exit</button>
       <button class="filter-btn active" 
               data-type="watchlist" onclick="toggleSignal(this) ">Watchlist</button>
-      <button class="filter-btn active" 
+      <button class="filter-btn" 
               data-type="caution" onclick="toggleSignal(this) ">Caution</button>
       <button class="filter-btn active" 
               data-type="holdcautiously" 
               onclick="toggleSignal(this) ">Hold Cautiously</button>
-      <button class="filter-btn active" 
+      <button class="filter-btn" 
               data-type="mixed" onclick="toggleSignal(this) ">Mixed</button>
+      <button class="filter-btn" 
+              data-type="none" onclick="toggleSignal(this) ">None</button>
       <button onclick="showAllSignals() ">Show All</button>
     </div>
 
@@ -266,7 +273,7 @@ inline constexpr std::string_view html_template = R"(
             </th>
             <th>
               <div class="col-header" onclick=" toggleColumn(4) ">
-                <span class="label">EMA9/21</span>
+                <span class="label">EMA</span>
                 <span class="toggle-btn"></span>
               </div>
             </th>
@@ -278,12 +285,18 @@ inline constexpr std::string_view html_template = R"(
             </th>
             <th>
               <div class="col-header" onclick=" toggleColumn(6) ">
-                <span class="label">Position</span>
+                <span class="label">MACD</span>
                 <span class="toggle-btn"></span>
               </div>
             </th>
             <th>
               <div class="col-header" onclick=" toggleColumn(7) ">
+                <span class="label">Position</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(8) ">
                 <span class="label">Stop Loss</span>
                 <span class="toggle-btn"></span>
               </div>
@@ -349,12 +362,14 @@ inline constexpr std::string_view html_template = R"(
 inline constexpr std::string_view html_row_template = R"(
   <tr class="{}" 
       id="row-{}" 
+      style="{}"
       onclick="toggleSignalDetails(this, '{}-details') ">
     <td data-label="Signal">{}</td>
     <td data-label="Symbol"><a href="{}.html">{}</a></td>
-    <td data-label="Price">{:.2f}</td>
-    <td data-label="EMA 9|21">{:<6.2f} | {:<6.2f}</td>
-    <td data-label="RSI">{:.2f}</td>
+    <td data-label="Price">{}</td>
+    <td data-label="EMA">{}</td>
+    <td data-label="RSI">{}</td>
+    <td data-label="MACD">{}</td>
     <td data-label="Position">{}</td>
     <td data-label="Stop Loss">{}</td>
   </tr>
@@ -369,7 +384,7 @@ inline constexpr std::string_view html_signal_template = R"(
         {}
       </div>
     </td>
-    <td colspan="3">
+    <td colspan="4">
       <div class="signal-details">
         {}
       </div>
@@ -392,7 +407,7 @@ inline constexpr std::string html_row_class(SignalType type) {
     case SignalType::Mixed:
       return "signal-mixed";
     default:
-      return "";
+      return "signal-none";
   }
 }
 

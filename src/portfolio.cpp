@@ -81,7 +81,7 @@ Portfolio::Portfolio() noexcept
 #endif
       continue;
     }
-
+    
     tickers.try_emplace(symbol,  //
                         symbol, priority, std::move(candles), update_interval,
                         positions.get_position(symbol));
