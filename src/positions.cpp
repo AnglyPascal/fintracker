@@ -84,19 +84,21 @@ OpenPositions::OpenPositions() noexcept {
 }
 
 void OpenPositions::add_trade(const Trade& trade) {
-  auto& ticker = trade.ticker;
-  trades_by_ticker[ticker].emplace_back(trade);
+  auto& symbol = trade.ticker;
+  trades_by_ticker[symbol].emplace_back(trade);
 
-  auto [net_pos, pnl] = position_from_trades(trades_by_ticker.at(ticker));
+  auto [net_pos, pnl] = position_from_trades(trades_by_ticker.at(symbol));
   if (net_pos.qty > 0)
-    positions[ticker] = net_pos;
+    positions[symbol] = net_pos;
+  else
+    positions.erase(symbol);
 
   if (trade.action == Action::BUY)
-    TG::send(std::format("➕ Bought: {} {} @ {}", ticker, trade.qty, trade.px));
+    TG::send(std::format("➕ Bought: {} {} @ {}", symbol, trade.qty, trade.px));
   else if (net_pos.qty > 0)
-    TG::send(std::format("➖ Sold: {} {} @ {}", ticker, trade.qty, trade.px));
+    TG::send(std::format("➖ Sold: {} {} @ {}", symbol, trade.qty, trade.px));
   else
-    TG::send(std::format("✔️ Closed: {} {} @ {}, {}", ticker, trade.qty,
+    TG::send(std::format("✔️ Closed: {} {} @ {}, {}", symbol, trade.qty,
                          trade.px, pnl));
 }
 

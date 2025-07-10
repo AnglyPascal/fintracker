@@ -43,6 +43,7 @@ add_executable(${TARGET}
   src/notifier.cpp
   src/prediction.cpp
   src/webpage.cpp
+  src/calendar.cpp
 )
 
 target_include_directories(${TARGET} PRIVATE
@@ -50,6 +51,15 @@ target_include_directories(${TARGET} PRIVATE
 )
 
 target_link_libraries(${TARGET}
+  cpr::cpr
+)
+
+# Add your source files
+add_executable(get_calendar
+  src/get_calendar.cpp
+)
+
+target_link_libraries(get_calendar
   cpr::cpr
 )
 

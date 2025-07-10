@@ -353,11 +353,15 @@ SignalType Signal::gen_signal(bool has_position) const {
   if (exit_score >= 5 && entry_score <= 2)
     return has_position ? SignalType::Exit : SignalType::Caution;
 
+  bool exit_hints_severe =
+      std::any_of(exit_hints.begin(), exit_hints.end(),
+                  [](const Hint& h) { return h.severity >= Severity::High; });
+
+  if ((exit_score > 0 && exit_score < 5) || exit_hints_severe)
+    return has_position ? SignalType::HoldCautiously : SignalType::Caution;
+
   if (entry_score > 0 && entry_score < 5)
     return SignalType::Watchlist;
-
-  if (exit_score > 0 && exit_score < 5)
-    return has_position ? SignalType::HoldCautiously : SignalType::Caution;
 
   bool strong_entry_hint =
       !entry_hints.empty() && entry_hints.front().severity >= Severity::High;

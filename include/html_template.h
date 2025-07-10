@@ -223,12 +223,32 @@ inline constexpr std::string_view html_template = R"(
         align-content: start;
       }}
     }}
+
+    .subtitle {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em; /* optional: space between items */
+      margin-bottom: 1em;
+    }}
+
+    .update-block {{
+      font-family: monospace;
+      font-size: 13px;
+      padding: 0.3em;
+      border: 0.2px solid #ddd;
+      border-radius: 3px;
+    }}
+
+    .update-block a {{
+      text-decoration: underline;
+      color: purple;
+    }}
     </style>
   </head>
 
   <body>
     <h2>Portfolio Overview</h2>
-    <div style="margin-bottom: 1em"> <b>Updated</b>: {}</div>
+    {}
 
     <div id="signal-filters" style="margin-bottom: 0.5em;">
       <button class="filter-btn active" 
@@ -297,7 +317,7 @@ inline constexpr std::string_view html_template = R"(
             </th>
             <th>
               <div class="col-header" onclick=" toggleColumn(8) ">
-                <span class="label">Stop Loss</span>
+                <span class="label">Price & Stop</span>
                 <span class="toggle-btn"></span>
               </div>
             </th>
@@ -357,6 +377,25 @@ inline constexpr std::string_view html_template = R"(
     </script>
   </body>
 </html>
+)";
+
+inline constexpr std::string_view html_subtitle_template = R"(
+    <div class="subtitle">
+      <div class="update-block">
+        <b>Updated</b>: {}
+      </div>
+      <div class="update-block">
+        <b>Analyst Updates:</b> <a href="https://www.marketbeat.com/ratings/us/">MarketBeat</a>
+      </div>
+      <div class="update-block">
+        <a href="trades.html"><b>Trades</b></a>
+      </div>
+      <div class="update-block">
+        <b>Earnings:</b> 
+          <a href="https://finance.yahoo.com/calendar/earnings/">Yahoo</a>
+          <a href="calendar.html">Calendar</a>
+      </div>
+    </div>
 )";
 
 inline constexpr std::string_view html_row_template = R"(

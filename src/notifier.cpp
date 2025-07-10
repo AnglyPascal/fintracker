@@ -157,8 +157,11 @@ void Notifier::iter(Notifier* notifier) {
       if (notifier->last_updated != portfolio.last_updated) {
         auto& prev_signals = notifier->prev_signals;
 
+        // FIXME: there's some bug causing unchanged alerts
         for (auto& [symbol, ticker] : portfolio.tickers) {
-          auto prev_signal = prev_signals.at(symbol);
+          auto prev_signal = std::move(prev_signals.at(symbol));
+
+          prev_signals.erase(symbol);
           prev_signals.try_emplace(symbol, ticker.signal);
 
           if (prev_signal.type == ticker.signal.type)
@@ -171,6 +174,7 @@ void Notifier::iter(Notifier* notifier) {
               "*{}*: {}\n", symbol,
               to_str<FormatTarget::Telegram>(prev_signal, ticker.signal));
         }
+
         notifier->last_updated = portfolio.last_updated;
       }
     }

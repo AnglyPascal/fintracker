@@ -2,6 +2,7 @@
 #include "html_template.h"
 #include "portfolio.h"
 
+#include <filesystem>
 #include <fstream>
 #include <thread>
 
@@ -218,7 +219,9 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   }
 
   auto datetime = std::format("{:%b %d, %H:%M}", current_datetime());
-  return std::format(html_template, datetime, body);
+  auto subtitle = std::format(html_subtitle_template, datetime);
+
+  return std::format(html_template, subtitle, body);
 }
 
 template <>
@@ -248,6 +251,17 @@ void Portfolio::write_page() const {
   auto td = std::thread(
       [](auto portfolio) {
         auto lock = portfolio->reader_lock();
+
+        {
+          namespace fs = std::filesystem;
+          if (fs::exists("page/index.html")) {
+            auto datetime =
+                std::format("{:%Y-%m-%d_%H:%M:%S}", current_datetime());
+            auto new_fname = std::format("page/backup/index_{}.html", datetime);
+            fs::copy_file("page/index.html", new_fname,
+                          fs::copy_options::overwrite_existing);
+          }
+        }
 
         {
           std::ofstream file("page/index.html");

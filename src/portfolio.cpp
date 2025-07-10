@@ -72,19 +72,19 @@ Portfolio::Portfolio() noexcept
 
   for (auto& [symbol, priority] : symbols) {
     auto candles = td.time_series(symbol);
+    auto position = positions.get_position(symbol);
 
     // if filters reject this ticker, don't add it
     auto add = filter(candles, update_interval);
-    if (!add) {
+    if (position == nullptr && !add) {
 #ifndef NDEBUG
       std::cout << "Skipping " << symbol << std::endl;
 #endif
       continue;
     }
-    
-    tickers.try_emplace(symbol,  //
-                        symbol, priority, std::move(candles), update_interval,
-                        positions.get_position(symbol));
+
+    tickers.try_emplace(symbol, symbol, priority, std::move(candles),
+                        update_interval, position);
   }
 
   write_page();
