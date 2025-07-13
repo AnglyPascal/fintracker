@@ -3,18 +3,19 @@
 #include "times.h"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-enum class EventType {
-  Earnings,
-  Dividends,
-  Splits,
-};
-
 struct Event {
-  EventType type;
-  std::string symbol;
-  SysTimePoint date;
+  char type = '\0';
+  LocalTimePoint ny_date;
 };
 
 std::vector<Event> get_events();
+
+struct Calendar {
+  std::unordered_map<std::string, std::vector<Event>> events;
+
+  Calendar();
+  Event next_event(std::string symbol) const;
+};

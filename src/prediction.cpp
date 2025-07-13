@@ -117,11 +117,11 @@ double TrendLines::r_squared(const std::vector<Point>& points,
 }
 
 Trends::Trends(const Indicators& ind) noexcept {
-  std::vector<double> close_prices;
+  std::vector<double> prices;
   for (const auto& c : ind.candles)
-    close_prices.push_back(c.close);
+    prices.push_back(c.price());
 
-  price = TrendLines(close_prices, 10, 60, 3);
+  price = TrendLines(prices, 10, 60, 3);
   ema21 = TrendLines(ind.ema21.values, 15, 75, 3);
   rsi = TrendLines(ind.rsi.values, 5, 30, 3);
 

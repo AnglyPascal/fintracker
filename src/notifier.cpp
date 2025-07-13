@@ -2,8 +2,8 @@
 #include "api.h"
 #include "format.h"
 #include "portfolio.h"
+#include "times.h"
 
-#include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -13,13 +13,6 @@
 #ifndef POSITIONS_FILE
 #define POSITIONS_FILE ""
 #endif
-
-inline std::string current_ny_time() {
-  using namespace std::chrono;
-  auto now = floor<seconds>(system_clock::now());
-  zoned_time ny_time{"America/New_York", now};
-  return std::format("{:%Y-%m-%d %H:%M:%S}", ny_time);
-}
 
 enum class Commands {
   BUY,
@@ -32,6 +25,8 @@ enum class Commands {
 
 template <Commands command>
 void handle_command(const Portfolio& portfolio, std::istream& is) {
+  auto& tg = portfolio.tg;
+
   std::string symbol;
   is >> symbol;
 
@@ -45,7 +40,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
       else if (auto ticker = portfolio.get_ticker(symbol); ticker != nullptr)
         str = to_str<FormatTarget::Telegram>(*ticker);
     }
-    TG::send(str);
+    tg.send(str);
   }
 
   else if constexpr (command == Commands::TRADES) {
@@ -55,7 +50,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
       auto lock = portfolio.reader_lock();
       str = to_str<FormatTarget::HTML>(portfolio.get_trades());
     }
-    TG::send(str);
+    tg.send(str);
   }
 
   else if constexpr (command == Commands::POSITIONS) {
@@ -65,52 +60,60 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
       str =
           to_str<FormatTarget::Telegram>(portfolio.get_positions(), portfolio);
     }
-    TG::send(str);
+    tg.send(str);
   }
 
   else if constexpr (command == Commands::PLOT) {
     auto fname = std::format("page/{}.html", symbol);
     if (wait_for_file(fname))
-      TG::send_doc(fname, "Charts for " + symbol);
+      tg.send_doc(fname, "Charts for " + symbol);
   }
 }
 
 template <Commands command>
   requires(command == Commands::BUY || command == Commands::SELL)
 void handle_command(const Portfolio& portfolio, std::istream& is) {
+  auto& tg = portfolio.tg;
+
   std::string symbol, qty_str, px_str, fees_str;
   is >> symbol >> qty_str >> px_str >> fees_str;
 
   if (!portfolio.is_tracking(symbol)) {
-    TG::send("Symbol is not being tracked");
+    tg.send("Symbol is not being tracked");
     return;
   }
 
   if (qty_str == "" || px_str == "") {
-    TG::send("Command not valid");
+    tg.send("Command not valid");
     return;
   }
 
   if (fees_str == "")
     fees_str = "0.0";
 
-  Trade trade{current_ny_time(),
+  Trade trade{to_str(now_ny_time()),
               symbol,
               command == Commands::BUY ? Action::BUY : Action::SELL,
               std::stod(qty_str),
               std::stod(px_str),
               std::stod(fees_str)};
 
-  portfolio.add_trade(trade);
+  auto [net_pos, pnl] = portfolio.add_trade(trade);
 
-  auto str = std::format("{},{},{},{},{},{}\n",                      //
-                         current_ny_time(), symbol,                  //
-                         command == Commands::BUY ? "BUY" : "SELL",  //
-                         qty_str, px_str, fees_str);
+  if (trade.action == Action::BUY)
+    tg.send(std::format("➕ Bought: {} {} @ {}", symbol, trade.qty, trade.px));
+  else if (net_pos != nullptr)
+    tg.send(std::format("➖ Sold: {} {} @ {}", symbol, trade.qty, trade.px));
+  else
+    tg.send(std::format("✔️ Closed: {} {} @ {}, {}", symbol, trade.qty, trade.px,
+                        pnl));
 
   std::ofstream file(POSITIONS_FILE, std::ios::app);
   if (file)
-    file << str;
+    file << std::format("{},{},{},{},{},{}\n",                      //
+                        to_str(now_ny_time()), symbol,              //
+                        command == Commands::BUY ? "BUY" : "SELL",  //
+                        qty_str, px_str, fees_str);
 }
 
 inline void handle_command(const Portfolio& portfolio,
@@ -154,7 +157,7 @@ void Notifier::iter(Notifier* notifier) {
     {
       auto lock = portfolio.reader_lock();
 
-      if (notifier->last_updated != portfolio.last_updated) {
+      if (notifier->last_updated != portfolio.last_updated()) {
         auto& prev_signals = notifier->prev_signals;
 
         // FIXME: there's some bug causing unchanged alerts
@@ -175,17 +178,17 @@ void Notifier::iter(Notifier* notifier) {
               to_str<FormatTarget::Telegram>(prev_signal, ticker.signal));
         }
 
-        notifier->last_updated = portfolio.last_updated;
+        notifier->last_updated = portfolio.last_updated();
       }
     }
     if (msg != "")
-      TG::send(msg);
+      notifier->tg.send(msg);
 
-    auto [valid, line, id] = TG::receive(last_update_id);
+    auto [valid, line, id] = notifier->tg.receive(last_update_id);
     if (valid)
       handle_command(portfolio, line);
     last_update_id = id;
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::this_thread::sleep_for(seconds(5));
   }
 }
 
@@ -234,6 +237,10 @@ std::string Notifier::init_update() const {
     signal_str = "😴 Nothing to report\n";
   signal_str += "\n";
 
+  auto msg_id = tg.send_doc("page/index.html", "portfolio.html", "");
+  if (msg_id != -1)
+    tg.pin_message(msg_id);
+
   auto positions =
       to_str<FormatTarget::Telegram>(portfolio.get_positions(), portfolio);
 
@@ -243,20 +250,21 @@ std::string Notifier::init_update() const {
 
 Notifier::Notifier(const Portfolio& portfolio) noexcept
     : portfolio{portfolio},
-      last_updated{portfolio.last_updated}  //
+      tg{portfolio.tg},
+      last_updated{portfolio.last_updated()}  //
 {
   for (auto& [symbol, ticker] : portfolio.tickers)
     prev_signals.emplace(symbol, ticker.signal);
 
   auto msg = init_update();
-  TG::send(msg);
+  tg.send(msg);
 
   if (wait_for_file("page/index.html", 60)) {
-    auto msg_id = TG::send_doc("page/index.html", "portfolio.html", "");
+    auto msg_id = tg.send_doc("page/index.html", "portfolio.html", "");
     if (msg_id != -1)
-      TG::pin_message(msg_id);
+      tg.pin_message(msg_id);
   } else {
-    TG::send("Teport not yet created");
+    tg.send("Teport not yet created");
   }
 
   td = std::thread{Notifier::iter, this};

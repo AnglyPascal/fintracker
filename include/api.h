@@ -2,7 +2,6 @@
 
 #include "times.h"
 
-#include <chrono>
 #include <deque>
 #include <iostream>
 #include <set>
@@ -16,19 +15,22 @@ inline constexpr int Ns = 3;
 
 class TG {
  private:
-  static std::set<int> seen_updates;
+  bool enabled = true;
+  mutable std::set<int> seen_updates;
 
  public:
-  static int send(const std::string& text);
-  static int send_doc(const std::string& fname,
-                      const std::string& copy_name,
-                      const std::string& caption = "");
+  TG(bool tg_enabled = true) : enabled{tg_enabled} {}
 
-  static int pin_message(int message_id);
-  static int edit_msg(int message_id, const std::string& text);
-  static int delete_msg(int message_id);
+  int send(const std::string& text) const;
+  int send_doc(const std::string& fname,
+               const std::string& copy_name,
+               const std::string& caption = "") const;
 
-  static std::tuple<bool, std::string, int> receive(int last_update_id);
+  int pin_message(int message_id) const;
+  int edit_msg(int message_id, const std::string& text) const;
+  int delete_msg(int message_id) const;
+
+  std::tuple<bool, std::string, int> receive(int last_update_id) const;
 };
 
 struct APIKey {

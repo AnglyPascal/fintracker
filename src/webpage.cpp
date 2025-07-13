@@ -1,6 +1,7 @@
 #include "format.h"
 #include "html_template.h"
 #include "portfolio.h"
+#include "times.h"
 
 #include <filesystem>
 #include <fstream>
@@ -46,7 +47,7 @@ void Indicators::plot(const std::string& symbol) const {
                         std::format("page/rsi_fit_{}.csv", i));
   }
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(milliseconds(100));
 
   std::string cmd = "python3 scripts/plot_metrics.py " + symbol;
   std::system(cmd.c_str());
@@ -178,6 +179,15 @@ std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
 }
 
 template <>
+std::string to_str(const Event& ev) {
+  if (ev.type == '\0')
+    return "";
+
+  auto diff_date = duration_cast<days>(ev.ny_date - now_ny_time()).count();
+  return std::format("{}{:+}", ev.type, diff_date);
+}
+
+template <>
 std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   std::string body;
 
@@ -207,10 +217,15 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
               type == SignalType::None);
     };
 
-    body += std::format(html_row_template,  //
-                        row_class, symbol, hide() ? "display:none;" : "",
-                        symbol, to_str(ticker.signal.type), symbol, symbol,
-                        price + stop, ema, rsi, macd, pos_str, stop_loss_str);
+    auto event = p.calendar.next_event(symbol);
+    auto event_str = std::format(html_event_template, symbol, to_str(event));
+
+    body +=
+        std::format(html_row_template,  //
+                    row_class, symbol, hide() ? "display:none;" : "", symbol,
+                    to_str(ticker.signal.type),  //
+                    symbol, symbol, event_str,   //
+                    price + stop, ema, rsi, macd, pos_str, stop_loss_str);
 
     body += std::format(html_signal_template,  //
                         symbol,                //
@@ -218,10 +233,11 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
                         to_str<FormatTarget::SignalExit>(ticker.signal));
   }
 
-  auto datetime = std::format("{:%b %d, %H:%M}", current_datetime());
+  auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated());
   auto subtitle = std::format(html_subtitle_template, datetime);
+  auto reload = (p.config.backtest_en) ? html_reload : "";
 
-  return std::format(html_template, subtitle, body);
+  return std::format(html_template, reload, subtitle, body);
 }
 
 template <>
@@ -247,16 +263,44 @@ std::string to_str<FormatTarget::HTML>(const Trades& all_trades) {
   return std::format(trades_template, body);
 }
 
-void Portfolio::write_page() const {
+void Portfolio::plot(const std::string& symbol) const {
+  if (!config.plot_en)
+    return;
+
+  auto print_trades = [](auto& all_trades, auto& sym) {
+    std::ofstream f("page/trades.csv");
+    f << "datetime,name,action,qty,price,fees\n";
+    if (auto it = all_trades.find(sym); it != all_trades.end()) {
+      for (auto& trade : it->second)
+        f << to_str(trade) << std::endl;
+    }
+    f.flush();
+    f.close();
+  };
+
+  auto& all_trades = get_trades();
+
+  if (symbol != "") {
+    print_trades(all_trades, symbol);
+    if (auto it = tickers.find(symbol); it != tickers.end())
+      it->second.metrics.plot();
+  } else {
+    for (auto& [sym, ticker] : tickers) {
+      print_trades(all_trades, sym);
+      ticker.metrics.plot();
+    }
+  }
+}
+
+void Portfolio::write_page(const std::string& symbol) const {
   auto td = std::thread(
-      [](auto portfolio) {
-        auto lock = portfolio->reader_lock();
+      [](auto portfolio, auto symbol) {
+        auto _ = portfolio->reader_lock();
 
         {
           namespace fs = std::filesystem;
           if (fs::exists("page/index.html")) {
-            auto datetime =
-                std::format("{:%Y-%m-%d_%H:%M:%S}", current_datetime());
+            auto datetime = std::format("{:%F_%T}", now_ny_time());
             auto new_fname = std::format("page/backup/index_{}.html", datetime);
             fs::copy_file("page/index.html", new_fname,
                           fs::copy_options::overwrite_existing);
@@ -275,24 +319,9 @@ void Portfolio::write_page() const {
           file.close();
         }
 
-        for (auto& [symbol, _] : portfolio->tickers) {
-          auto& all_trades = portfolio->get_trades();
-
-          std::ofstream f("page/trades.csv");
-          f << "datetime,name,action,qty,price,fees\n";
-          if (auto it = all_trades.find(symbol); it != all_trades.end()) {
-            for (auto& trade : it->second)
-              f << to_str(trade) << std::endl;
-          }
-          f.flush();
-          f.close();
-
-          auto& tickers = portfolio->tickers;
-          if (auto it = tickers.find(symbol); it != tickers.end())
-            it->second.metrics.plot();
-        }
+        portfolio->plot(symbol);
       },
-      this  //
+      this, symbol  //
   );
 
   td.detach();

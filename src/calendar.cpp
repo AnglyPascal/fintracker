@@ -1,22 +1,11 @@
 #include "calendar.h"
+#include "times.h"
 
-#include <chrono>
 #include <fstream>
 #include <iostream>
 
-inline SysTimePoint to_timepoint(const std::string& date_str) {
-  std::istringstream in{date_str};
-  std::chrono::sys_days days;
-  in >> std::chrono::parse("%F", days);  // %F = YYYY-MM-DD
-  if (in.fail())
-    return {};
-  return days;
-}
-
-std::vector<Event> get_events() {
-  std::vector<Event> events;
-
-  std::ifstream file("data/tickers.csv");
+Calendar::Calendar() {
+  std::ifstream file("data/calendar.csv");
   std::string line;
 
   std::getline(file, line);
@@ -25,19 +14,34 @@ std::vector<Event> get_events() {
     std::istringstream ss(line);
     std::string ev_type, symbol, date;
 
-    if (std::getline(ss, date, ',') && std::getline(ss, symbol, ',') &&
-        std::getline(ss, ev_type)) {
-      EventType type;
+    if (std::getline(ss, ev_type, ',') && std::getline(ss, symbol, ',') &&
+        std::getline(ss, date)) {
+      char type;
       if (ev_type == "Earnings")
-        type = EventType::Earnings;
+        type = 'E';
       else if (ev_type == "Dividends")
-        type = EventType::Dividends;
+        type = 'D';
       else
-        type = EventType::Splits;
+        type = 'S';
 
-      events.emplace_back(type, symbol, to_timepoint(date));
+      events[symbol].emplace_back(type, date_to_local(date));
     }
   }
 
-  return events;
+  for (auto& [s, arr] : events)
+    std::sort(arr.begin(), arr.end(),
+              [](auto& l, auto& r) { return l.ny_date < r.ny_date; });
+}
+
+Event Calendar::next_event(std::string symbol) const {
+  auto it = events.find(symbol);
+  if (it == events.end() || it->second.empty())
+    return {};
+
+  auto& event = it->second[0];
+  auto diff_days = duration_cast<days>(event.ny_date - now_ny_time()).count();
+  if (diff_days < 0)
+    return {};
+
+  return event;
 }

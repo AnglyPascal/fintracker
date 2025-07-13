@@ -16,10 +16,9 @@ struct Candle {
   double close = 0.0;
   int volume = 0.0;
 
-  std::string day() const;
-  SysTimePoint time() const;
-
-  double true_range(double prev_close) const;
+  std::string day() const { return datetime.substr(0, 10); }
+  double price() const { return close; }
+  LocalTimePoint time() const { return datetime_to_local(datetime); }
 };
 
 struct EMA {
@@ -35,6 +34,7 @@ struct EMA {
 
   void add(const Candle& candle) noexcept;
   void add(double price) noexcept;
+  void pop_back() noexcept { values.pop_back(); }
 };
 
 struct RSI {
@@ -45,13 +45,16 @@ struct RSI {
 
   std::deque<double> gains;
   std::deque<double> losses;
-  double last_close = 0.0;
+  double last_price = 0.0;
   double avg_gain = 0.0;
   double avg_loss = 0.0;
 
  public:
   RSI(const std::vector<Candle>& candles, int period = 14) noexcept;
+
   void add(const Candle& candle) noexcept;
+  void pop_back() noexcept { values.pop_back(); }
+
   bool rising() const;
 };
 
@@ -74,7 +77,9 @@ struct MACD {
        int fast = 12,
        int slow = 26,
        int signal = 9) noexcept;
+
   void add(const Candle& candle) noexcept;
+  void pop_back() noexcept;
 };
 
 struct ATR {
@@ -84,10 +89,13 @@ struct ATR {
   const int period = 14;
   double prev_close = 0.0;
 
+  std::pair<double, double> prev_atr = {0.0, 0.0};
+
  public:
   ATR(const std::vector<Candle>& candles, int period = 14) noexcept;
 
   void add(const Candle& candle) noexcept;
+  void pop_back() noexcept;
 };
 
 struct Indicators {
@@ -102,7 +110,10 @@ struct Indicators {
   Trends trends;
 
   Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
+
   void add(const Candle& candle) noexcept;
+  void pop_back() noexcept;
+
   void plot(const std::string& symbol) const;
 };
 
@@ -138,15 +149,22 @@ struct Metrics {
   StopLoss stop_loss;
   const Position* position;
 
+ private:
+  uint32_t new_day_intervals_passed;
+
+ public:
   Metrics(const std::string& symbol,
           std::vector<Candle>&& candles,
           minutes interval,
           const Position* position) noexcept;
 
-  void add(const Candle& candle, const Position* position) noexcept;
+  bool add(const Candle& candle, const Position* position) noexcept;
+  Candle pop_back() noexcept;
 
-  auto last_price() const { return candles.back().close; }
-  auto last_updated() const { return candles.back().datetime; }
+  auto last_price() const { return candles.back().price(); }
+  auto last_updated() const {
+    return datetime_to_local(candles.back().datetime);
+  }
 
   Pullback pullback(size_t lookback = 360) const;
   bool has_position() const;

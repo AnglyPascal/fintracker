@@ -1,26 +1,13 @@
 #include "portfolio.h"
+#include "raw_mode.h"
+#include "times.h"
+
+#include <spdlog/spdlog.h>
 
 #include <fstream>
 #include <iostream>
 #include <mutex>
 #include <thread>
-
-inline bool is_us_market_open_now() {
-  using namespace std::chrono;
-
-  auto now = system_clock::now();
-
-  zoned_time eastern_time{locate_zone("America/New_York"), now};
-  auto local = eastern_time.get_local_time();
-  auto tod = floor<minutes>(local.time_since_epoch() % days{1});  // time of day
-
-  auto total_minutes = duration_cast<minutes>(tod).count();
-
-  int open_minutes = 9 * 60 + 30;
-  int close_minutes = 16 * 60;
-
-  return total_minutes >= open_minutes && total_minutes < close_minutes;
-}
 
 Ticker::Ticker(const std::string& symbol,
                int priority,
@@ -59,27 +46,31 @@ std::vector<SymbolInfo> Portfolio::read_symbols() {
   return symbols;
 }
 
-Portfolio::Portfolio() noexcept
-    : symbols{Portfolio::read_symbols()},
+LocalTimePoint Portfolio::last_updated() const {
+  return tickers.empty() ? LocalTimePoint{}
+                         : tickers.begin()->second.metrics.last_updated();
+}
+
+Portfolio::Portfolio(Config config) noexcept
+    : config{config},
+      symbols{Portfolio::read_symbols()},
+      tg{config.tg_en},
       td{symbols.size()},
+      bt{td, symbols, config.backtest_en},
       positions{},
-      last_updated{Clock::now()},   //
+      calendar{},
       update_interval{td.interval}  //
 {
-#ifndef NDEBUG
-  std::cout << "Update interval " << update_interval << std::endl;
-#endif
+  spdlog::info("Update interval: " + std::format("{}", update_interval));
 
   for (auto& [symbol, priority] : symbols) {
-    auto candles = td.time_series(symbol);
+    auto candles = time_series(symbol);
     auto position = positions.get_position(symbol);
 
     // if filters reject this ticker, don't add it
     auto add = filter(candles, update_interval);
     if (position == nullptr && !add) {
-#ifndef NDEBUG
-      std::cout << "Skipping " << symbol << std::endl;
-#endif
+      spdlog::info("Skipping " + symbol);
       continue;
     }
 
@@ -88,46 +79,73 @@ Portfolio::Portfolio() noexcept
   }
 
   write_page();
-
-#ifndef NDEBUG
-  std::cout << "Init at " << current_datetime() << std::endl;
-#endif
+  spdlog::info("Init at " + std::format("{}", last_updated()));
 }
 
 void Portfolio::add_candle() {
   {
-    auto lock = writer_lock();
-    last_updated = Clock::now();
+    auto _ = writer_lock();
 
     for (auto& [symbol, ticker] : tickers) {
-      auto candle = td.real_time(symbol);
+      auto candle = real_time(symbol);
 
-      ticker.metrics.add(candle, positions.get_position(symbol));
+      auto added = ticker.metrics.add(candle, positions.get_position(symbol));
+      if (added)
+        ticker.signal = Signal{ticker.metrics};
+    }
+  }
+
+  write_page();
+  spdlog::info("Updated at " + std::format("{}", last_updated()));
+}
+
+void Portfolio::rollback() {
+  if (!config.backtest_en)
+    return;
+
+  {
+    auto _ = writer_lock();
+
+    for (auto& [symbol, ticker] : tickers) {
+      auto candle = ticker.metrics.pop_back();
+      bt.rollback(symbol, candle);
       ticker.signal = Signal{ticker.metrics};
     }
   }
 
   write_page();
-
-#ifndef NDEBUG
-  std::cout << "Updated at " << current_datetime() << std::endl;
-#endif
+  spdlog::info("Rolled back to " + std::format("{}", last_updated()));
 }
 
-void Portfolio::add_trade(const Trade& trade) const {
-  auto portfolio = const_cast<Portfolio*>(this);
-  auto lock = portfolio->writer_lock();
-  portfolio->positions.add_trade(trade);
+std::pair<const Position*, double> Portfolio::add_trade(
+    const Trade& trade) const {
+  const Position* pos;
+  double pnl;
 
-  auto& metrics = portfolio->tickers.at(trade.ticker).metrics;
-  metrics.position = positions.get_position(trade.ticker);
+  {
+    auto portfolio = const_cast<Portfolio*>(this);
+
+    auto _ = portfolio->writer_lock();
+    pnl = portfolio->positions.add_trade(trade);
+
+    auto& metrics = portfolio->tickers.at(trade.ticker).metrics;
+    pos = metrics.position = positions.get_position(trade.ticker);
+  }
+
+  write_page(trade.ticker);
+  spdlog::info("Added trade at " + std::format("{}", last_updated()));
+
+  return {pos, pnl};
 }
 
 inline auto sleep(auto mins) {
-  return std::this_thread::sleep_for(std::chrono::minutes(mins));
+  return std::this_thread::sleep_for(minutes(mins));
 }
 
 void Portfolio::run() {
+  if (bt.enabled)
+    return run_backtest();
+
   sleep(update_interval);
   while (!is_us_market_open_now())
     sleep(1);
@@ -141,5 +159,27 @@ void Portfolio::run() {
     // TODO: give daily report?
     sleep(1);
   }
+}
+
+void Portfolio::run_backtest() {
+  RawMode _;
+
+  while (true) {
+    char ch;
+    if (read(STDIN_FILENO, &ch, 1) == 1) {
+      std::cout << "\b \b" << std::flush;
+
+      if (ch == 'q')
+        break;
+
+      if (ch == 'l')
+        add_candle();
+
+      if (ch == 'h')
+        rollback();
+    }
+  }
+
+  std::puts("Exited.");
 }
 

@@ -2,7 +2,6 @@
 
 #include "indicators.h"
 
-#include <chrono>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -39,6 +38,8 @@ Position operator-(const Position& lhs, const Position& rhs);
 using Trades = std::unordered_map<std::string, std::vector<Trade>>;
 using Positions = std::unordered_map<std::string, Position>;
 
+class TG;
+
 class OpenPositions {
   Trades trades_by_ticker;
   Positions positions;
@@ -46,7 +47,7 @@ class OpenPositions {
 
  public:
   OpenPositions() noexcept;
-  void add_trade(const Trade& trade);
+  double add_trade(const Trade& trade);
 
   void send_updates(const Trades& trades, const Positions& old_positions) const;
   void send_current_positions(const std::string& ticker) const;

@@ -86,6 +86,9 @@ inline constexpr filter_f filters[] = {
 };
 
 bool filter(const std::vector<Candle>& candles, minutes interval) {
+  if (candles.empty())
+    return false;
+
   for (auto f : filters)
     if (auto [c, s] = f(candles, interval); c == Confidence::Bearish)
       return false;
@@ -112,10 +115,10 @@ inline Reason rsi_cross_50_entry(const Metrics& m) {
 inline Reason pullback_bounce_entry(const Metrics& m) {
   auto& ema9 = m.indicators_1h.ema9.values;
   auto& ema21 = m.indicators_1h.ema21.values;
-  auto& price = m.indicators_1h.candles;
+  auto& candles = m.indicators_1h.candles;
 
-  bool dipped_below_ema21 = PREV(price).close < PREV(ema21);
-  bool recovered_above_ema21 = LAST(price).close > LAST(ema21);
+  bool dipped_below_ema21 = PREV(candles).price() < PREV(ema21);
+  bool recovered_above_ema21 = LAST(candles).price() > LAST(ema21);
   bool ema9_above_ema21 = LAST(ema9) > LAST(ema21);
 
   if (dipped_below_ema21 && recovered_above_ema21 && ema9_above_ema21)
@@ -353,15 +356,17 @@ SignalType Signal::gen_signal(bool has_position) const {
   if (exit_score >= 5 && entry_score <= 2)
     return has_position ? SignalType::Exit : SignalType::Caution;
 
-  bool exit_hints_severe =
-      std::any_of(exit_hints.begin(), exit_hints.end(),
-                  [](const Hint& h) { return h.severity >= Severity::High; });
-
-  if ((exit_score > 0 && exit_score < 5) || exit_hints_severe)
-    return has_position ? SignalType::HoldCautiously : SignalType::Caution;
-
   if (entry_score > 0 && entry_score < 5)
     return SignalType::Watchlist;
+
+  bool exit_hints_block_watchlist =
+      std::any_of(exit_hints.begin(), exit_hints.end(), [](auto& h) {
+        return h.type == HintType::StopProximity ||
+               h.severity == Severity::Urgent;
+      });
+
+  if ((exit_score > 0 && exit_score < 5) || exit_hints_block_watchlist)
+    return has_position ? SignalType::HoldCautiously : SignalType::Caution;
 
   bool strong_entry_hint =
       !entry_hints.empty() && entry_hints.front().severity >= Severity::High;
@@ -406,7 +411,7 @@ inline Confirmation entry_confirmation_15m(const Metrics& m) {
   if (!volume_above_ma(candles))
     return "low volume";
 
-  auto price = candles.back().close;
+  auto price = candles.back().price();
   auto ema21 = LAST(ind.ema21.values);
   auto rsi_now = LAST(ind.rsi.values);
   auto rsi_prev = PREV(ind.rsi.values);

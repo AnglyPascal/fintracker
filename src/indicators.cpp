@@ -1,36 +1,31 @@
 #include "indicators.h"
+#include "format.h"
 #include "positions.h"
+#include "times.h"
+
+#include <spdlog/spdlog.h>
 
 #include <cassert>
+#include <iostream>
 #include <numeric>
 
-double Candle::true_range(double prev_close) const {
+inline double true_range(double prev_close, const Candle& candle) {
+  auto high = candle.high, low = candle.low;
   return std::max(
       {high - low, std::abs(high - prev_close), std::abs(low - prev_close)});
-}
-
-std::string Candle::day() const {
-  return datetime.substr(0, 10);
-}
-
-SysTimePoint Candle::time() const {
-  std::tm t = {};
-  std::istringstream ss(datetime);
-  ss >> std::get_time(&t, "%Y-%m-%d %H:%M:%S");
-  return std::chrono::system_clock::from_time_t(std::mktime(&t));
 }
 
 EMA::EMA(const std::vector<Candle>& candles, int period) noexcept
     : values(candles.size()), period(period) {
   double sma = 0;
   for (int i = 0; i < period; i++) {
-    sma = (sma * i + candles[i].close) / (i + 1);
+    sma = (sma * i + candles[i].price()) / (i + 1);
     values[i] = sma;
   }
 
   auto alpha = 2.0 / (period + 1);
   for (size_t i = period; i < candles.size(); i++) {
-    values[i] = (candles[i].close - values[i - 1]) * alpha + values[i - 1];
+    values[i] = (candles[i].price() - values[i - 1]) * alpha + values[i - 1];
   }
 }
 
@@ -49,7 +44,7 @@ EMA::EMA(const std::vector<double>& prices, int period) noexcept
 }
 
 void EMA::add(const Candle& candle) noexcept {
-  return add(candle.close);
+  return add(candle.price());
 }
 
 void EMA::add(double price) noexcept {
@@ -64,13 +59,13 @@ RSI::RSI(const std::vector<Candle>& candles, int period) noexcept
     return;
 
   values.reserve(candles.size());
-  last_close = candles[0].close;
+  last_price = candles[0].price();
   values.push_back(
       std::numeric_limits<double>::quiet_NaN());  // first candle has no delta
 
   // calculate initial gain/loss values
   for (int i = 1; i <= period; ++i) {
-    double change = candles[i].close - candles[i - 1].close;
+    double change = candles[i].price() - candles[i - 1].price();
     double gain = change > 0 ? change : 0.0;
     double loss = change < 0 ? -change : 0.0;
     gains.push_back(gain);
@@ -88,7 +83,7 @@ RSI::RSI(const std::vector<Candle>& candles, int period) noexcept
 
   // continue applying smoothing to the rest of the series
   for (size_t i = period + 1; i < candles.size(); ++i) {
-    double change = candles[i].close - candles[i - 1].close;
+    double change = candles[i].price() - candles[i - 1].price();
     double gain = change > 0 ? change : 0.0;
     double loss = change < 0 ? -change : 0.0;
 
@@ -98,13 +93,13 @@ RSI::RSI(const std::vector<Candle>& candles, int period) noexcept
     double rs = avg_loss == 0.0 ? std::numeric_limits<double>::infinity()
                                 : avg_gain / avg_loss;
     values.push_back(100.0 - (100.0 / (1.0 + rs)));
-    last_close = candles[i].close;
+    last_price = candles[i].price();
   }
 }
 
 void RSI::add(const Candle& candle) noexcept {
-  double change = candle.close - last_close;
-  last_close = candle.close;
+  double change = candle.price() - last_price;
+  last_price = candle.price();
 
   double gain = change > 0 ? change : 0.0;
   double loss = change < 0 ? -change : 0.0;
@@ -127,13 +122,13 @@ MACD::MACD(const std::vector<Candle>& candles,
            int fast,
            int slow,
            int signal) noexcept
-    : macd_line(candles.size()),
-      signal_line(signal_ema.values),
-      fast_period(fast),
-      slow_period(slow),
-      signal_period(signal),
-      fast_ema(candles, fast),
-      slow_ema(candles, slow)  //
+    : macd_line{std::vector<double>(candles.size())},
+      signal_line{signal_ema.values},
+      fast_period{fast},
+      slow_period{slow},
+      signal_period{signal},
+      fast_ema{candles, fast},
+      slow_ema{candles, slow}  //
 {
   size_t n = candles.size();
   for (size_t i = 0; i < n; ++i)
@@ -156,6 +151,15 @@ void MACD::add(const Candle& candle) noexcept {
   histogram.push_back(macd - signal_val);
 }
 
+void MACD::pop_back() noexcept {
+  fast_ema.pop_back();
+  slow_ema.pop_back();
+  signal_ema.pop_back();
+
+  macd_line.pop_back();
+  histogram.pop_back();
+}
+
 ATR::ATR(const std::vector<Candle>& candles, int period) noexcept
     : period{period} {
   if (candles.size() < (size_t)period + 1)
@@ -164,7 +168,7 @@ ATR::ATR(const std::vector<Candle>& candles, int period) noexcept
   std::vector<double> tr;
   for (size_t i = candles.size() - period; i < candles.size(); ++i) {
     auto prev_close = candles[i - 1].close;
-    tr.push_back(candles[i].true_range(prev_close));
+    tr.push_back(true_range(prev_close, candles[i]));
   }
 
   val = std::accumulate(tr.begin(), tr.end(), 0.0) / period;
@@ -172,9 +176,18 @@ ATR::ATR(const std::vector<Candle>& candles, int period) noexcept
 }
 
 void ATR::add(const Candle& candle) noexcept {
-  double tr = candle.true_range(prev_close);
+  prev_atr = {val, prev_close};
+
+  double tr = true_range(prev_close, candle);
   val = (val * (period - 1) + tr) / period;
   prev_close = candle.close;
+}
+
+void ATR::pop_back() noexcept {
+  auto [v, c] = prev_atr;
+  val = v;
+  prev_close = c;
+  prev_atr = {0.0, 0.0};
 }
 
 Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
@@ -202,11 +215,24 @@ void Indicators::add(const Candle& candle) noexcept {
   trends = Trends{*this};
 }
 
+void Indicators::pop_back() noexcept {
+  candles.pop_back();
+
+  ema9.pop_back();
+  ema21.pop_back();
+  ema50.pop_back();
+  rsi.pop_back();
+  macd.pop_back();
+  atr.pop_back();
+
+  trends = Trends{*this};
+}
+
 inline Candle combine(auto start, auto end) {
   assert(start != end);
   Candle out;
 
-  out.datetime = start->datetime;  // start time of the group
+  out.datetime = (end - 1)->datetime;  // start time of the group
   out.open = start->open;
   out.close = (end - 1)->close;
   out.volume = 0;
@@ -231,7 +257,7 @@ std::vector<Candle> downsample(const std::vector<Candle>& candles,
 
   std::vector<Candle> out, bucket;
   std::string current_day = candles.front().day();
-  SysTimePoint bucket_time;
+  LocalTimePoint bucket_time;
 
   for (const auto& c : candles) {
     auto now = c.time();
@@ -273,7 +299,8 @@ Metrics::Metrics(const std::string& symbol,
       interval{interval},
       indicators_1h{downsample(this->candles, interval, H_1), H_1},  //
       stop_loss{indicators_1h, position},                            //
-      position{position}                                             //
+      position{position},                                            //
+      new_day_intervals_passed{0}                                    //
 {
   if (has_position())
     position->max_price_seen = std::max(position->max_price_seen, last_price());
@@ -283,22 +310,56 @@ bool Metrics::has_position() const {
   return position != nullptr && position->qty != 0;
 }
 
-void Metrics::add(const Candle& candle, const Position* position) noexcept {
+bool Metrics::add(const Candle& candle, const Position* position) noexcept {
   candles.push_back(candle);
+  new_day_intervals_passed++;
 
   auto add_to_ind = [&](auto& ind) {
     size_t skip = ind.interval / interval;
-    if (candles.size() % skip == 0)
-      ind.add(combine(candles.end() - skip, candles.end()));
+    if (new_day_intervals_passed % skip != 1)
+      ind.pop_back();
+
+    auto new_candle = combine(candles.end() - skip, candles.end());
+    ind.add(new_candle);
+
+    spdlog::trace("[td] {}: {}", symbol.c_str(), to_str(new_candle).c_str());
+    return true;
   };
 
-  add_to_ind(indicators_1h);
+  bool added = add_to_ind(indicators_1h);
 
   this->position = position;
   if (position != nullptr)
-    position->max_price_seen = std::max(position->max_price_seen, candle.close);
+    position->max_price_seen =
+        std::max(position->max_price_seen, candle.price());
 
   stop_loss = StopLoss{indicators_1h, position};
+
+  return added;
+}
+
+Candle Metrics::pop_back() noexcept {
+  auto candle = candles.back();
+  candles.pop_back();
+  new_day_intervals_passed--;
+
+  auto pop_from_ind = [&](auto& ind) {
+    ind.pop_back();
+
+    size_t skip = ind.interval / interval;
+    if (new_day_intervals_passed % skip == 0)
+      return;
+
+    auto new_candle = combine(candles.end() - skip, candles.end());
+    ind.add(new_candle);
+
+    spdlog::trace("[td] {}: {}", symbol.c_str(), to_str(new_candle).c_str());
+  };
+
+  pop_from_ind(indicators_1h);
+  stop_loss = StopLoss{indicators_1h, position};
+
+  return candle;
 }
 
 Pullback Metrics::pullback(size_t lookback) const {
@@ -319,7 +380,7 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
   auto& candles = ind.candles;
   auto& ema21 = ind.ema21.values;
 
-  double price = candles.back().close;
+  double price = candles.back().price();
   double atr = ind.atr.val;
   double entry_price = pos->px;
   double gain = price - entry_price;

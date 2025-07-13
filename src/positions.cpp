@@ -1,6 +1,4 @@
 #include "positions.h"
-#include "api.h"     // FIXME: remove this, move it to notifier
-#include "format.h"  // same
 
 #include <cmath>
 #include <filesystem>
@@ -80,26 +78,24 @@ OpenPositions::OpenPositions() noexcept {
     auto [pos, pnl] = position_from_trades(trades);
     if (pos.qty > 0)
       positions.try_emplace(ticker, pos);
+    else
+      total_pnl += pnl;
   }
 }
 
-void OpenPositions::add_trade(const Trade& trade) {
+double OpenPositions::add_trade(const Trade& trade) {
   auto& symbol = trade.ticker;
   trades_by_ticker[symbol].emplace_back(trade);
 
   auto [net_pos, pnl] = position_from_trades(trades_by_ticker.at(symbol));
   if (net_pos.qty > 0)
     positions[symbol] = net_pos;
-  else
+  else {
+    total_pnl += pnl;
     positions.erase(symbol);
+  }
 
-  if (trade.action == Action::BUY)
-    TG::send(std::format("➕ Bought: {} {} @ {}", symbol, trade.qty, trade.px));
-  else if (net_pos.qty > 0)
-    TG::send(std::format("➖ Sold: {} {} @ {}", symbol, trade.qty, trade.px));
-  else
-    TG::send(std::format("✔️ Closed: {} {} @ {}, {}", symbol, trade.qty,
-                         trade.px, pnl));
+  return pnl;
 }
 
 const Position* OpenPositions::get_position(const std::string& symbol) const {

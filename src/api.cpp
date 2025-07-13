@@ -1,7 +1,9 @@
 #include "api.h"
 #include "indicators.h"
+#include "times.h"
 
 #include <cpr/cpr.h>
+#include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 
 #include <format>
@@ -34,7 +36,16 @@ using nlohmann::json;
 #define TG_USER ""
 #endif
 
-int TG::send(const std::string& text) {
+/******************
+ ** Telegram API **
+ ******************/
+
+int TG::send(const std::string& text) const {
+  if (!enabled) {
+    spdlog::info("TG send: {}...", text.substr(0, 20).c_str());
+    return -1;
+  }
+
   if (text == "")
     return -1;
 
@@ -46,8 +57,7 @@ int TG::send(const std::string& text) {
                                            {"parse_mode", "Markdown"}});
 
   if (r.status_code != 200 || r.text == "") {
-    std::cerr << "[tg] Error " << r.status_code << ": " << r.text << std::endl
-              << text << std::endl;
+    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
     return -1;
   }
 
@@ -55,7 +65,15 @@ int TG::send(const std::string& text) {
   return json["result"]["message_id"];
 }
 
-int TG::pin_message(int message_id) {
+int TG::pin_message(int message_id) const {
+  if (!enabled) {
+    spdlog::info("TG pin message: {}", message_id);
+    return -1;
+  }
+
+  if (!enabled)
+    return -1;
+
   auto url =
       std::format("https://api.telegram.org/bot{}/pinChatMessage", TG_TOKEN);
   cpr::Response r = cpr::Post(
@@ -65,7 +83,7 @@ int TG::pin_message(int message_id) {
                    {"disable_notification", "true"}});  // Optional: silent pin
 
   if (r.status_code != 200) {
-    std::cerr << "[tg] Error " << r.status_code << ": " << r.text << std::endl;
+    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
     return -1;
   }
 
@@ -74,15 +92,21 @@ int TG::pin_message(int message_id) {
     if (json.contains("ok") && json["ok"].get<bool>() == true)
       return 0;
 
-    std::cerr << "[tg] Failed to pin message: " << r.text << std::endl;
+    spdlog::error("[tg] Failed to pin message: {}", r.text.c_str());
     return -1;
   } catch (...) {
-    std::cerr << "[tg] unexpected error: " << r.text << std::endl;
+    spdlog::error("[tg] Unexpected error: {}", r.text.c_str());
     return -1;
   }
 }
 
-int TG::edit_msg(int message_id, const std::string& text) {
+int TG::edit_msg(int message_id, const std::string& text) const {
+  if (!enabled) {
+    spdlog::info("TG edit msg: {} {}...", message_id,
+                 text.substr(0, 20).c_str());
+    return -1;
+  }
+
   auto url =
       std::format("https://api.telegram.org/bot{}/editMessageText", TG_TOKEN);
 
@@ -93,8 +117,7 @@ int TG::edit_msg(int message_id, const std::string& text) {
                                   {"parse_mode", "Markdown"}});
 
   if (r.status_code != 200) {
-    std::cerr << "[tg] Error " << r.status_code << ": " << r.text << std::endl
-              << text << std::endl;
+    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
     return -1;
   }
 
@@ -103,26 +126,29 @@ int TG::edit_msg(int message_id, const std::string& text) {
     if (json.contains("ok") && json["ok"].get<bool>() == true)
       return 0;
 
-    std::cerr << "[tg] Failed to edit message: " << r.text << std::endl;
+    spdlog::error("[tg] Failed to pin message: {}", r.text.c_str());
     return -1;
   } catch (...) {
-    std::cerr << "[tg] unexpected error: " << r.text << std::endl;
+    spdlog::error("[tg] Unexpected error: {}", r.text.c_str());
     return -1;
   }
 }
 
-std::tuple<bool, std::string, int> TG::receive(int last_update_id) {
+std::tuple<bool, std::string, int> TG::receive(int last_update_id) const {
+  if (!enabled)
+    return {false, "", -1};
+
   auto url =
       std::format("https://api.telegram.org/bot{}/getUpdates?offset={}&limit=1",
                   TG_TOKEN, last_update_id + 1);
-  auto response = cpr::Get(cpr::Url{url});
+  auto r = cpr::Get(cpr::Url{url});
 
-  if (response.status_code != 200) {
-    std::cerr << "[tg] Error: " << response.status_code << "\n";
+  if (r.status_code != 200) {
+    spdlog::error("[tg] Error {}", r.status_code);
     return {false, "", last_update_id};
   }
 
-  auto js = json::parse(response.text);
+  auto js = json::parse(r.text);
 
   for (const auto& update : js["result"]) {
     int update_id = update["update_id"];
@@ -145,7 +171,12 @@ std::tuple<bool, std::string, int> TG::receive(int last_update_id) {
   return {false, "", last_update_id};
 }
 
-int TG::delete_msg(int message_id) {
+int TG::delete_msg(int message_id) const {
+  if (!enabled) {
+    spdlog::info("TG delete msg: {}", message_id);
+    return -1;
+  }
+
   auto url =
       std::format("https://api.telegram.org/bot{}/deleteMessage", TG_TOKEN);
 
@@ -154,8 +185,7 @@ int TG::delete_msg(int message_id) {
                                   {"message_id", std::to_string(message_id)}});
 
   if (r.status_code != 200) {
-    std::cerr << "Telegram delete error: " << r.status_code << " - " << r.text
-              << "\n";
+    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
     return -1;
   }
 
@@ -164,7 +194,12 @@ int TG::delete_msg(int message_id) {
 
 int TG::send_doc(const std::string& fname,
                  const std::string& copy_name,
-                 const std::string& caption) {
+                 const std::string& caption) const {
+  if (!enabled) {
+    spdlog::info("TG send doc: {} to {}", fname.c_str(), copy_name.c_str());
+    return -1;
+  }
+
   auto url =
       std::format("https://api.telegram.org/bot{}/sendDocument", TG_TOKEN);
 
@@ -176,14 +211,17 @@ int TG::send_doc(const std::string& fname,
   cpr::Response r = cpr::Post(cpr::Url{url}, multipart);
 
   if (r.status_code != 200) {
-    std::cerr << "Telegram API error: " << r.status_code
-              << "Response: " << r.text << "\n";
+    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
     return -1;
   }
 
   auto json = nlohmann::json::parse(r.text);
   return json["result"]["message_id"];
 }
+
+/********************
+ ** TwelveData API **
+ ********************/
 
 inline constexpr minutes get_interval(size_t n_tickers) {
   auto mins = 60 / ((API_TOKENS * Ns) / (n_tickers * 8));
@@ -231,7 +269,7 @@ int TD::try_get_key() {
 const std::string& TD::get_key() {
   int k = -1;
   while ((k = try_get_key()) == -1)
-    std::this_thread::sleep_for(std::chrono::seconds(30));
+    std::this_thread::sleep_for(seconds(30));
 
   auto& api_key = keys[k];
   api_key.daily_calls++;
@@ -256,7 +294,7 @@ TD::Result TD::api_call(const std::string& symbol, size_t output_size) {
   auto api_key = get_key();
 
   if (output_size > MAX_OUTPUT_SIZE)
-    std::cerr << "outputsize exceeds limit" << std::endl;
+    spdlog::error("[td] outputsize exceeds limit");
 
   auto url = std::format(
       "https://api.twelvedata.com/time_series?symbol={}"
@@ -264,17 +302,16 @@ TD::Result TD::api_call(const std::string& symbol, size_t output_size) {
       symbol, interval_to_str(interval), output_size, api_key);
 
   auto res = cpr::Get(cpr::Url{url});
-  std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+  std::this_thread::sleep_for(milliseconds(1500));
 
   if (res.status_code != 200) {
-    std::cerr << "[12] Error: HTTP " << res.status_code << " " << symbol
-              << std::endl;
+    spdlog::error("[td] Error: HTTP {}, {}", res.status_code, symbol.c_str());
     return {};
   }
 
   auto j = json::parse(res.text);
   if (!j.contains("values")) {
-    std::cerr << "[12] Error: JSON error " << symbol << std::endl;
+    spdlog::error("[td] Error: JSON error, {}", symbol.c_str());
     return {};
   }
 
@@ -292,7 +329,7 @@ TD::Result TD::api_call(const std::string& symbol, size_t output_size) {
 
 TD::Result TD::time_series(const std::string& symbol, int n_days) {
   size_t output_size =
-      n_days * 8 /* hours per day */ * (std::chrono::minutes(60) / interval);
+      n_days * 8 /* hours per day */ * (minutes(60) / interval);
   return api_call(symbol, output_size);
 }
 
@@ -306,7 +343,7 @@ bool wait_for_file(const std::string& path,
   namespace fs = std::filesystem;
 
   fs::path file_path(path);
-  auto start = std::chrono::steady_clock::now();
+  auto start = Clock::now();
 
   std::optional<fs::file_time_type> last_mod_time;
 
@@ -317,11 +354,10 @@ bool wait_for_file(const std::string& path,
         return true;
     }
 
-    if (std::chrono::steady_clock::now() - start >
-        std::chrono::seconds(timeout_seconds)) {
+    if (Clock::now() - start > seconds(timeout_seconds)) {
       return false;
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(poll_interval_ms));
+    std::this_thread::sleep_for(milliseconds(poll_interval_ms));
   }
 }

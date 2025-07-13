@@ -1,19 +1,19 @@
 #pragma once
 
 #include "api.h"
+#include "backtest.h"
+#include "calendar.h"
+#include "config.h"
 #include "indicators.h"
 #include "positions.h"
 #include "signal.h"
+#include "times.h"
 
-#include <chrono>
 #include <map>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <vector>
-
-using Clock = std::chrono::steady_clock;
-using TimePoint = Clock::time_point;
 
 struct Ticker {
   const std::string symbol;
@@ -37,24 +37,36 @@ struct Ticker {
 };
 
 using Tickers = std::map<std::string, Ticker>;
-using SymbolInfo = std::pair<std::string, int>;
+
+struct SymbolInfo {
+  std::string symbol;
+  int priority;
+};
 
 enum class FormatTarget;
 
 class Portfolio {
+ private:
+  Config config;
   std::vector<SymbolInfo> symbols;
+
+ public:
+  TG tg;
+
+ private:
   TD td;
+  Backtest bt;
 
   Tickers tickers;
   OpenPositions positions;
+  Calendar calendar;
 
-  TimePoint last_updated;
   const minutes update_interval;
 
   mutable std::shared_mutex mtx;
 
  public:
-  Portfolio() noexcept;
+  Portfolio(Config config) noexcept;
   void run();
 
   template <typename... Args>
@@ -67,13 +79,26 @@ class Portfolio {
     return std::unique_lock(mtx, std::forward<Args>(args)...);
   }
 
-  void add_trade(const Trade& trade) const;
+  std::pair<const Position*, double> add_trade(const Trade& trade) const;
+
+  LocalTimePoint last_updated() const;
 
  private:
-  void add_candle();
+  void run_backtest();
 
-  void plot(const std::string& ticker) const;
-  void write_page() const;
+  auto time_series(const std::string& symbol) {
+    return bt.enabled ? bt.time_series(symbol) : td.time_series(symbol);
+  }
+
+  auto real_time(const std::string& symbol) {
+    return bt.enabled ? bt.real_time(symbol) : td.real_time(symbol);
+  }
+
+  void add_candle();
+  void rollback();
+
+  void plot(const std::string& symbol = "") const;
+  void write_page(const std::string& symbol = "") const;
 
   static std::vector<SymbolInfo> read_symbols();
 

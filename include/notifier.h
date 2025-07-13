@@ -1,4 +1,5 @@
 #pragma once
+#include "api.h"
 #include "times.h"
 
 #include <string>
@@ -10,7 +11,9 @@ struct Signal;
 
 class Notifier {
   const Portfolio& portfolio;
-  mutable TimePoint last_updated;
+  const TG& tg;
+
+  mutable LocalTimePoint last_updated;
   std::unordered_map<std::string, Signal> prev_signals;
 
   std::thread td;

@@ -4,12 +4,16 @@
 
 #include <string_view>
 
+inline constexpr std::string_view html_reload =
+    R"(<meta http-equiv="refresh" content="1">)";
+
 inline constexpr std::string_view html_template = R"(
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {}
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Share+Tech+Mono&display=swap');
       
@@ -385,17 +389,25 @@ inline constexpr std::string_view html_subtitle_template = R"(
         <b>Updated</b>: {}
       </div>
       <div class="update-block">
-        <b>Analyst Updates:</b> <a href="https://www.marketbeat.com/ratings/us/">MarketBeat</a>
+        <b>Analyst Updates:</b> 
+          <a href="https://www.marketbeat.com/ratings/us/" target="_blank">MarketBeat</a>
       </div>
       <div class="update-block">
-        <a href="trades.html"><b>Trades</b></a>
+        <a href="trades.html" target="_blank"><b>Trades</b></a>
       </div>
       <div class="update-block">
         <b>Earnings:</b> 
-          <a href="https://finance.yahoo.com/calendar/earnings/">Yahoo</a>
+          <a href="https://finance.yahoo.com/calendar/earnings/" target="_blank">Yahoo</a>
           <a href="calendar.html">Calendar</a>
       </div>
     </div>
+)";
+
+inline constexpr std::string_view html_event_template = R"(
+  <a href="https://finance.yahoo.com/quote/{}/analysis/" 
+     target="_blank">
+     {}
+  </a>
 )";
 
 inline constexpr std::string_view html_row_template = R"(
@@ -404,7 +416,10 @@ inline constexpr std::string_view html_row_template = R"(
       style="{}"
       onclick="toggleSignalDetails(this, '{}-details') ">
     <td data-label="Signal">{}</td>
-    <td data-label="Symbol"><a href="{}.html">{}</a></td>
+    <td data-label="Symbol" style="display:flex;justify-content:space-between;">
+      <a href="{}.html" target="_blank">{}</a>
+      {}
+    </td>
     <td data-label="Price">{}</td>
     <td data-label="EMA">{}</td>
     <td data-label="RSI">{}</td>

@@ -23,6 +23,12 @@ FetchContent_Declare(
 ) 
 FetchContent_MakeAvailable(cpr)
 
+FetchContent_Declare(
+  argparse
+  GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+)
+FetchContent_MakeAvailable(argparse)
+
 # nlohmann/json - JSON parsing
 FetchContent_Declare(
   json
@@ -31,9 +37,24 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
+# Fetch spdlog (compiled version)
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.13.0  # Replace with the latest stable tag if needed
+)
+
+# Set this BEFORE FetchContent_MakeAvailable to build the compiled version
+set(SPDLOG_BUILD_STATIC ON)
+set(SPDLOG_HEADER_ONLY OFF)
+
+FetchContent_MakeAvailable(spdlog)
+
 # Add your source files
 add_executable(${TARGET}
   src/main.cpp
+  src/times.cpp
+  src/config.cpp
   src/api.cpp
   src/format.cpp
   src/indicators.cpp
@@ -44,6 +65,7 @@ add_executable(${TARGET}
   src/prediction.cpp
   src/webpage.cpp
   src/calendar.cpp
+  src/backtest.cpp
 )
 
 target_include_directories(${TARGET} PRIVATE
@@ -52,6 +74,8 @@ target_include_directories(${TARGET} PRIVATE
 
 target_link_libraries(${TARGET}
   cpr::cpr
+  argparse
+  spdlog::spdlog
 )
 
 # Add your source files

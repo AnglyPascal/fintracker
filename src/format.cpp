@@ -1,7 +1,7 @@
 #include "format.h"
 #include "portfolio.h"
+#include "times.h"
 
-#include <format>
 #include <functional>
 #include <iostream>
 #include <unordered_set>
@@ -11,52 +11,6 @@ std::string to_str(const Candle& candle) {
   auto& [datetime, open, high, low, close, volume] = candle;
   return std::format("{} {:.2f} {:.2f} {:.2f} {:.2f} {}",  //
                      datetime, open, high, low, close, volume);
-}
-
-inline std::string closest_nyse_aligned_time(const std::string& ny_time_str) {
-  using namespace std::chrono;
-
-  // Parse input
-  std::istringstream ss(ny_time_str);
-  local_time<seconds> input_local;
-  ss >> parse("%Y-%m-%d %H:%M:%S", input_local);
-  if (ss.fail())
-    return "1999-01-01 00:00:00";
-
-  zoned_time ny_time{"America/New_York", input_local};
-
-  auto day_start = floor<days>(ny_time.get_local_time());
-  year_month_day ymd{day_start};
-  weekday wd{day_start};
-  if (wd == Saturday || wd == Sunday)
-    return "1999-01-01 00:00:00";
-
-  // Market open = 09:30, last valid aligned time = 15:30
-  local_time<seconds> market_open = day_start + hours{9} + minutes{30};
-  local_time<seconds> last_slot = day_start + hours{15} + minutes{30};
-
-  // Clamp before open
-  if (input_local <= market_open)
-    return std::format("{:%Y-%m-%d %H:%M:%S}",
-                       zoned_time{"America/New_York", market_open});
-
-  // Clamp after last slot
-  if (input_local >= day_start + hours{16})
-    return std::format("{:%Y-%m-%d %H:%M:%S}",
-                       zoned_time{"America/New_York", last_slot});
-
-  // Round to closest 1h-aligned slot from 09:30
-  auto delta = duration_cast<seconds>(input_local - market_open);
-  auto slot =
-      static_cast<int>((delta.count() + 1800) / 3600);  // round to nearest hour
-  auto aligned = market_open + hours{slot};
-
-  // Final safety clamp
-  if (aligned > last_slot)
-    aligned = last_slot;
-
-  return std::format("{:%Y-%m-%d %H:%M:%S}",
-                     zoned_time{"America/New_York", aligned});
 }
 
 template <>
@@ -407,10 +361,6 @@ std::string to_str<FormatTarget::Telegram>(const Positions& positions,
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Portfolio& portfolio) {
-  auto msg_id = TG::send_doc("page/index.html", "portfolio.html", "");
-  if (msg_id != -1)
-    TG::pin_message(msg_id);
-
   std::string msg;
 
   auto& tickers = portfolio.tickers;
