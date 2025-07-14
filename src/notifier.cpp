@@ -40,7 +40,11 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
       else if (auto ticker = portfolio.get_ticker(symbol); ticker != nullptr)
         str = to_str<FormatTarget::Telegram>(*ticker);
     }
-    tg.send(str);
+
+    if (symbol == "")
+      tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
+    else
+      tg.send(to_str<FormatTarget::Telegram>(TEXT, str));
   }
 
   else if constexpr (command == Commands::TRADES) {
@@ -60,7 +64,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
       str =
           to_str<FormatTarget::Telegram>(portfolio.get_positions(), portfolio);
     }
-    tg.send(str);
+    tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
   }
 
   else if constexpr (command == Commands::PLOT) {
@@ -98,15 +102,10 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
               std::stod(px_str),
               std::stod(fees_str)};
 
-  auto [net_pos, pnl] = portfolio.add_trade(trade);
-
-  if (trade.action == Action::BUY)
-    tg.send(std::format("➕ Bought: {} {} @ {}", symbol, trade.qty, trade.px));
-  else if (net_pos != nullptr)
-    tg.send(std::format("➖ Sold: {} {} @ {}", symbol, trade.qty, trade.px));
-  else
-    tg.send(std::format("✔️ Closed: {} {} @ {}, {}", symbol, trade.qty, trade.px,
-                        pnl));
+  auto pos_pnl = portfolio.add_trade(trade);
+  auto str = to_str<FormatTarget::Telegram>(trade, pos_pnl);
+  auto msg = to_str<FormatTarget::Telegram>(DIFF, str);
+  tg.send(msg);
 
   std::ofstream file(POSITIONS_FILE, std::ios::app);
   if (file)
@@ -142,12 +141,6 @@ inline void handle_command(const Portfolio& portfolio,
     return handle_command<Commands::PLOT>(portfolio, is);
 }
 
-inline bool is_interesting(const Ticker& ticker, const Signal& prev_signal) {
-  if (ticker.has_position())
-    return true;
-  return ticker.signal.is_interesting() || prev_signal.is_interesting();
-}
-
 void Notifier::iter(Notifier* notifier) {
   auto& portfolio = notifier->portfolio;
 
@@ -156,27 +149,14 @@ void Notifier::iter(Notifier* notifier) {
     std::string msg;
     {
       auto lock = portfolio.reader_lock();
-
       if (notifier->last_updated != portfolio.last_updated()) {
         auto& prev_signals = notifier->prev_signals;
+        auto diff = to_str<FormatTarget::Alert>(portfolio, prev_signals);
+        msg = to_str<FormatTarget::Telegram>(DIFF, diff);
 
-        // FIXME: there's some bug causing unchanged alerts
-        for (auto& [symbol, ticker] : portfolio.tickers) {
-          auto prev_signal = std::move(prev_signals.at(symbol));
-
-          prev_signals.erase(symbol);
-          prev_signals.try_emplace(symbol, ticker.signal);
-
-          if (prev_signal.type == ticker.signal.type)
-            continue;
-
-          if (!is_interesting(ticker, prev_signal))
-            continue;
-
-          msg += std::format(
-              "*{}*: {}\n", symbol,
-              to_str<FormatTarget::Telegram>(prev_signal, ticker.signal));
-        }
+        prev_signals.clear();
+        for (auto& [symbol, ticker] : portfolio.tickers)
+          prev_signals.emplace(symbol, ticker.signal);
 
         notifier->last_updated = portfolio.last_updated();
       }
@@ -192,62 +172,6 @@ void Notifier::iter(Notifier* notifier) {
   }
 }
 
-std::string Notifier::init_update() const {
-  auto lock = portfolio.reader_lock();
-
-  std::string exit, caution, entry, watch;
-  for (auto& [symbol, signal] : prev_signals) {
-    if (signal.type == SignalType::Exit)
-      exit += symbol + ", ";
-    else if (signal.type == SignalType::Entry)
-      entry += symbol + ", ";
-    else if (signal.type == SignalType::HoldCautiously)
-      caution += symbol + ", ";
-    else if (signal.type == SignalType::Watchlist)
-      watch += symbol + ", ";
-  }
-
-  std::string signal_str;
-
-  if (exit != "") {
-    exit.pop_back();
-    exit.pop_back();
-    signal_str += "🚨 Exit: " + exit + "\n\n";
-  }
-
-  if (caution != "") {
-    caution.pop_back();
-    caution.pop_back();
-    signal_str += "⚠️ Hold cautiously: " + caution + "\n\n";
-  }
-
-  if (entry != "") {
-    entry.pop_back();
-    entry.pop_back();
-    signal_str += "✅ Entry: " + entry + "\n\n";
-  }
-
-  if (watch != "") {
-    watch.pop_back();
-    watch.pop_back();
-    signal_str += "👀 Watchlist: " + watch + "\n\n";
-  }
-
-  if (signal_str == "")
-    signal_str = "😴 Nothing to report\n";
-  signal_str += "\n";
-
-  auto msg_id = tg.send_doc("page/index.html", "portfolio.html", "");
-  if (msg_id != -1)
-    tg.pin_message(msg_id);
-
-  auto positions =
-      to_str<FormatTarget::Telegram>(portfolio.get_positions(), portfolio);
-
-  std::string header = "📊 *Status Update*\n\n";
-  return header + signal_str + positions;
-}
-
 Notifier::Notifier(const Portfolio& portfolio) noexcept
     : portfolio{portfolio},
       tg{portfolio.tg},
@@ -256,16 +180,17 @@ Notifier::Notifier(const Portfolio& portfolio) noexcept
   for (auto& [symbol, ticker] : portfolio.tickers)
     prev_signals.emplace(symbol, ticker.signal);
 
-  auto msg = init_update();
-  tg.send(msg);
+  auto str = to_str<FormatTarget::Telegram>(portfolio);
+  auto msg = to_str<FormatTarget::Telegram>(HASKELL, str);
 
-  if (wait_for_file("page/index.html", 60)) {
+  if (wait_for_file("page/index.html")) {
     auto msg_id = tg.send_doc("page/index.html", "portfolio.html", "");
     if (msg_id != -1)
       tg.pin_message(msg_id);
   } else {
-    tg.send("Teport not yet created");
+    tg.send("Report not yet created");
   }
+  tg.send(msg);
 
   td = std::thread{Notifier::iter, this};
 }

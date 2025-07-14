@@ -43,6 +43,10 @@ inline constexpr std::string BRIGHT_MAGENTA_BG = "\033[105m";
 inline constexpr std::string BRIGHT_CYAN_BG = "\033[106m";
 inline constexpr std::string BRIGHT_WHITE_BG = "\033[107m";
 
+inline constexpr std::string HASKELL = "haskell";
+inline constexpr std::string DIFF = "diff";
+inline constexpr std::string TEXT = "text";
+
 enum class FormatTarget {
   None,
   Telegram,
@@ -78,3 +82,4 @@ inline std::string join(It start, It end, std::string sep = ",") {
 
   return result;
 }
+

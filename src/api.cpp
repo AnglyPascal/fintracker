@@ -41,10 +41,10 @@ using nlohmann::json;
  ******************/
 
 int TG::send(const std::string& text) const {
-  if (!enabled) {
-    spdlog::info("TG send: {}...", text.substr(0, 20).c_str());
+  spdlog::trace("[tg] send: {}...", text.substr(0, 20).c_str());
+
+  if (!enabled)
     return -1;
-  }
 
   if (text == "")
     return -1;
@@ -66,10 +66,10 @@ int TG::send(const std::string& text) const {
 }
 
 int TG::pin_message(int message_id) const {
-  if (!enabled) {
-    spdlog::info("TG pin message: {}", message_id);
+  spdlog::trace("[tg] pin message: {}", message_id);
+
+  if (!enabled)
     return -1;
-  }
 
   if (!enabled)
     return -1;
@@ -101,11 +101,11 @@ int TG::pin_message(int message_id) const {
 }
 
 int TG::edit_msg(int message_id, const std::string& text) const {
-  if (!enabled) {
-    spdlog::info("TG edit msg: {} {}...", message_id,
-                 text.substr(0, 20).c_str());
+  spdlog::trace("[tg] edit msg: {} {}...", message_id,
+                text.substr(0, 20).c_str());
+
+  if (!enabled)
     return -1;
-  }
 
   auto url =
       std::format("https://api.telegram.org/bot{}/editMessageText", TG_TOKEN);
@@ -172,10 +172,10 @@ std::tuple<bool, std::string, int> TG::receive(int last_update_id) const {
 }
 
 int TG::delete_msg(int message_id) const {
-  if (!enabled) {
-    spdlog::info("TG delete msg: {}", message_id);
+  spdlog::trace("[tg] delete msg: {}", message_id);
+
+  if (!enabled)
     return -1;
-  }
 
   auto url =
       std::format("https://api.telegram.org/bot{}/deleteMessage", TG_TOKEN);
@@ -195,10 +195,10 @@ int TG::delete_msg(int message_id) const {
 int TG::send_doc(const std::string& fname,
                  const std::string& copy_name,
                  const std::string& caption) const {
-  if (!enabled) {
-    spdlog::info("TG send doc: {} to {}", fname.c_str(), copy_name.c_str());
+  spdlog::trace("[tg] send doc: {} to {}", fname.c_str(), copy_name.c_str());
+
+  if (!enabled)
     return -1;
-  }
 
   auto url =
       std::format("https://api.telegram.org/bot{}/sendDocument", TG_TOKEN);
@@ -223,8 +223,13 @@ int TG::send_doc(const std::string& fname,
  ** TwelveData API **
  ********************/
 
+inline constexpr int MAX_OUTPUT_SIZE = 5000;
+inline constexpr int API_TOKENS = 800;
+inline constexpr int MAX_CALLS_MIN = 8;
+inline constexpr int N_APIs = 3;
+
 inline constexpr minutes get_interval(size_t n_tickers) {
-  auto mins = 60 / ((API_TOKENS * Ns) / (n_tickers * 8));
+  auto mins = 60 / ((API_TOKENS * N_APIs) / (n_tickers * 8));
   auto m = minutes(mins);
   constexpr minutes intervals[] = {M_15, M_30, H_1, H_2, H_4, D_1};
   for (auto iv : intervals)
@@ -338,26 +343,26 @@ Candle TD::real_time(const std::string& symbol) {
 }
 
 bool wait_for_file(const std::string& path,
-                   int timeout_seconds,
-                   int poll_interval_ms) {
+                   seconds freshness,
+                   seconds timeout,
+                   milliseconds poll_interval) {
   namespace fs = std::filesystem;
 
   fs::path file_path(path);
-  auto start = Clock::now();
+  auto deadline = Clock::now() + timeout;
 
-  std::optional<fs::file_time_type> last_mod_time;
-
-  while (true) {
+  while (Clock::now() < deadline) {
     if (fs::exists(file_path)) {
       auto mod_time = fs::last_write_time(file_path);
-      if (!last_mod_time || mod_time != *last_mod_time)
+      auto sys_mod_time = clock_cast<SysClock>(mod_time);
+      auto now = SysClock::now();
+
+      if (now - sys_mod_time <= freshness)
         return true;
     }
 
-    if (Clock::now() - start > seconds(timeout_seconds)) {
-      return false;
-    }
-
-    std::this_thread::sleep_for(milliseconds(poll_interval_ms));
+    std::this_thread::sleep_for(poll_interval);
   }
+
+  return false;
 }

@@ -13,17 +13,15 @@ Ticker::Ticker(const std::string& symbol,
                int priority,
                std::vector<Candle>&& candles,
                minutes update_interval,
-               const Position* position) noexcept
+               const Position* position,
+               const std::string& long_term_trend) noexcept
     : symbol{symbol},
       priority{priority},
       last_polled{Clock::now()},
       metrics{this->symbol, std::move(candles), update_interval, position},
-      signal{metrics}  //
+      signal{metrics},
+      long_term_trend{long_term_trend}  //
 {}
-
-bool Ticker::has_position() const {
-  return metrics.position != nullptr && metrics.position->qty != 0;
-}
 
 std::vector<SymbolInfo> Portfolio::read_symbols() {
   std::vector<SymbolInfo> symbols;
@@ -61,21 +59,21 @@ Portfolio::Portfolio(Config config) noexcept
       calendar{},
       update_interval{td.interval}  //
 {
-  spdlog::info("Update interval: " + std::format("{}", update_interval));
-
   for (auto& [symbol, priority] : symbols) {
     auto candles = time_series(symbol);
     auto position = positions.get_position(symbol);
 
     // if filters reject this ticker, don't add it
-    auto add = filter(candles, update_interval);
+    auto [add, reason] = filter(candles, update_interval);
     if (position == nullptr && !add) {
-      spdlog::info("Skipping " + symbol);
+      spdlog::info("Skipping {}: {}", symbol.c_str(), reason.c_str());
       continue;
+    } else {
+      spdlog::debug("Tracking {}: {}", symbol.c_str(), reason.c_str());
     }
 
     tickers.try_emplace(symbol, symbol, priority, std::move(candles),
-                        update_interval, position);
+                        update_interval, position, reason);
   }
 
   write_page();

@@ -124,7 +124,9 @@ struct Metrics;
 struct Candle;
 using filter_f = Filter (*)(const std::vector<Candle>& candles,
                             minutes interval);
-bool filter(const std::vector<Candle>& candles, minutes interval);
+
+std::pair<bool, std::string> filter(const std::vector<Candle>& candles,
+                                    minutes interval);
 
 using signal_f = Reason (*)(const Metrics&);
 using hint_f = Hint (*)(const Metrics&);

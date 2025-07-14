@@ -8,11 +8,6 @@
 #include <string>
 #include <vector>
 
-inline constexpr int MAX_OUTPUT_SIZE = 5000;
-inline constexpr int API_TOKENS = 800;
-inline constexpr int MAX_CALLS_MIN = 8;
-inline constexpr int Ns = 3;
-
 class TG {
  private:
   bool enabled = true;
@@ -64,6 +59,7 @@ class TD {
 };
 
 bool wait_for_file(const std::string& path,
-                   int timeout_seconds = 30,
-                   int poll_interval_ms = 500);
+                   seconds freshness = seconds{120},
+                   seconds timeout = seconds{30},
+                   milliseconds poll_interval = milliseconds{500});
 

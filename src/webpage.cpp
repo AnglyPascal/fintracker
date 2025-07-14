@@ -188,6 +188,15 @@ std::string to_str(const Event& ev) {
 }
 
 template <>
+std::string to_str<FormatTarget::HTML>(const Position* const& pos,
+                                       const double& price) {
+  if (pos == nullptr || pos->qty == 0)
+    return "";
+  return std::format("{}, {:+.2f} ({:+.2f}%)", to_str(*pos), pos->pnl(price),
+                     pos->pct(price));
+}
+
+template <>
 std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   std::string body;
 
@@ -202,12 +211,12 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
     auto price = to_str<FormatTarget::HTML>(ticker.signal, Source::Price);
     auto stop = to_str<FormatTarget::HTML>(ticker.signal, Source::Stop);
 
-    auto pos_str = ticker.has_position() ? ticker.pos_to_str(false) : "";
+    bool has_position = ticker.metrics.has_position();
+    auto pos_str = to_str<FormatTarget::HTML>(m.position, m.last_price());
     auto stop_loss_str =
-        ticker.has_position()
-            ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
-                          to_str<FormatTarget::HTML>(m.stop_loss))
-            : "";
+        has_position ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
+                                   to_str<FormatTarget::HTML>(m.stop_loss))
+                     : "";
 
     auto hide = [&]() {
       if (m.has_position())

@@ -30,15 +30,15 @@ Filter evaluate_daily_trend(const std::vector<Candle>& candles,
   double rsi_val = rsi.back();
 
   if (slope > 0.08 && r2 > 0.8 && rsi_val > 55)
-    return Confidence::StrongUptrend;
+    return {Confidence::StrongUptrend, "1d⇗"};
 
   if (slope > 0.02 && r2 > 0.6 && rsi_val > 50)
-    return Confidence::ModerateUptrend;
+    return {Confidence::ModerateUptrend, "1d↗"};
 
   if (rsi_val > 45)
-    return Confidence::NeutralOrSideways;
+    return {Confidence::NeutralOrSideways, "1d🡒"};
 
-  return Confidence::Bearish;
+  return {Confidence::Bearish, "1d↘"};
 }
 
 Filter evaluate_four_hour_trend(const std::vector<Candle>& candles,
@@ -50,7 +50,7 @@ Filter evaluate_four_hour_trend(const std::vector<Candle>& candles,
   auto& rsi_trend = ind.trends.rsi.top_trends;
 
   if (ema_trend.empty() || rsi_vals.empty())
-    return Confidence::NeutralOrSideways;
+    return {Confidence::NeutralOrSideways, "4h🡒"};
 
   double ema_slope = ema_trend[0].slope();
   double ema_r2 = ema_trend[0].r2;
@@ -66,18 +66,18 @@ Filter evaluate_four_hour_trend(const std::vector<Candle>& candles,
   // Strong Uptrend: clear EMA rise + solid RSI
   if (ema_slope > 0.10 && ema_r2 > 0.8 && rsi_val > 55 && rsi_slope > 0.1 &&
       rsi_r2 > 0.7)
-    return Confidence::StrongUptrend;
+    return {Confidence::StrongUptrend, "4h⇗"};
 
   // Moderate Uptrend: some slope or RSI support
   if ((ema_slope > 0.03 && ema_r2 > 0.6 && rsi_val > 50) ||
       (rsi_slope > 0.05 && rsi_r2 > 0.6 && rsi_val > 50))
-    return Confidence::ModerateUptrend;
+    return {Confidence::ModerateUptrend, "4h↗"};
 
   // Weak Neutral Zone
   if (rsi_val > 45)
-    return Confidence::NeutralOrSideways;
+    return {Confidence::NeutralOrSideways, "4h🡒"};
 
-  return Confidence::Bearish;
+  return {Confidence::Bearish, "4h↘"};
 }
 
 inline constexpr filter_f filters[] = {
@@ -85,14 +85,21 @@ inline constexpr filter_f filters[] = {
     evaluate_four_hour_trend,
 };
 
-bool filter(const std::vector<Candle>& candles, minutes interval) {
+std::pair<bool, std::string> filter(const std::vector<Candle>& candles,
+                                    minutes interval) {
   if (candles.empty())
-    return false;
+    return {false, ""};
 
-  for (auto f : filters)
-    if (auto [c, s] = f(candles, interval); c == Confidence::Bearish)
-      return false;
-  return true;
+  bool res = true;
+  std::string str = "";
+
+  for (auto f : filters) {
+    auto [c, s] = f(candles, interval);
+    res &= (c != Confidence::Bearish);
+    str += s + " ";
+  }
+
+  return {res, str};
 }
 
 // Entry reasons

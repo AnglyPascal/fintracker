@@ -23,17 +23,16 @@ struct Ticker {
 
   Metrics metrics;
   Signal signal = {};
+  std::string long_term_trend;
 
   Ticker(const std::string& symbol,
          int priority,
          std::vector<Candle>&& candles,
          minutes update_interval,
-         const Position* position) noexcept;
+         const Position* position,
+         const std::string& long_term_trend) noexcept;
 
   void plot() const;
-
-  bool has_position() const;
-  std::string pos_to_str(bool tg = false) const;
 };
 
 using Tickers = std::map<std::string, Ticker>;
@@ -106,6 +105,9 @@ class Portfolio {
 
   template <FormatTarget target, typename T>
   friend std::string to_str(const T& t);
+
+  template <FormatTarget target, typename T, typename S>
+  friend std::string to_str(const T& t, const S& s);
 
  public:  // getters
   const Trades& get_trades() const { return positions.get_trades(); }
