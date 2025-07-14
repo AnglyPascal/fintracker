@@ -4,6 +4,8 @@
 #include "portfolio.h"
 #include "times.h"
 
+#include <spdlog/spdlog.h>
+
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -33,7 +35,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
   if constexpr (command == Commands::STATUS) {
     std::string str;
     {
-      auto lock = portfolio.reader_lock();
+      auto _ = portfolio.reader_lock();
 
       if (symbol == "")
         str = to_str<FormatTarget::Telegram>(portfolio);
@@ -51,7 +53,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
     // FIXME: need to send an html, not the text
     std::string str;
     {
-      auto lock = portfolio.reader_lock();
+      auto _ = portfolio.reader_lock();
       str = to_str<FormatTarget::HTML>(portfolio.get_trades());
     }
     tg.send(str);
@@ -60,7 +62,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
   else if constexpr (command == Commands::POSITIONS) {
     std::string str;
     {
-      auto lock = portfolio.reader_lock();
+      auto _ = portfolio.reader_lock();
       str =
           to_str<FormatTarget::Telegram>(portfolio.get_positions(), portfolio);
     }
@@ -70,7 +72,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
   else if constexpr (command == Commands::PLOT) {
     auto fname = std::format("page/{}.html", symbol);
     if (wait_for_file(fname))
-      tg.send_doc(fname, "Charts for " + symbol);
+      tg.send_doc(fname, fname, "Charts for " + symbol);
   }
 }
 
@@ -79,40 +81,42 @@ template <Commands command>
 void handle_command(const Portfolio& portfolio, std::istream& is) {
   auto& tg = portfolio.tg;
 
-  std::string symbol, qty_str, px_str, fees_str;
-  is >> symbol >> qty_str >> px_str >> fees_str;
+  std::string symbol, qty_str, px_str, total_str;
+  is >> symbol >> qty_str >> px_str >> total_str;
 
   if (!portfolio.is_tracking(symbol)) {
-    tg.send("Symbol is not being tracked");
+    spdlog::error("[tg] buy/sell for untracked symbol: {}", symbol.c_str());
     return;
   }
 
-  if (qty_str == "" || px_str == "") {
-    tg.send("Command not valid");
+  if (qty_str == "" || px_str == "" || total_str == "") {
+    spdlog::error("[tg] empty qty, px or total string");
     return;
   }
 
-  if (fees_str == "")
-    fees_str = "0.0";
+  try {
+    Trade trade{to_str(now_ny_time()),
+                symbol,
+                command == Commands::BUY ? Action::BUY : Action::SELL,
+                std::stod(qty_str),
+                std::stod(px_str),
+                std::stod(total_str)};
+    auto pos_pnl = portfolio.add_trade(trade);
+    auto str = to_str<FormatTarget::Telegram>(trade, pos_pnl);
+    auto msg = to_str<FormatTarget::Telegram>(DIFF, str);
+    tg.send(msg);
 
-  Trade trade{to_str(now_ny_time()),
-              symbol,
-              command == Commands::BUY ? Action::BUY : Action::SELL,
-              std::stod(qty_str),
-              std::stod(px_str),
-              std::stod(fees_str)};
-
-  auto pos_pnl = portfolio.add_trade(trade);
-  auto str = to_str<FormatTarget::Telegram>(trade, pos_pnl);
-  auto msg = to_str<FormatTarget::Telegram>(DIFF, str);
-  tg.send(msg);
-
-  std::ofstream file(POSITIONS_FILE, std::ios::app);
-  if (file)
-    file << std::format("{},{},{},{},{},{}\n",                      //
-                        to_str(now_ny_time()), symbol,              //
-                        command == Commands::BUY ? "BUY" : "SELL",  //
-                        qty_str, px_str, fees_str);
+    std::ofstream file(POSITIONS_FILE, std::ios::app);
+    if (file)
+      file << std::format("{},{},{},{},{},{}\n",                      //
+                          to_str(now_ny_time()), symbol,              //
+                          command == Commands::BUY ? "BUY" : "SELL",  //
+                          qty_str, px_str, total_str);
+  } catch (const std::invalid_argument& e) {
+    spdlog::error("[tg] invalid argument to buy/sell");
+  } catch (...) {
+    spdlog::error("[tg] wrong format for buy/sell");
+  }
 }
 
 inline void handle_command(const Portfolio& portfolio,
@@ -139,6 +143,18 @@ inline void handle_command(const Portfolio& portfolio,
 
   if (command == "/plot")
     return handle_command<Commands::PLOT>(portfolio, is);
+
+  spdlog::error("[tg] wrong command: {}", line.c_str());
+}
+
+inline void send_html(const auto& tg) {
+  if (wait_for_file("page/index.html")) {
+    auto msg_id = tg.send_doc("page/index.html", "portfolio.html", "");
+    if (msg_id != -1)
+      tg.pin_message(msg_id);
+  } else {
+    tg.send("Report not yet created");
+  }
 }
 
 void Notifier::iter(Notifier* notifier) {
@@ -148,7 +164,7 @@ void Notifier::iter(Notifier* notifier) {
   while (true) {
     std::string msg;
     {
-      auto lock = portfolio.reader_lock();
+      auto _ = portfolio.reader_lock();
       if (notifier->last_updated != portfolio.last_updated()) {
         auto& prev_signals = notifier->prev_signals;
         auto diff = to_str<FormatTarget::Alert>(portfolio, prev_signals);
@@ -169,6 +185,15 @@ void Notifier::iter(Notifier* notifier) {
       handle_command(portfolio, line);
     last_update_id = id;
     std::this_thread::sleep_for(seconds(5));
+
+    if (portfolio.intervals_passed % 4 == 0) {  // every 1 hour
+      if (!notifier->update_sent) {
+        send_html(notifier->tg);
+        notifier->update_sent = true;
+      }
+    } else {
+      notifier->update_sent = false;
+    }
   }
 }
 
@@ -182,15 +207,9 @@ Notifier::Notifier(const Portfolio& portfolio) noexcept
 
   auto str = to_str<FormatTarget::Telegram>(portfolio);
   auto msg = to_str<FormatTarget::Telegram>(HASKELL, str);
-
-  if (wait_for_file("page/index.html")) {
-    auto msg_id = tg.send_doc("page/index.html", "portfolio.html", "");
-    if (msg_id != -1)
-      tg.pin_message(msg_id);
-  } else {
-    tg.send("Report not yet created");
-  }
   tg.send(msg);
+  send_html(tg);
+  update_sent = true;
 
   td = std::thread{Notifier::iter, this};
 }

@@ -342,6 +342,11 @@ Candle TD::real_time(const std::string& symbol) {
   return api_call(symbol, 1).back();
 }
 
+LocalTimePoint TD::latest_datetime() {
+  auto candle = api_call("NVDA", 1).back();
+  return candle.time();
+}
+
 bool wait_for_file(const std::string& path,
                    seconds freshness,
                    seconds timeout,

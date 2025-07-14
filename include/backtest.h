@@ -26,4 +26,6 @@ class Backtest {
   Candle real_time(const std::string& symbol);
 
   void rollback(const std::string& symbol, const Candle& candle);
+
+  bool has_data() const;
 };

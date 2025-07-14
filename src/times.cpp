@@ -74,25 +74,6 @@ std::string closest_nyse_aligned_time(const std::string& ny_time_str) {
   return std::format("{:%F %T}", aligned);
 }
 
-bool is_us_market_open_now() {
-  auto local = now_ny_time();
-  auto day_start = floor<days>(local);
-  weekday wd{day_start};
-
-  // Weekend check
-  if (wd == Saturday || wd == Sunday)
-    return false;
-
-  // Time of day check
-  auto tod = floor<minutes>(local.time_since_epoch() % days{1});
-  int mins = duration_cast<minutes>(tod).count();
-
-  constexpr int open_minutes = 9 * 60 + 30;
-  constexpr int close_minutes = 16 * 60;
-
-  return mins >= open_minutes && mins < close_minutes;
-}
-
 template <>
 std::string to_str(const SysTimePoint& datetime) {
   return std::format("{:%F %T}", datetime);
@@ -103,3 +84,31 @@ std::string to_str(const LocalTimePoint& datetime) {
   return std::format("{:%F %T}", datetime);
 }
 
+std::pair<bool, minutes> market_status() {
+  auto now = now_ny_time();
+  auto today = floor<days>(now);
+  auto time_of_day = now - today;
+
+  weekday wd{today};
+  if (wd == Saturday || wd == Sunday)
+    return {false, minutes{-1}};
+
+  constexpr auto market_open = hours{9} + minutes{30};
+  constexpr auto market_close = hours{16};
+
+  if (time_of_day < market_open) {
+    auto time_until_open = duration_cast<minutes>(market_open - time_of_day);
+    return {true, time_until_open};
+  }
+
+  if (time_of_day < market_close) {
+    auto minutes_since_midnight = duration_cast<minutes>(time_of_day);
+    auto next_15_min_block = ((minutes_since_midnight.count() + 14) / 15) * 15;
+    auto minutes_until_next_block =
+        next_15_min_block - minutes_since_midnight.count();
+    return {true, minutes{minutes_until_next_block}};
+  }
+
+  // Market already closed today
+  return {false, minutes{-1}};
+}

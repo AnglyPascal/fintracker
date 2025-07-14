@@ -149,17 +149,16 @@ struct Metrics {
   StopLoss stop_loss;
   const Position* position;
 
- private:
-  uint32_t new_day_intervals_passed;
-
  public:
   Metrics(const std::string& symbol,
           std::vector<Candle>&& candles,
           minutes interval,
           const Position* position) noexcept;
 
-  bool add(const Candle& candle, const Position* position) noexcept;
-  Candle pop_back() noexcept;
+  bool add(const Candle& candle,
+                  const Position* position,
+                  uint32_t new_day_intervals_passed) noexcept;
+  Candle pop_back(uint32_t new_day_intervals_passed) noexcept;
 
   auto last_price() const { return candles.back().price(); }
   auto last_updated() const {

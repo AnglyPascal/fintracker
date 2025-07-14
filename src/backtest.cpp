@@ -115,3 +115,7 @@ Candle Backtest::real_time(const std::string& symbol) {
 void Backtest::rollback(const std::string& symbol, const Candle& candle) {
   curr_day_candles_rev[symbol].push_back(candle);
 }
+
+bool Backtest::has_data() const {
+  return !curr_day_candles_rev.empty();
+}

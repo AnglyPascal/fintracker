@@ -9,7 +9,7 @@
 
 namespace fs = std::filesystem;
 
-void init_logging() {
+void init_logging(const Config& config) {
   auto pwd = fs::current_path().generic_string();
   auto log_name = std::format("{}/logs/{:%F_%R}.log", pwd, SysClock::now());
   auto link_name = pwd + "/logs/output.log";
@@ -20,16 +20,17 @@ void init_logging() {
   auto file_logger = spdlog::basic_logger_mt("file_logger", log_name);
   spdlog::set_default_logger(file_logger);
 
-  spdlog::set_level(spdlog::level::info);
-  spdlog::flush_on(spdlog::level::info);
+  auto level = config.debug_en ? spdlog::level::trace : spdlog::level::info;
+  spdlog::set_level(level);
+  spdlog::flush_on(level);
 
   spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
 }
 
 int main(int argc, char* argv[]) {
-  init_logging();
-
   Config config{argc, argv};
+  init_logging(config);
+
   Portfolio portfolio{config};
   Notifier notifier{portfolio};
   portfolio.run();

@@ -5,6 +5,11 @@
 Config::Config(int argc, char* argv[]) {
   argparse::ArgumentParser program("fin");
 
+  program.add_argument("-d", "--debug")
+      .default_value(false)
+      .implicit_value(true)
+      .help("Enable debug");
+
   program.add_argument("-t", "--disable-tg")
       .default_value(false)
       .implicit_value(true)
@@ -29,4 +34,5 @@ Config::Config(int argc, char* argv[]) {
   tg_en = !program.get<bool>("--disable-tg");
   backtest_en = program.get<bool>("--backtest");
   plot_en = !program.get<bool>("--disable-plot");
+  debug_en = program.get<bool>("--debug");
 }

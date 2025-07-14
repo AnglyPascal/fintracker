@@ -27,7 +27,7 @@ std::string to_str(const Trade& t) {
       (t.action == Action::BUY ? "BUY" : "SELL"),   //
       t.qty,                                        //
       t.px,                                         //
-      t.fees                                        //
+      t.total                                       //
   );
 }
 
@@ -361,7 +361,7 @@ std::string to_str<FormatTarget::Telegram>(const Positions& positions,
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Portfolio& portfolio) {
-  auto lock = portfolio.reader_lock();
+  auto _ = portfolio.reader_lock();
 
   std::string exit, caution, entry, watch;
   for (auto& [symbol, ticker] : portfolio.tickers) {

@@ -290,6 +290,7 @@ std::vector<Candle> downsample(const std::vector<Candle>& candles,
   return out;
 }
 
+
 Metrics::Metrics(const std::string& symbol,
                  std::vector<Candle>&& candles,
                  minutes interval,
@@ -299,8 +300,7 @@ Metrics::Metrics(const std::string& symbol,
       interval{interval},
       indicators_1h{downsample(this->candles, interval, H_1), H_1},  //
       stop_loss{indicators_1h, position},                            //
-      position{position},                                            //
-      new_day_intervals_passed{0}                                    //
+      position{position}                                             //
 {
   if (has_position())
     position->max_price_seen = std::max(position->max_price_seen, last_price());
@@ -310,15 +310,17 @@ bool Metrics::has_position() const {
   return position != nullptr && position->qty != 0;
 }
 
-bool Metrics::add(const Candle& candle, const Position* position) noexcept {
+bool Metrics::add(const Candle& candle,
+                  const Position* position,
+                  uint32_t new_day_intervals_passed) noexcept {
   candles.push_back(candle);
-  new_day_intervals_passed++;
 
   auto add_to_ind = [&](auto& ind) {
     size_t skip = ind.interval / interval;
     if (new_day_intervals_passed % skip != 1)
       ind.pop_back();
 
+    // FIXME:
     auto new_candle = combine(candles.end() - skip, candles.end());
     ind.add(new_candle);
 
@@ -338,10 +340,9 @@ bool Metrics::add(const Candle& candle, const Position* position) noexcept {
   return added;
 }
 
-Candle Metrics::pop_back() noexcept {
+Candle Metrics::pop_back(uint32_t new_day_intervals_passed) noexcept {
   auto candle = candles.back();
   candles.pop_back();
-  new_day_intervals_passed--;
 
   auto pop_from_ind = [&](auto& ind) {
     ind.pop_back();

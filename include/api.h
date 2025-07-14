@@ -56,6 +56,7 @@ class TD {
 
   Result time_series(const std::string& symbol, int n_days = 90);
   Candle real_time(const std::string& symbol);
+  LocalTimePoint latest_datetime();
 };
 
 bool wait_for_file(const std::string& path,

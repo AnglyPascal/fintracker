@@ -19,7 +19,6 @@ struct Trade {
 
   double qty;
   double px;
-  double fees;
   double total;
 };
 

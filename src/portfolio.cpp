@@ -49,6 +49,19 @@ LocalTimePoint Portfolio::last_updated() const {
                          : tickers.begin()->second.metrics.last_updated();
 }
 
+inline uint32_t intervals_passed() {
+  auto now = now_ny_time();
+  auto time_of_day = now - floor<days>(now);
+
+  auto market_open = hours{9} + minutes{30};
+
+  if (time_of_day <= market_open)
+    return 0;
+
+  auto elapsed = time_of_day - market_open;
+  return elapsed / minutes{15};
+}
+
 Portfolio::Portfolio(Config config) noexcept
     : config{config},
       symbols{Portfolio::read_symbols()},
@@ -57,7 +70,8 @@ Portfolio::Portfolio(Config config) noexcept
       bt{td, symbols, config.backtest_en},
       positions{},
       calendar{},
-      update_interval{td.interval}  //
+      update_interval{td.interval},
+      intervals_passed{::intervals_passed()}  //
 {
   for (auto& [symbol, priority] : symbols) {
     auto candles = time_series(symbol);
@@ -86,11 +100,13 @@ void Portfolio::add_candle() {
 
     for (auto& [symbol, ticker] : tickers) {
       auto candle = real_time(symbol);
-
-      auto added = ticker.metrics.add(candle, positions.get_position(symbol));
+      auto added = ticker.metrics.add(candle, positions.get_position(symbol),
+                                      intervals_passed + 1);
       if (added)
         ticker.signal = Signal{ticker.metrics};
     }
+
+    intervals_passed++;
   }
 
   write_page();
@@ -105,10 +121,12 @@ void Portfolio::rollback() {
     auto _ = writer_lock();
 
     for (auto& [symbol, ticker] : tickers) {
-      auto candle = ticker.metrics.pop_back();
+      auto candle = ticker.metrics.pop_back(intervals_passed - 1);
       bt.rollback(symbol, candle);
       ticker.signal = Signal{ticker.metrics};
     }
+
+    intervals_passed--;
   }
 
   write_page();
@@ -141,28 +159,39 @@ inline auto sleep(auto mins) {
 }
 
 void Portfolio::run() {
-  if (bt.enabled)
+  if (bt.enabled)  // TODO: add an automated running mechanism
     return run_backtest();
 
-  sleep(update_interval);
-  while (!is_us_market_open_now())
-    sleep(1);
-
-  while (is_us_market_open_now()) {
-    add_candle();
-    sleep(update_interval);
-  }
-
   while (true) {
-    // TODO: give daily report?
-    sleep(1);
+    auto [open, remaining] = market_status();
+    if (!open)
+      break;
+
+    sleep(remaining + minutes(3));
+    if (td.latest_datetime() == last_updated())
+      sleep(2);
+
+    add_candle();
   }
+
+  spdlog::info("Market closed");
+
+  while (true)
+    sleep(1);
 }
 
-void Portfolio::run_backtest() {
+void Portfolio::run_backtest(bool continuous) {
+  if (continuous) {
+    while (bt.has_data()) {
+      add_candle();
+      sleep(2);
+    }
+    return;
+  }
+
   RawMode _;
 
-  while (true) {
+  while (bt.has_data()) {
     char ch;
     if (read(STDIN_FILENO, &ch, 1) == 1) {
       std::cout << "\b \b" << std::flush;

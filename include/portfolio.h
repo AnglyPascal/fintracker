@@ -48,6 +48,7 @@ class Portfolio {
  private:
   Config config;
   std::vector<SymbolInfo> symbols;
+  mutable std::shared_mutex mtx;
 
  public:
   TG tg;
@@ -61,55 +62,33 @@ class Portfolio {
   Calendar calendar;
 
   const minutes update_interval;
-
-  mutable std::shared_mutex mtx;
+  uint32_t intervals_passed;
 
  public:
   Portfolio(Config config) noexcept;
   void run();
 
-  template <typename... Args>
-  auto reader_lock(Args&&... args) const {
-    return std::shared_lock(mtx, std::forward<Args>(args)...);
-  }
-
-  template <typename... Args>
-  auto writer_lock(Args&&... args) {
-    return std::unique_lock(mtx, std::forward<Args>(args)...);
-  }
-
   std::pair<const Position*, double> add_trade(const Trade& trade) const;
 
-  LocalTimePoint last_updated() const;
-
  private:
-  void run_backtest();
+  void run_backtest(bool continuous = false);
 
-  auto time_series(const std::string& symbol) {
+  auto time_series(auto& symbol) {
     return bt.enabled ? bt.time_series(symbol) : td.time_series(symbol);
   }
 
-  auto real_time(const std::string& symbol) {
+  auto real_time(auto& symbol) {
     return bt.enabled ? bt.real_time(symbol) : td.real_time(symbol);
   }
 
   void add_candle();
   void rollback();
 
-  void plot(const std::string& symbol = "") const;
-  void write_page(const std::string& symbol = "") const;
-
   static std::vector<SymbolInfo> read_symbols();
 
-  friend class Notifier;
-
-  template <FormatTarget target, typename T>
-  friend std::string to_str(const T& t);
-
-  template <FormatTarget target, typename T, typename S>
-  friend std::string to_str(const T& t, const S& s);
-
  public:  // getters
+  LocalTimePoint last_updated() const;
+
   const Trades& get_trades() const { return positions.get_trades(); }
   const Positions& get_positions() const { return positions.get_positions(); }
 
@@ -121,5 +100,27 @@ class Portfolio {
   bool is_tracking(const std::string& symbol) const {
     return tickers.find(symbol) != tickers.end();
   }
+
+  template <typename... Args>
+  auto reader_lock(Args&&... args) const {
+    return std::shared_lock(mtx, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto writer_lock(Args&&... args) {
+    return std::unique_lock(mtx, std::forward<Args>(args)...);
+  }
+
+ private:
+  friend class Notifier;
+
+  template <FormatTarget target, typename T>
+  friend std::string to_str(const T& t);
+
+  template <FormatTarget target, typename T, typename S>
+  friend std::string to_str(const T& t, const S& s);
+
+  void plot(const std::string& symbol = "") const;
+  void write_page(const std::string& symbol = "") const;
 };
 

@@ -35,4 +35,4 @@ LocalTimePoint now_ny_time();
 
 std::string closest_nyse_aligned_time(const std::string& ny_time_str);
 
-bool is_us_market_open_now();
+std::pair<bool, minutes> market_status();
