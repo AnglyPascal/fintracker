@@ -20,7 +20,7 @@ void init_logging(const Config& config) {
   auto file_logger = spdlog::basic_logger_mt("file_logger", log_name);
   spdlog::set_default_logger(file_logger);
 
-  auto level = config.debug_en ? spdlog::level::trace : spdlog::level::info;
+  auto level = config.debug_en ? spdlog::level::debug : spdlog::level::info;
   spdlog::set_level(level);
   spdlog::flush_on(level);
 

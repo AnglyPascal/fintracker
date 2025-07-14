@@ -155,10 +155,8 @@ struct Metrics {
           minutes interval,
           const Position* position) noexcept;
 
-  bool add(const Candle& candle,
-                  const Position* position,
-                  uint32_t new_day_intervals_passed) noexcept;
-  Candle pop_back(uint32_t new_day_intervals_passed) noexcept;
+  bool add(const Candle& candle, const Position* position) noexcept;
+  Candle pop_back() noexcept;
 
   auto last_price() const { return candles.back().price(); }
   auto last_updated() const {

@@ -100,8 +100,7 @@ void Portfolio::add_candle() {
 
     for (auto& [symbol, ticker] : tickers) {
       auto candle = real_time(symbol);
-      auto added = ticker.metrics.add(candle, positions.get_position(symbol),
-                                      intervals_passed + 1);
+      auto added = ticker.metrics.add(candle, positions.get_position(symbol));
       if (added)
         ticker.signal = Signal{ticker.metrics};
     }
@@ -121,7 +120,7 @@ void Portfolio::rollback() {
     auto _ = writer_lock();
 
     for (auto& [symbol, ticker] : tickers) {
-      auto candle = ticker.metrics.pop_back(intervals_passed - 1);
+      auto candle = ticker.metrics.pop_back();
       bt.rollback(symbol, candle);
       ticker.signal = Signal{ticker.metrics};
     }

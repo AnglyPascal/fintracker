@@ -232,7 +232,7 @@ inline Candle combine(auto start, auto end) {
   assert(start != end);
   Candle out;
 
-  out.datetime = (end - 1)->datetime;  // start time of the group
+  out.datetime = start->datetime;  // start time of the group
   out.open = start->open;
   out.close = (end - 1)->close;
   out.volume = 0;
@@ -290,7 +290,6 @@ std::vector<Candle> downsample(const std::vector<Candle>& candles,
   return out;
 }
 
-
 Metrics::Metrics(const std::string& symbol,
                  std::vector<Candle>&& candles,
                  minutes interval,
@@ -310,18 +309,28 @@ bool Metrics::has_position() const {
   return position != nullptr && position->qty != 0;
 }
 
-bool Metrics::add(const Candle& candle,
-                  const Position* position,
-                  uint32_t new_day_intervals_passed) noexcept {
+auto interval_start(auto end) {
+  auto start_of_day = floor<days>(now_ny_time()) + hours{9} + minutes{30};
+  auto now = (end - 1)->time();
+  auto diff = floor<hours>(now - start_of_day);
+  auto start_of_interval = start_of_day + diff;
+
+  while (start_of_interval <= (end - 1)->time())
+    end--;
+  return end;
+}
+
+bool Metrics::add(const Candle& candle, const Position* position) noexcept {
   candles.push_back(candle);
 
   auto add_to_ind = [&](auto& ind) {
-    size_t skip = ind.interval / interval;
-    if (new_day_intervals_passed % skip != 1)
+    auto end = candles.end();
+    auto start = interval_start(end);
+
+    if (end - start != 1)
       ind.pop_back();
 
-    // FIXME:
-    auto new_candle = combine(candles.end() - skip, candles.end());
+    auto new_candle = combine(start, end);
     ind.add(new_candle);
 
     spdlog::trace("[td] {}: {}", symbol.c_str(), to_str(new_candle).c_str());
@@ -340,18 +349,20 @@ bool Metrics::add(const Candle& candle,
   return added;
 }
 
-Candle Metrics::pop_back(uint32_t new_day_intervals_passed) noexcept {
+Candle Metrics::pop_back() noexcept {
   auto candle = candles.back();
   candles.pop_back();
 
   auto pop_from_ind = [&](auto& ind) {
     ind.pop_back();
 
-    size_t skip = ind.interval / interval;
-    if (new_day_intervals_passed % skip == 0)
+    auto end = candles.end();
+    auto start = interval_start(end);
+
+    if (end - start == 0)
       return;
 
-    auto new_candle = combine(candles.end() - skip, candles.end());
+    auto new_candle = combine(start, end);
     ind.add(new_candle);
 
     spdlog::trace("[td] {}: {}", symbol.c_str(), to_str(new_candle).c_str());

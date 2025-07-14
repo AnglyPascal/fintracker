@@ -41,7 +41,7 @@ using nlohmann::json;
  ******************/
 
 int TG::send(const std::string& text) const {
-  spdlog::trace("[tg] send: {}...", text.substr(0, 20).c_str());
+  spdlog::debug("[tg] send: {}...", text.substr(0, 20).c_str());
 
   if (!enabled)
     return -1;
@@ -66,7 +66,7 @@ int TG::send(const std::string& text) const {
 }
 
 int TG::pin_message(int message_id) const {
-  spdlog::trace("[tg] pin message: {}", message_id);
+  spdlog::debug("[tg] pin message: {}", message_id);
 
   if (!enabled)
     return -1;
@@ -101,7 +101,7 @@ int TG::pin_message(int message_id) const {
 }
 
 int TG::edit_msg(int message_id, const std::string& text) const {
-  spdlog::trace("[tg] edit msg: {} {}...", message_id,
+  spdlog::debug("[tg] edit msg: {} {}...", message_id,
                 text.substr(0, 20).c_str());
 
   if (!enabled)
@@ -172,7 +172,7 @@ std::tuple<bool, std::string, int> TG::receive(int last_update_id) const {
 }
 
 int TG::delete_msg(int message_id) const {
-  spdlog::trace("[tg] delete msg: {}", message_id);
+  spdlog::debug("[tg] delete msg: {}", message_id);
 
   if (!enabled)
     return -1;
@@ -195,7 +195,7 @@ int TG::delete_msg(int message_id) const {
 int TG::send_doc(const std::string& fname,
                  const std::string& copy_name,
                  const std::string& caption) const {
-  spdlog::trace("[tg] send doc: {} to {}", fname.c_str(), copy_name.c_str());
+  spdlog::debug("[tg] send doc: {} to {}", fname.c_str(), copy_name.c_str());
 
   if (!enabled)
     return -1;
