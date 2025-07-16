@@ -35,10 +35,10 @@ inline std::vector<SymbolInfo> read_symbols() {
 
   while (std::getline(file, line)) {
     std::istringstream ss(line);
-    std::string add, symbol, tier_str;
+    std::string add, symbol, tier_str, sector;
 
     if (std::getline(ss, add, ',') && std::getline(ss, symbol, ',') &&
-        std::getline(ss, tier_str)) {
+        std::getline(ss, tier_str) && std::getline(ss, sector, ',')) {
       if (add == "+")
         symbols.push_back({symbol, std::stoi(tier_str)});
     }
