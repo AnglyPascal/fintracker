@@ -5,6 +5,7 @@
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
+#include <zmq.hpp>
 
 #include <format>
 #include <iostream>
@@ -272,10 +273,13 @@ int TD::try_get_key() {
 }
 
 const std::string& TD::get_key() {
+  auto _ = std::lock_guard{mtx};
+
   int k = -1;
   while ((k = try_get_key()) == -1)
     std::this_thread::sleep_for(seconds(30));
 
+  spdlog::trace("[api_key] {}", k);
   auto& api_key = keys[k];
   api_key.daily_calls++;
   api_key.call_timestamps.push_back(Clock::now());
@@ -371,3 +375,17 @@ bool wait_for_file(const std::string& path,
 
   return false;
 }
+
+void notify_plot_daemon(const std::vector<std::string>& tickers) {
+  zmq::context_t ctx(1);
+  zmq::socket_t socket(ctx, zmq::socket_type::push);
+  socket.connect("tcp://127.0.0.1:5555");
+
+  json j;
+  j["tickers"] = tickers;
+  std::string payload = j.dump();
+
+  zmq::message_t msg(payload.begin(), payload.end());
+  socket.send(msg, zmq::send_flags::none);
+}
+

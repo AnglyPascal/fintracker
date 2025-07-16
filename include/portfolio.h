@@ -32,7 +32,7 @@ struct Ticker {
          const Position* position,
          const std::string& long_term_trend) noexcept;
 
-  void plot() const;
+  void write_plot_data() const;
 };
 
 using Tickers = std::map<std::string, Ticker>;
@@ -43,6 +43,8 @@ struct SymbolInfo {
 };
 
 enum class FormatTarget;
+
+inline constexpr int max_concurrency = 32;
 
 class Portfolio {
  private:
@@ -71,7 +73,7 @@ class Portfolio {
   std::pair<const Position*, double> add_trade(const Trade& trade) const;
 
  private:
-  void run_backtest(bool continuous = false);
+  void run_backtest();
 
   auto time_series(auto& symbol) {
     return bt.enabled ? bt.time_series(symbol) : td.time_series(symbol);
@@ -84,7 +86,7 @@ class Portfolio {
   void add_candle();
   void rollback();
 
-  static std::vector<SymbolInfo> read_symbols();
+  void add_candle_sync();
 
  public:  // getters
   LocalTimePoint last_updated() const;
@@ -120,7 +122,9 @@ class Portfolio {
   template <FormatTarget target, typename T, typename S>
   friend std::string to_str(const T& t, const S& s);
 
+  void write_plot_data(const std::string& symbol) const;
   void plot(const std::string& symbol = "") const;
-  void write_page(const std::string& symbol = "") const;
+
+  void write_page() const;
 };
 

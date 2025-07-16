@@ -8,10 +8,9 @@ using TimePoint = Clock::time_point;
 using SysClock = std::chrono::system_clock;
 using SysTimePoint = std::chrono::sys_time<std::chrono::seconds>;
 
-using LocalClock = std::chrono::local_time<std::chrono::seconds>;
-using LocalTimePoint = LocalClock;
+using LocalTimePoint = std::chrono::local_time<std::chrono::seconds>;
 
-inline constexpr std::string_view kDefaultTZ = "America/New_York";
+inline constexpr std::string_view ny_tz = "America/New_York";
 
 using milliseconds = std::chrono::milliseconds;
 using seconds = std::chrono::seconds;
@@ -19,20 +18,28 @@ using minutes = std::chrono::minutes;
 using hours = std::chrono::hours;
 using days = std::chrono::days;
 
-inline constexpr minutes M_1(1), M_5(5), M_15(15), M_30(30), H_1(60),
-    H_2(2 * 60), H_4(4 * 60), D_1(8 * 60);
+inline constexpr minutes M_1{1}, M_5{5}, M_15{15}, M_30{30},  //
+    H_1{hours{1}}, H_2{hours{2}}, H_4{hours{4}}, D_1{hours{7} + minutes{30}};
 
 LocalTimePoint datetime_to_local(std::string_view datetime,
                                  std::string_view fmt = "%F %T",
-                                 std::string_view timezone = kDefaultTZ);
+                                 std::string_view timezone = ny_tz);
 
 LocalTimePoint date_to_local(std::string_view datetime,
-                             std::string_view timezone = kDefaultTZ);
+                             std::string_view timezone = ny_tz);
 
-SysTimePoint now_utc_time(std::string_view timezone = kDefaultTZ);
-
+SysTimePoint now_utc_time(std::string_view timezone = ny_tz);
 LocalTimePoint now_ny_time();
 
 std::string closest_nyse_aligned_time(const std::string& ny_time_str);
 
 std::pair<bool, minutes> market_status();
+
+struct Timer {
+  TimePoint start;
+  Timer() : start{Clock::now()} {}
+  double diff_ms() const {
+    return std::chrono::duration<double, std::milli>(Clock::now() - start)
+        .count();
+  }
+};

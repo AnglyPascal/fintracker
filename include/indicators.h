@@ -60,7 +60,7 @@ struct RSI {
 
 struct MACD {
   std::vector<double> macd_line;
-  const std::vector<double>& signal_line;
+  EMA signal_ema;
   std::vector<double> histogram;
 
  private:
@@ -70,7 +70,6 @@ struct MACD {
 
   EMA fast_ema;
   EMA slow_ema;
-  EMA signal_ema;
 
  public:
   MACD(const std::vector<Candle>& candles,
@@ -114,7 +113,7 @@ struct Indicators {
   void add(const Candle& candle) noexcept;
   void pop_back() noexcept;
 
-  void plot(const std::string& symbol) const;
+  void plot(const std::string& sym) const;
 };
 
 struct Position;
@@ -141,7 +140,6 @@ std::vector<Candle> downsample(const std::vector<Candle>& candles,
                                minutes target);
 
 struct Metrics {
-  const std::string& symbol;
   std::vector<Candle> candles;
   const minutes interval;
 
@@ -150,12 +148,11 @@ struct Metrics {
   const Position* position;
 
  public:
-  Metrics(const std::string& symbol,
-          std::vector<Candle>&& candles,
+  Metrics(std::vector<Candle>&& candles,
           minutes interval,
           const Position* position) noexcept;
 
-  bool add(const Candle& candle, const Position* position) noexcept;
+  void add(const Candle& candle, const Position* position) noexcept;
   Candle pop_back() noexcept;
 
   auto last_price() const { return candles.back().price(); }
@@ -166,6 +163,6 @@ struct Metrics {
   Pullback pullback(size_t lookback = 360) const;
   bool has_position() const;
 
-  void plot() const;
+  void plot(const std::string& sym) const;
 };
 

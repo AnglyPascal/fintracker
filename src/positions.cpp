@@ -2,6 +2,7 @@
 
 #include "format.h"
 
+#include <spdlog/spdlog.h>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -27,7 +28,8 @@ double Position::pct(double price) const {
   return (cost != 0) ? pnl(price) / std::abs(cost) * 100 : 0.0;
 }
 
-inline auto net_position(const std::vector<Trade>& trades) {
+inline auto net_position(const std::vector<Trade>& trades)
+    -> std::pair<Position, double> {
   double qty = 0;
   double total = 0;
   double cost = 0;
@@ -39,15 +41,19 @@ inline auto net_position(const std::vector<Trade>& trades) {
     total += mult * t.total;
     cost += mult * t.qty * t.px;
 
-    if (qty == 0) {
+    if (qty < std::numeric_limits<double>::epsilon() * 8) {
       pnl -= total;
+      qty = 0;
       total = 0;
       cost = 0;
     }
   }
 
+  if (qty < std::numeric_limits<double>::epsilon() * 8)
+    return {{}, pnl};
+
   auto px = cost / qty;
-  return std::make_pair(Position{qty, px, total, 0.0}, pnl);
+  return {Position{qty, px, total, 0.0}, pnl};
 }
 
 OpenPositions::OpenPositions() noexcept {
@@ -55,7 +61,7 @@ OpenPositions::OpenPositions() noexcept {
 
   std::ifstream file(POSITIONS_FILE);
   if (!file.is_open()) {
-    std::cerr << "Could not open positions file.\n";
+    spdlog::error("couldn't open postions file {}", POSITIONS_FILE);
     return;
   }
 
@@ -81,13 +87,17 @@ OpenPositions::OpenPositions() noexcept {
     trades_by_ticker[ticker].emplace_back(date, ticker, action, qty, px, total);
   }
 
-  for (const auto& [ticker, trades] : trades_by_ticker) {
+  for (auto& [ticker, trades] : trades_by_ticker) {
     auto [pos, pnl] = net_position(trades);
-    if (std::round(pos.total) > 0)
+    if (pos.qty > std::numeric_limits<double>::epsilon() * 8) {
       positions.try_emplace(ticker, pos);
-    else
+      spdlog::info("Position {}: {}", ticker.c_str(), to_str(pos).c_str());
+    } else {
       total_pnl += pnl;
+      spdlog::info("PnL {}: {:+.2f}", ticker.c_str(), pnl);
+    }
   }
+  spdlog::info("Total PnL: {:+.2f}", total_pnl);
 }
 
 double OpenPositions::add_trade(const Trade& trade) {

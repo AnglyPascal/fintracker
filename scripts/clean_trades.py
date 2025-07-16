@@ -55,6 +55,9 @@ def _combine_group(group_rows):
     total = group_df["Total"].sum()
     price = (group_df["Qty"] * group_df["Price"]).sum() / qty if qty != 0 else 0
 
+    # if ticker == "ECL":  # FIXME: why are they separate groups?
+    #     print(group_rows)
+
     return {
         "Time": first_time,
         "Ticker": ticker,
@@ -65,7 +68,7 @@ def _combine_group(group_rows):
     }
 
 
-def combine_nearby_trades(df, max_gap_minutes=1):
+def combine_nearby_trades(df, max_gap_minutes=5):
     combined = []
     group = []
 

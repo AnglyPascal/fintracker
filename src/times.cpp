@@ -14,16 +14,14 @@ LocalTimePoint datetime_to_local(std::string_view datetime,
   local_time<seconds> local;
   in >> parse(std::string(fmt), local);
 
-  if (timezone == kDefaultTZ) {
+  if (timezone == ny_tz) {
     return local;  // Already NY time
   }
 
-  // Interpret as time in another time zone, then convert to NY local time
-  const auto& db = get_tzdb();
-  const auto* from_tz = db.locate_zone(std::string(timezone));
-  const auto* ny_tz = db.locate_zone(std::string(kDefaultTZ));
-  zoned_time from_zt{from_tz, local};
-  zoned_time ny_zt{ny_tz, from_zt.get_sys_time()};
+  // interpret as time in local time zone, then convert to ny local time
+  auto& db = get_tzdb();
+  zoned_time from_zt{db.locate_zone(std::string(timezone)), local};
+  zoned_time ny_zt{db.locate_zone(std::string(ny_tz)), from_zt.get_sys_time()};
 
   return floor<seconds>(ny_zt.get_local_time());
 }
@@ -34,7 +32,7 @@ LocalTimePoint date_to_local(std::string_view datetime,
 }
 
 LocalTimePoint now_ny_time() {
-  zoned_time now_zt{kDefaultTZ, system_clock::now()};
+  zoned_time now_zt{ny_tz, system_clock::now()};
   return floor<seconds>(now_zt.get_local_time());
 }
 

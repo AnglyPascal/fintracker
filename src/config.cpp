@@ -25,6 +25,11 @@ Config::Config(int argc, char* argv[]) {
       .implicit_value(true)
       .help("Enable backtesting mode");
 
+  program.add_argument("-c", "--continuous")
+      .default_value(false)
+      .implicit_value(true)
+      .help("Enable continuous backtesting mode");
+
   try {
     program.parse_args(argc, argv);
   } catch (const std::runtime_error& err) {
@@ -35,4 +40,5 @@ Config::Config(int argc, char* argv[]) {
   backtest_en = program.get<bool>("--backtest");
   plot_en = !program.get<bool>("--disable-plot");
   debug_en = program.get<bool>("--debug");
+  continuous_en = program.get<bool>("--continuous");
 }

@@ -4,6 +4,7 @@
 
 #include <deque>
 #include <iostream>
+#include <mutex>
 #include <set>
 #include <string>
 #include <vector>
@@ -41,6 +42,7 @@ class TD {
 
   std::vector<APIKey> keys;
   int idx = 0;
+  std::mutex mtx;
 
  public:
   const minutes interval;
@@ -64,3 +66,4 @@ bool wait_for_file(const std::string& path,
                    seconds timeout = seconds{30},
                    milliseconds poll_interval = milliseconds{500});
 
+void notify_plot_daemon(const std::vector<std::string>& tickers);

@@ -4,10 +4,10 @@
 
 #include <string_view>
 
-inline constexpr std::string_view html_reload =
+inline constexpr std::string_view index_reload =
     R"(<meta http-equiv="refresh" content="1">)";
 
-inline constexpr std::string_view html_template = R"(
+inline constexpr std::string_view index_template = R"(
 <!DOCTYPE html>
 <html>
   <head>
@@ -383,7 +383,7 @@ inline constexpr std::string_view html_template = R"(
 </html>
 )";
 
-inline constexpr std::string_view html_subtitle_template = R"(
+inline constexpr std::string_view index_subtitle_template = R"(
     <div class="subtitle">
       <div class="update-block">
         <b>Updated</b>: {}
@@ -403,14 +403,14 @@ inline constexpr std::string_view html_subtitle_template = R"(
     </div>
 )";
 
-inline constexpr std::string_view html_event_template = R"(
+inline constexpr std::string_view index_event_template = R"(
   <a href="https://finance.yahoo.com/quote/{}/analysis/" 
      target="_blank">
      {}
   </a>
 )";
 
-inline constexpr std::string_view html_row_template = R"(
+inline constexpr std::string_view index_row_template = R"(
   <tr class="{}" 
       id="row-{}" 
       style="{}"
@@ -429,7 +429,7 @@ inline constexpr std::string_view html_row_template = R"(
   </tr>
 )";
 
-inline constexpr std::string_view html_signal_template = R"(
+inline constexpr std::string_view index_signal_template = R"(
   <tr id="{}-details" 
       class="signal-details-row" 
       style="display:none">
@@ -446,7 +446,26 @@ inline constexpr std::string_view html_signal_template = R"(
   </tr>
 )";
 
-inline constexpr std::string html_row_class(SignalType type) {
+inline constexpr std::string index_reason_list(auto& header, auto& lst) {
+  if (lst.empty())
+    return "";
+
+  constexpr std::string_view div = R"(
+  <div><b>{}</b>
+    <ul>
+      {}
+    </ul>
+  </div>
+  )";
+
+  std::string body = "";
+  for (const auto& r : lst)
+    body += std::format("<li>{}</li>", to_str(r));
+
+  return std::format(div, header, body);
+}
+
+inline constexpr std::string index_row_class(SignalType type) {
   switch (type) {
     case SignalType::Entry:
       return "signal-entry";
@@ -472,9 +491,10 @@ inline constexpr std::string_view trades_template = R"(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-
+      @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Share+Tech+Mono&display=swap');
+      
     :root {{
-      --font-size: 13px;
+      --font-size: 15px;
       --padding-cell: 0.25em 0.4em;
       --padding-mobile: 0.2em 0.3em;
       --row-gap: 0.4em;
@@ -482,8 +502,8 @@ inline constexpr std::string_view trades_template = R"(
       --color-header: #f0f0f0;
       --color-hover: #f5f5f5;
 
-      --color-buy: #c8facc;
-      --color-sell: #ffd2d2;
+      --color-buy: #d2e6ff;
+      --color-sell: #fff9e6;
 
       --color-black: #000;
       --color-green: #008000;
@@ -492,14 +512,14 @@ inline constexpr std::string_view trades_template = R"(
     }}
 
     body {{
-      font-family: monospace;
+      font-family: "Share Tech Mono", monospace;
       font-size: var(--font-size);
       margin: 0.5em;
       background-color: #fff;
     }}
 
     table {{
-      width: 100%;
+      width: 80%;
       border-collapse: collapse;
     }}
 
@@ -662,7 +682,7 @@ inline constexpr std::string_view trades_template = R"(
             </th>
             <th>
               <div class="col-header" onclick=" toggleColumn(6) ">
-                <span class="label">Fees</span>
+                <span class="label">Total</span>
                 <span class="toggle-btn"></span>
               </div>
             </th>
@@ -697,6 +717,6 @@ inline constexpr std::string_view trades_row_template = R"(
     <td data-label="Action">{}</td>
     <td data-label="Quantity">{:.2f}</td>
     <td data-label="Price">{:.2f}</td>
-    <td data-label="Fees">{:.2f}</td>
+    <td data-label="Total">{:.2f}</td>
   </tr>
 )";

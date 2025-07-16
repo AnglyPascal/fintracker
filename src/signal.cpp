@@ -153,7 +153,7 @@ inline Reason ema_crossdown_exit(const Metrics& m) {
 
 inline Reason macd_bearish_cross_exit(const Metrics& m) {
   auto& macd = m.indicators_1h.macd.macd_line;
-  auto& signal = m.indicators_1h.macd.signal_line;
+  auto& signal = m.indicators_1h.macd.signal_ema.values;
   if (PREV(macd) >= PREV(signal) && LAST(macd) < LAST(signal))
     return {ReasonType::MacdBearishCross, Severity::High, Source::MACD};
   return ReasonType::None;
@@ -443,7 +443,7 @@ inline Confirmation entry_confirmation_15m(const Metrics& m) {
 
   // MACD early crossover
   auto& macd_line = ind.macd.macd_line;
-  auto& signal_line = ind.macd.signal_line;
+  auto& signal_line = ind.macd.signal_ema.values;
   if (macd_line.size() >= 2 && signal_line.size() >= 2) {
     double macd_now = LAST(macd_line);
     double macd_prev = PREV(macd_line);

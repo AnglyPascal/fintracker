@@ -23,9 +23,9 @@ struct Trade {
 };
 
 struct Position {
-  double qty = 0;
-  double px = 0;
-  double total = 0;
+  double qty = 0.0;
+  double px = 0.0;
+  double total = 0.0;
 
   mutable double max_price_seen = 0.0;
 

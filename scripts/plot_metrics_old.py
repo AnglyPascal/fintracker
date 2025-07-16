@@ -6,9 +6,8 @@ from plotly.subplots import make_subplots
 from typing import List, Tuple
 
 import zmq
-import ctypes
-import signal
-import sys
+import time
+import subprocess
 
 
 def csv_path(symbol: str, key: str) -> str:
@@ -246,33 +245,10 @@ def plot(symbol: str) -> None:
     fig.write_html(f"page/{symbol}.html")
 
 
-def main():
-    ctx = zmq.Context()
-    socket = ctx.socket(zmq.PULL)
-    socket.bind("tcp://127.0.0.1:5555")  # Match C++ port
-
-    print("Plot daemon running...")
-    while True:
-        message = socket.recv_json()  # Expecting a list of tickers
-        tickers = message.get("tickers", [])
-        if isinstance(tickers, list) and all(isinstance(t, str) for t in tickers):
-            for ticker in tickers:
-                plot(str(ticker))
-        else:
-            print("No tickers received")
-
-
-def shutdown(sig, frame):
-    print("Daemon shutting down")
-    sys.exit(0)
-
-
 if __name__ == "__main__":
-    # Send SIGTERM to self if parent dies
-    libc = ctypes.CDLL("libc.so.6")
-    libc.prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
+    import sys
 
-    signal.signal(signal.SIGTERM, shutdown)
-    signal.signal(signal.SIGINT, shutdown)
-
-    main()
+    if len(sys.argv) > 1:
+        plot(sys.argv[1])
+    else:
+        print("Usage: python plot_metrics.py SYMBOL")

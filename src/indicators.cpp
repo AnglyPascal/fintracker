@@ -123,7 +123,6 @@ MACD::MACD(const std::vector<Candle>& candles,
            int slow,
            int signal) noexcept
     : macd_line{std::vector<double>(candles.size())},
-      signal_line{signal_ema.values},
       fast_period{fast},
       slow_period{slow},
       signal_period{signal},
@@ -135,6 +134,7 @@ MACD::MACD(const std::vector<Candle>& candles,
     macd_line[i] = fast_ema.values[i] - slow_ema.values[i];
 
   signal_ema = EMA(macd_line, signal);
+  auto& signal_line = signal_ema.values;
   for (size_t i = 0; i < n; ++i)
     histogram.push_back(macd_line[i] - signal_line[i]);
 }
@@ -290,12 +290,10 @@ std::vector<Candle> downsample(const std::vector<Candle>& candles,
   return out;
 }
 
-Metrics::Metrics(const std::string& symbol,
-                 std::vector<Candle>&& candles,
+Metrics::Metrics(std::vector<Candle>&& candles,
                  minutes interval,
                  const Position* position) noexcept
-    : symbol{symbol},
-      candles{std::move(candles)},
+    : candles{std::move(candles)},
       interval{interval},
       indicators_1h{downsample(this->candles, interval, H_1), H_1},  //
       stop_loss{indicators_1h, position},                            //
@@ -320,7 +318,7 @@ auto interval_start(auto end) {
   return end;
 }
 
-bool Metrics::add(const Candle& candle, const Position* position) noexcept {
+void Metrics::add(const Candle& candle, const Position* position) noexcept {
   candles.push_back(candle);
 
   auto add_to_ind = [&](auto& ind) {
@@ -332,12 +330,9 @@ bool Metrics::add(const Candle& candle, const Position* position) noexcept {
 
     auto new_candle = combine(start, end);
     ind.add(new_candle);
-
-    spdlog::trace("[td] {}: {}", symbol.c_str(), to_str(new_candle).c_str());
-    return true;
   };
 
-  bool added = add_to_ind(indicators_1h);
+  add_to_ind(indicators_1h);
 
   this->position = position;
   if (position != nullptr)
@@ -345,8 +340,6 @@ bool Metrics::add(const Candle& candle, const Position* position) noexcept {
         std::max(position->max_price_seen, candle.price());
 
   stop_loss = StopLoss{indicators_1h, position};
-
-  return added;
 }
 
 Candle Metrics::pop_back() noexcept {
@@ -364,8 +357,6 @@ Candle Metrics::pop_back() noexcept {
 
     auto new_candle = combine(start, end);
     ind.add(new_candle);
-
-    spdlog::trace("[td] {}: {}", symbol.c_str(), to_str(new_candle).c_str());
   };
 
   pop_from_ind(indicators_1h);

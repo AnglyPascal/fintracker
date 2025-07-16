@@ -50,6 +50,9 @@ set(SPDLOG_HEADER_ONLY OFF)
 
 FetchContent_MakeAvailable(spdlog)
 
+find_library(ZMQ_LIB zmq REQUIRED)
+find_path(ZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
+
 # Add your source files
 add_executable(${TARGET}
   src/main.cpp
@@ -70,15 +73,16 @@ add_executable(${TARGET}
 
 target_include_directories(${TARGET} PRIVATE
   ${PROJECT_SOURCE_DIR}/include
+  ${ZMQ_INCLUDE_DIR}
 )
 
 target_link_libraries(${TARGET}
   cpr::cpr
   argparse
   spdlog::spdlog
+  ${ZMQ_LIB}
 )
 
-# Add your source files
 add_executable(get_calendar
   src/get_calendar.cpp
 )
