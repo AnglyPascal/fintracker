@@ -4,11 +4,37 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from typing import List, Tuple
+import plotly.io as pio
+import plotly_themes
 
 import zmq
 import ctypes
 import signal
 import sys
+
+# Define your Nord-inspired color palette (you can change this)
+nord_colorway = [
+    "#88C0D0",  # bluish (Nord8)
+    "#A3BE8C",  # greenish (Nord14)
+    "#BF616A",  # redish (Nord11)
+    "#D08770",  # orange (Nord12)
+    "#B48EAD",  # purple (Nord15)
+    "#5E81AC",  # dark blue (Nord10)
+]
+
+NORD = {
+    "white": "#e5e9f0",
+    "black": "#2e3440",
+    "best_black": "#17171c",
+    "red": "#BF616A",
+    "green": "#A3BE8C",
+    "blue": "#5E81AC",
+    "orange": "#D08770",
+    "purple": "#B48EAD",
+    "cyan": "#88C0D0",
+}
+
+pio.templates.default = "plotly_dark_mono"
 
 
 def csv_path(symbol: str, key: str) -> str:
@@ -86,19 +112,23 @@ def plot(symbol: str) -> None:
 
     # 1. Price & EMAs
     fig.add_trace(
-        go.Scatter(x=dt, y=data["close"], name="Price", line=ls("black", w=1.5)),
+        go.Scatter(x=dt, y=data["close"], name="Price", line=ls(NORD["white"], w=1.5)),
         row=1,
         col=1,
     )
     fig.add_trace(
-        go.Scatter(x=dt, y=data["ema9"], name="EMA 9", line=ls("red")), row=1, col=1
+        go.Scatter(x=dt, y=data["ema9"], name="EMA 9", line=ls(NORD["red"])),
+        row=1,
+        col=1,
     )
     fig.add_trace(
-        go.Scatter(x=dt, y=data["ema21"], name="EMA 21", line=ls("blue")), row=1, col=1
+        go.Scatter(x=dt, y=data["ema21"], name="EMA 21", line=ls(NORD["blue"])),
+        row=1,
+        col=1,
     )
 
     # Volume
-    colors = np.where(data["close"] >= data["open"], "green", "red")
+    colors = np.where(data["close"] >= data["open"], NORD["green"], NORD["red"])
     fig.add_trace(
         go.Bar(x=dt, y=data["volume"], marker_color=colors, name="Volume", opacity=0.4),
         row=2,
@@ -113,7 +143,7 @@ def plot(symbol: str) -> None:
                 y=buys["price"],
                 mode="markers",
                 name="Buy",
-                marker=dict(color="green", size=8, symbol="square"),
+                marker=dict(color=NORD["green"], size=8, symbol="square"),
             ),
             row=1,
             col=1,
@@ -125,7 +155,7 @@ def plot(symbol: str) -> None:
                 y=sells["price"],
                 mode="markers",
                 name="Sell",
-                marker=dict(color="red", size=8, symbol="square"),
+                marker=dict(color=NORD["red"], size=8, symbol="square"),
             ),
             row=1,
             col=1,
@@ -133,7 +163,7 @@ def plot(symbol: str) -> None:
 
     # 2. RSI
     fig.add_trace(
-        go.Scatter(x=dt, y=data["rsi"], name="RSI", line=ls("purple", w=1.2)),
+        go.Scatter(x=dt, y=data["rsi"], name="RSI", line=ls(NORD["purple"], w=1.2)),
         row=3,
         col=1,
     )
@@ -146,7 +176,7 @@ def plot(symbol: str) -> None:
         x1=1,
         y0=70,
         y1=70,
-        line=ls("red", dash="dot"),
+        line=ls(NORD["red"]),
     )
 
     fig.add_shape(
@@ -157,17 +187,19 @@ def plot(symbol: str) -> None:
         x1=1,
         y0=30,
         y1=30,
-        line=ls("blue", dash="dot"),
+        line=ls(NORD["blue"]),
     )
 
     # 3. MACD & Signal
     fig.add_trace(
-        go.Scatter(x=dt, y=data["macd"], name="MACD", line=ls("blue", w=1.2)),
+        go.Scatter(x=dt, y=data["macd"], name="MACD", line=ls(NORD["blue"], w=1.2)),
         row=4,
         col=1,
     )
     fig.add_trace(
-        go.Scatter(x=dt, y=data["signal"], name="Signal", line=ls("orange", w=1.2)),
+        go.Scatter(
+            x=dt, y=data["signal"], name="Signal", line=ls(NORD["orange"], w=1.2)
+        ),
         row=4,
         col=1,
     )
@@ -185,7 +217,7 @@ def plot(symbol: str) -> None:
                 y=bull["y"],
                 mode="markers",
                 name=f"{label} Bull",
-                marker=dict(color="green", size=6),
+                marker=dict(color=NORD["green"], size=6),
             ),
             row=row_idx,
             col=1,
@@ -196,7 +228,7 @@ def plot(symbol: str) -> None:
                 y=bear["y"],
                 mode="markers",
                 name=f"{label} Bear",
-                marker=dict(color="red", size=6),
+                marker=dict(color=NORD["red"], size=6),
             ),
             row=row_idx,
             col=1,
@@ -210,7 +242,7 @@ def plot(symbol: str) -> None:
                     x=fdf["datetime"],
                     y=fdf["value"],
                     name=f"{lbl} fit {i}",
-                    line=ls("black", dash="dash"),
+                    line=ls(NORD["white"], dash="dash"),
                     visible=(i == 0),
                 ),
                 row=r_idx,
@@ -224,7 +256,10 @@ def plot(symbol: str) -> None:
         showlegend=True,
         title_text=f"Technical Indicators for {symbol}",
         margin=dict(t=80, b=40),
-        legend=dict(itemclick="toggle", itemdoubleclick="toggleothers"),
+        legend=dict(
+            itemclick="toggle",
+            itemdoubleclick="toggleothers",
+        ),
     )
 
     n = min(len(dt), 7 * 7)
@@ -246,10 +281,10 @@ def plot(symbol: str) -> None:
     fig.write_html(f"page/{symbol}.html")
 
 
-def main():
+def main(port):
     ctx = zmq.Context()
     socket = ctx.socket(zmq.PULL)
-    socket.bind("tcp://127.0.0.1:5555")  # Match C++ port
+    socket.bind(f"tcp://127.0.0.1:{port}")  # Match C++ port
 
     print("Plot daemon running...")
     while True:
@@ -268,6 +303,12 @@ def shutdown(sig, frame):
 
 
 if __name__ == "__main__":
+    import sys
+
+    port = "5555"
+    if len(sys.argv) > 1:
+        port = sys.argv[1]
+
     # Send SIGTERM to self if parent dies
     libc = ctypes.CDLL("libc.so.6")
     libc.prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
@@ -275,4 +316,4 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
 
-    main()
+    main(port)

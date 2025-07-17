@@ -379,7 +379,7 @@ bool wait_for_file(const std::string& path,
 void notify_plot_daemon(const std::vector<std::string>& tickers) {
   zmq::context_t ctx(1);
   zmq::socket_t socket(ctx, zmq::socket_type::push);
-  socket.connect("tcp://127.0.0.1:5555");
+  socket.connect(std::format("tcp://127.0.0.1:{}", plot_daemon_port));
 
   json j;
   j["tickers"] = tickers;
@@ -389,3 +389,4 @@ void notify_plot_daemon(const std::vector<std::string>& tickers) {
   socket.send(msg, zmq::send_flags::none);
 }
 
+std::string plot_daemon_port = "5555";

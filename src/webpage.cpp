@@ -10,6 +10,9 @@
 #include <ranges>
 #include <thread>
 
+std::string css = "";
+std::string js = "";
+
 inline constexpr std::string csv_fname(const std::string& symbol,
                                        const std::string& fn) {
   return std::format("page/src/{}_{}.csv", symbol, fn);
@@ -261,9 +264,10 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
   auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated());
   auto subtitle = std::format(index_subtitle_template, datetime);
-  auto reload = (p.config.replay_en) ? index_reload : "";
+  // auto reload = (p.config.replay_en) ? index_reload : "";
+  std::string reload = "";
 
-  return std::format(index_template, reload, subtitle, body);
+  return std::format(index_template, reload, css, subtitle, body, js);
 }
 
 template <>
@@ -286,25 +290,44 @@ std::string to_str<FormatTarget::HTML>(const Trades& all_trades) {
                         qty, px, fees);
   }
 
-  return std::format(trades_template, body);
+  return std::format(trades_template, css, body, js);
 }
 
 void Portfolio::write_page() const {
+  if (css.empty()) {
+    std::ifstream file("data/index.css");
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    css = ss.str();
+  }
+
+  if (js.empty()) {
+    std::ifstream file("data/index.js");
+    std::ostringstream ss;
+    ss << file.rdbuf();
+    js = ss.str();
+  }
+
   std::thread([this]() {
     auto _ = reader_lock();
 
+    auto index_fname =
+        config.replay_en ? "page/index_replay.html" : "page/index.html";
+    auto trades_fname =
+        config.replay_en ? "page/trades_replay.html" : "page/trades.html";
+
     namespace fs = std::filesystem;
-    if (fs::exists("page/index.html"))
+    if (!config.replay_en && fs::exists("page/index.html"))
       fs::copy_file(
           "page/index.html",
           std::format("page/backup/index_{:%F_%T}.html", now_ny_time()),
           fs::copy_options::overwrite_existing);
 
-    std::ofstream index("page/index.html");
+    std::ofstream index(index_fname);
     index << to_str<FormatTarget::HTML>(*this);
     index.close();
 
-    std::ofstream trades("page/trades.html");
+    std::ofstream trades(trades_fname);
     trades << to_str<FormatTarget::HTML>(get_trades());
     trades.close();
   }).detach();

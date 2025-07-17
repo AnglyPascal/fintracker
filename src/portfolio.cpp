@@ -129,7 +129,11 @@ Portfolio::Portfolio(Config config) noexcept
   done.wait();
   spdlog::info("[init] took {:.2f}ms", timer.diff_ms());
 
-  std::thread([] { std::system("python3 scripts/plot_metrics.py"); }).detach();
+  std::thread([] {
+    auto cmd =
+        std::format("python3 scripts/plot_metrics.py {}", plot_daemon_port);
+    std::system(cmd.c_str());
+  }).detach();
   plot();
   write_page();
 

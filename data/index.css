@@ -1,0 +1,268 @@
+:root {
+  --font-size: 13px;
+  --padding-cell: 0.25em 0.4em;
+  --padding-mobile: 0.2em 0.3em;
+  --row-gap: 0.4em;
+
+  --color-bg: #17171c;
+  --color-fg: #eceff4;
+  --color-border: #4c566a;
+  --color-header: #3b4252;
+  --color-hover: #434c5e;
+
+  --color-buy: #cadabd;
+  --color-sell: #d5979d;
+
+  --color-signal-entry-bg: #a3be8c;
+  --color-signal-exit-bg: #bf616a;
+  --color-signal-watchlist-bg: #88c0d0;
+  --color-signal-caution-bg: #ebcb8b;
+  --color-signal-mixed-bg: #d8dee9;
+
+  --color-black: #2e3440;
+  --color-green: #a3be8c;
+  --color-red: #bf616a;
+  --color-yellow: #ebcb8b;
+
+  --color-link: #8fbcbb;
+}
+
+body {
+  font-family: "Share Tech Mono", monospace;
+  font-size: var(--font-size);
+  margin: 0.5em;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid var(--color-border);
+  padding: var(--padding-cell);
+  text-align: left;
+  overflow: hidden;
+  word-break: break-word;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+th {
+  background-color: var(--color-header);
+  cursor: pointer;
+  user-select: none;
+}
+
+th .col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.collapsed .label,
+td.collapsed::before {
+  display: none;
+}
+
+th.collapsed,
+td.collapsed {
+  width: 13px;
+  padding: 0;
+  overflow: hidden;
+}
+
+td.collapsed {
+  visibility: collapse;
+  white-space: nowrap;
+}
+
+tr.buy { background-color: var(--color-buy); }
+tr.sell { background-color: var(--color-sell); }
+
+tr.signal-entry { background-color: var(--color-signal-entry-bg); }
+tr.signal-exit { background-color: var(--color-signal-exit-bg); }
+tr.signal-watchlist{ background-color: var(--color-signal-watchlist-bg); }
+tr.signal-caution,
+tr.signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
+tr.signal-mixed    { background-color: var(--color-signal-mixed-bg); }
+
+tr.buy,
+tr.sell,
+tr.signal-entry,
+tr.signal-exit,
+tr.signal-watchlist,
+tr.signal-caution,
+tr.signal-holdcautiously,
+tr.signal-mixed {
+  color: #000 !important;
+}
+
+tr.buy a,
+tr.sell a,
+tr.signal-entry a,
+tr.signal-exit a,
+tr.signal-watchlist a,
+tr.signal-caution a,
+tr.signal-holdcautiously a,
+tr.signal-none a,
+tr.signal-mixed a {
+  color: inherit !important;
+  text-decoration: none;
+}
+
+td .inner-div {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+div.eventful {
+  display: flex;
+  justify-content: space-between;
+}
+
+.toggle-btn::after {
+  content: "▼";
+  font-size: 0.9em;
+  color: var(--color-border);
+}
+
+th.collapsed .toggle-btn::after {
+  content: "▶";
+}
+
+.signal-details {
+  padding-top: 1em;
+  padding-left: 1em;
+  margin-top: 0;
+  font-size: 0.92em;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+#signal-filters button {
+  font-family: monospace;
+  font-size: 0.85em;
+  margin-right: 0.3em;
+  padding: 0.3em 0.6em;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-header);
+  color: var(--color-fg);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+#signal-filters button:hover {
+  background-color: var(--color-bg);
+}
+#signal-filters button.active {
+  background-color: var(--color-fg);
+  color: var(--color-bg);
+  border-color: var(--color-fg);
+}
+
+.subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  margin-bottom: 1em;
+}
+
+.update-block {
+  font-family: monospace;
+  font-size: 13px;
+  padding: 0.3em;
+  border: 0.2px solid var(--color-border);
+  border-radius: 3px;
+}
+.update-block a {
+  text-decoration: underline;
+  color: var(--color-link);
+}
+
+/* Mobile Support */
+@media (max-width: 768px) {
+  body {
+    font-size: 18px;
+  }
+
+  table, thead, tbody, th, td, tr {
+    display: block;
+    width: 100%;
+    padding-right: 1em;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tr {
+    margin-bottom: var(--row-gap);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.3em;
+  }
+
+  td {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    padding: var(--padding-mobile);
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    box-sizing: border-box;
+  }
+
+  td:last-child {
+    border-bottom: none;
+  }
+
+  td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: var(--color-border);
+  }
+
+  .signal-details-row,
+  .signal-details {
+    font-size: 0.85em;
+    line-height: 1.2;
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  tr.signal-entry,
+  tr.signal-exit,
+  tr.signal-watchlist,
+  tr.signal-caution,
+  tr.signal-holdcautiously,
+  tr.signal-mixed {
+    color: var(--color-bg) !important;
+  }
+
+  tr.signal-entry a,
+  tr.signal-exit a,
+  tr.signal-watchlist a,
+  tr.signal-caution a,
+  tr.signal-holdcautiously a,
+  tr.signal-none a,
+  tr.signal-mixed a {
+    color: inherit !important;
+    text-decoration: none;
+  }
+
+  td .inner-div {
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  div.eventful {
+    width: 120px;
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row-reverse;
+  }
+}

@@ -14,241 +14,10 @@ inline constexpr std::string_view index_template = R"(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {}
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Share+Tech+Mono&display=swap');
-      
-    :root {{
-      --font-size: 13px;
-      --padding-cell: 0.25em 0.4em;
-      --padding-mobile: 0.2em 0.3em;
-      --row-gap: 0.4em;
-      --color-border: #ccc;
-      --color-header: #f0f0f0;
-      --color-hover: #f5f5f5;
-
-      --color-signal-entry-bg: #c8facc;
-      --color-signal-exit-bg: #ffd2d2;
-      --color-signal-watchlist-bg: #d2e6ff;
-      --color-signal-caution-bg: #fff5d2;
-      --color-signal-mixed-bg: #f5f5f5;
-
-      --color-black: #000;
-      --color-green: #008000;
-      --color-red: #d10000;
-      --color-yellow: #b58900;
-    }}
-
-    body {{
-      font-family: "Share Tech Mono", monospace;
-      font-size: var(--font-size);
-      margin: 0.5em;
-      background-color: #fff;
-    }}
-
-    table {{
-      width: 100%;
-        <!-- table-layout: fixed; -->
-      border-collapse: collapse;
-    }}
-
-    th, td {{
-      border: 1px solid var(--color-border);
-      padding: var(--padding-cell);
-      text-align: left;
-      overflow-wrap: break-word;
-      word-break: break-word;
-      overflow: hidden;
-      transition: all 0.2s ease;
-    }}
-
-    th {{
-      background-color: var(--color-header);
-      cursor: pointer;
-      user-select: none;
-    }}
-
-    tr:hover {{
-      background-color: var(--color-hover);
-    }}
-
-    tr.signal-entry {{
-      background-color: var(--color-signal-entry-bg);
-      color: var(--color-black);
-    }}
-
-    tr.signal-exit {{
-      background-color: var(--color-signal-exit-bg);
-      color: var(--color-black);
-    }}
-
-    tr.signal-watchlist {{
-      background-color: var(--color-signal-watchlist-bg);
-      color: var(--color-black);
-    }}
-
-    tr.signal-caution,
-    tr.signal-holdcautiously {{
-      background-color: var(--color-signal-caution-bg);
-      color: var(--color-black);
-    }}
-
-    tr.signal-mixed {{
-      background-color: var(--color-signal-mixed-bg);
-      color: var(--color-black);
-    }}
-
-    /* Column collapse behavior */
-    th .col-header {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }}
-
-    .collapsed .label {{
-      display: none;
-    }}
-
-    th.collapsed,
-    td.collapsed {{
-      width: 13px;
-      padding: 0;
-      overflow: hidden;
-    }}
-
-    td.collapsed {{
-      visibility: collapse;
-      white-space: nowrap;
-    }}
-
-    .toggle-btn::after {{
-      content: "▼";
-      font-size: 0.9em;
-      color: #666;
-    }}
-
-    th.collapsed .toggle-btn::after {{
-      content: "▶";
-    }}
-
-    .signal-details {{
-      padding-top: 1em;
-      padding-left: 1em;
-      margin-top: 0em;
-      font-size: 0.92em;
-      color: #444;
-    }}
-
-    #signal-filters button {{
-      font-family: monospace;
-      font-size: 0.85em;
-      margin-right: 0.3em;
-      padding: 0.3em 0.6em;
-      border: 1px solid #aaa;
-      border-radius: 4px;
-      background-color: #eee;
-      color: #333;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }}
-
-    #signal-filters button:hover {{
-      background-color: #ddd;
-    }}
-
-    #signal-filters button.active {{
-      background-color: #333;
-      color: #fff;
-      border-color: #333;
-    }}
-    </style>
-
-    <style>
-    /* Mobile support */
-    @media (max-width: 768px) {{
-      body {{
-        font-size: 18px;
-      }}
-
-      table, thead, tbody, th, td, tr {{
-        display: block;
-        width: 100%;
-          padding-right: 1em;
-      }}
-
-      thead {{
-        display: none;
-      }}
-
-      tr {{
-        margin-bottom: var(--row-gap);
-        border: 1px solid var(--color-border);
-        border-radius: 4px;
-        padding: 0.3em;
-        background-color: #fff;
-      }}
-
-      td {{
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap; /* Allows wrapping to avoid overflow */
-        padding: var(--padding-mobile);
-        border: none;
-        border-bottom: 1px solid var(--color-border);
-        width: 100%;
-        box-sizing: border-box;
-        overflow-wrap: break-word;
-      }}
-
-      td:last-child {{
-        border-bottom: none;
-      }}
-
-      td::before {{
-        content: attr(data-label);
-        font-weight: bold;
-        color: #666;
-      }}
-
-      td.collapsed::before {{
-        display: none;
-      }}
-
-      td.collapsed {{
-        display: none;
-      }}
-
-      .signal-details-row {{
-        font-size: 0.85em;
-        line-height: 1.2;
-      }}
-
-      .signal-details {{
-        color: #333;
-        align-content: start;
-      }}
-    }}
-
-    .subtitle {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1em; /* optional: space between items */
-      margin-bottom: 1em;
-    }}
-
-    .update-block {{
-      font-family: monospace;
-      font-size: 13px;
-      padding: 0.3em;
-      border: 0.2px solid #ddd;
-      border-radius: 3px;
-    }}
-
-    .update-block a {{
-      text-decoration: underline;
-      color: purple;
-    }}
-    </style>
   </head>
+  <style>
+    {}
+  </style>
 
   <body>
     <h2>Portfolio Overview</h2>
@@ -334,50 +103,7 @@ inline constexpr std::string_view index_template = R"(
     </div>
 
     <script>
-      function toggleColumn(colIndex) {{
-        const th = document.querySelector(`th:nth-child(${{colIndex}})`);
-        const tds = document.querySelectorAll(`td:nth-child(${{colIndex}})`);
-
-        const isCollapsed = th.classList.toggle("collapsed");
-        tds.forEach(td => {{
-          if (isCollapsed) td.classList.add("collapsed");
-          else td.classList.remove("collapsed");
-        }});
-      }}
-
-      function toggleSignalDetails(row, detailRowId) {{
-        const detailRow = document.getElementById(detailRowId);
-        if (!detailRow) return;
-
-        const isVisible = detailRow.style.display !== "none";
-        detailRow.style.display = isVisible ? "none" : "table-row";
-      }}
-
-      function toggleSignal(button) {{
-        const type = button.dataset.type;
-        const rows = document.querySelectorAll(`tr.signal-${{type}}`);
-
-        const isActive = button.classList.toggle('active');
-        rows.forEach(row => {{
-          row.style.display = isActive ? '' : 'none';
-
-          // Hide detail row if it's visible
-          const detailRow = 
-            document.getElementById(`${{row.id.replace('row-', '')}}-details`);
-          if (detailRow && !isActive) detailRow.style.display = 'none';
-        }});
-      }}
-
-      function showAllSignals() {{
-        const signalRows = document.querySelectorAll('tr[id^="row-"]');
-        signalRows.forEach(row => row.style.display = '');
-
-        const detailRows = document.querySelectorAll('.signal-details-row');
-        detailRows.forEach(row => row.style.display = 'none');
-
-        const buttons = document.querySelectorAll('#signal-filters .filter-btn');
-        buttons.forEach(btn => btn.classList.add('active'));
-      }}
+      {}
     </script>
   </body>
 </html>
@@ -416,16 +142,17 @@ inline constexpr std::string_view index_row_template = R"(
       style="{}"
       onclick="toggleSignalDetails(this, '{}-details') ">
     <td data-label="Signal">{}</td>
-    <td data-label="Symbol" style="display:flex;justify-content:space-between;">
-      <a href="{}.html" target="_blank">{}</a>
-      {}
+    <td data-label="Symbol">
+      <div class="eventful">
+        <a href="{}.html" target="_blank"><b>{}</b></a>{}
+      </div>
     </td>
     <td data-label="Price">{}</td>
     <td data-label="EMA">{}</td>
     <td data-label="RSI">{}</td>
     <td data-label="MACD">{}</td>
     <td data-label="Position">{}</td>
-    <td data-label="Stop Loss">{}</td>
+    <td data-label="Stop Loss"><div>{}</div></td>
   </tr>
 )";
 
@@ -472,155 +199,7 @@ inline constexpr std::string_view trades_template = R"(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Share+Tech+Mono&display=swap');
-      
-    :root {{
-      --font-size: 15px;
-      --padding-cell: 0.25em 0.4em;
-      --padding-mobile: 0.2em 0.3em;
-      --row-gap: 0.4em;
-      --color-border: #ccc;
-      --color-header: #f0f0f0;
-      --color-hover: #f5f5f5;
-
-      --color-buy: #d2e6ff;
-      --color-sell: #fff9e6;
-
-      --color-black: #000;
-      --color-green: #008000;
-      --color-red: #d10000;
-      --color-yellow: #b58900;
-    }}
-
-    body {{
-      font-family: "Share Tech Mono", monospace;
-      font-size: var(--font-size);
-      margin: 0.5em;
-      background-color: #fff;
-    }}
-
-    table {{
-      width: 80%;
-      border-collapse: collapse;
-    }}
-
-    th, td {{
-      border: 1px solid var(--color-border);
-      padding: var(--padding-cell);
-      text-align: left;
-      overflow-wrap: break-word;
-      word-break: break-word;
-      overflow: hidden;
-      transition: all 0.2s ease;
-      font: 11px;
-    }}
-
-    th {{
-      background-color: var(--color-header);
-      cursor: pointer;
-      user-select: none;
-    }}
-
-    tr:hover {{
-      background-color: var(--color-hover);
-    }}
-
-    tr.buy {{
-      background-color: var(--color-buy);
-      color: var(--color-black);
-    }}
-
-    tr.sell {{
-      background-color: var(--color-sell);
-      color: var(--color-black);
-    }}
-
-    /* Column collapse behavior */
-    th .col-header {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }}tumi pora
-
-    .collapsed .label {{
-      display: none;
-    }}
-
-    th.collapsed,
-    td.collapsed {{
-      width: 11px;
-      padding: 0;
-      overflow: hidden;
-    }}
-
-    td.collapsed {{
-      visibility: collapse;
-      white-space: nowrap;
-    }}
-
-    .toggle-btn::after {{
-      content: "▼";
-      font-size: 0.9em;
-      color: #666;
-    }}
-
-    th.collapsed .toggle-btn::after {{
-      content: "▶";
-    }}
-
-    </style>
-
-    <style>
-    /* Mobile support */
-    @media (max-width: 768px) {{
-      table, thead, tbody, th, td, tr {{
-        display: block;
-        width: 100%;
-          padding-right: 1em;
-      }}
-
-      thead {{
-        display: none;
-      }}
-
-      tr {{
-        margin-bottom: var(--row-gap);
-        border: 1px solid var(--color-border);
-        border-radius: 4px;
-        padding: 0.3em;
-        background-color: #fff;
-      }}
-
-      td {{
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap; /* Allows wrapping to avoid overflow */
-        padding: var(--padding-mobile);
-        border: none;
-        border-bottom: 1px solid var(--color-border);
-        width: 100%;
-        box-sizing: border-box;
-        overflow-wrap: break-word;
-      }}
-
-      td:last-child {{
-        border-bottom: none;
-      }}
-
-      td::before {{
-        content: attr(data-label);
-        font-weight: bold;
-        color: #666;
-      }}
-
-      td.collapsed::before {{
-        display: none;
-      }}
-
-      td.collapsed {{
-        display: none;
-      }}
-    }}
+      {}
     </style>
   </head>
 
@@ -676,16 +255,7 @@ inline constexpr std::string_view trades_template = R"(
     </div>
 
     <script>
-      function toggleColumn(colIndex) {{
-        const th = document.querySelector(`th:nth-child(${{colIndex}})`);
-        const tds = document.querySelectorAll(`td:nth-child(${{colIndex}})`);
-
-        const isCollapsed = th.classList.toggle("collapsed");
-        tds.forEach(td => {{
-          if (isCollapsed) td.classList.add("collapsed");
-          else td.classList.remove("collapsed");
-        }});
-      }}
+      {}
     </script>
   </body>
 </html>

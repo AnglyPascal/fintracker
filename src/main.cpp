@@ -6,6 +6,7 @@
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
@@ -30,6 +31,10 @@ void init_logging(const Config& config) {
 int main(int argc, char* argv[]) {
   Config config{argc, argv};
   init_logging(config);
+
+  if (config.replay_en)
+    plot_daemon_port = "5556";
+
 
   Portfolio portfolio{config};
   Notifier notifier{portfolio};
