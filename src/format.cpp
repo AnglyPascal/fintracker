@@ -74,7 +74,7 @@ std::string to_str(const RSI& rsi) {
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Metrics& metrics) {
-  const auto& ind = metrics.indicators_1h;
+  auto& ind = metrics.ind_1h;
 
   auto ema_str = std::format("{}/{}", to_str(ind.ema9), to_str(ind.ema21));
   auto rsi_str = to_str(ind.rsi);
@@ -97,15 +97,6 @@ std::string to_str(const HintType& h) {
     case HintType::MacdRising:
       return "macd↗";
 
-    case HintType::PriceTrendingUp:
-      return "price↗";
-    case HintType::Ema21TrendingUp:
-      return "ema21↗";
-    case HintType::RsiTrendingUp:
-      return "rsi↗";
-    case HintType::RsiTrendingUpStrongly:
-      return "rsi⇗";
-
     // Exit hints
     case HintType::Ema9DivergeEma21:
       return "ema9↘21";
@@ -120,15 +111,6 @@ std::string to_str(const HintType& h) {
     case HintType::StopInATR:
       return "stop!";
 
-    case HintType::PriceTrendingDown:
-      return "price↘";
-    case HintType::Ema21TrendingDown:
-      return "ema21↘";
-    case HintType::RsiTrendingDown:
-      return "rsi↘";
-    case HintType::RsiTrendingDownStrongly:
-      return "rsi⇘";
-
     default:
       return "";
   }
@@ -137,6 +119,37 @@ std::string to_str(const HintType& h) {
 template <>
 std::string to_str(const Hint& h) {
   return to_str(h.type);
+}
+
+template <>
+std::string to_str(const TrendType& t) {
+  switch (t) {
+    case TrendType::PriceTrendingUp:
+      return "price↗";
+    case TrendType::Ema21TrendingUp:
+      return "ema21↗";
+    case TrendType::RsiTrendingUp:
+      return "rsi↗";
+    case TrendType::RsiTrendingUpStrongly:
+      return "rsi⇗";
+
+    case TrendType::PriceTrendingDown:
+      return "price↘";
+    case TrendType::Ema21TrendingDown:
+      return "ema21↘";
+    case TrendType::RsiTrendingDown:
+      return "rsi↘";
+    case TrendType::RsiTrendingDownStrongly:
+      return "rsi⇘";
+
+    default:
+      return "";
+  }
+}
+
+template <>
+std::string to_str(const Trend& t) {
+  return to_str(t.type);
 }
 
 template <>
@@ -214,15 +227,21 @@ std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
   // --- Signal line ---
   if (sig.has_signal()) {
     auto type_str = to_str(sig.type);
-    auto& reasons =
-        sig.type == SignalType::Entry ? sig.entry_reasons : sig.exit_reasons;
 
-    auto reason_str =
-        reasons.empty()
-            ? ""
-            : std::format("({})", join(reasons.begin(), reasons.end(), ", "));
+    std::string entry_reason, exit_reason;
 
-    result += std::format("   Signal: {}{}", type_str, reason_str);
+    for (auto& reason : sig.reasons) {
+      if (reason.cls == SignalClass::None)
+        continue;
+
+      if (sig.type == SignalType::Entry && reason.cls == SignalClass::Entry)
+        entry_reason += std::format("\n   + {}", to_str(reason));
+      else if (sig.type == SignalType::Exit && reason.cls == SignalClass::Exit)
+        exit_reason += std::format("\n   - {}", to_str(reason));
+    }
+
+    result +=
+        std::format("   Signal: {}\n{}{}", type_str, entry_reason, exit_reason);
   } else {
     result += "   Hints: ";
   }
@@ -230,49 +249,19 @@ std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
   // --- Hints ---
   std::string entry_str, exit_str;
 
-  if (!sig.entry_hints.empty()) {
-    for (const auto& hint : sig.entry_hints)
-      entry_str += std::format("\n   + {}", to_str(hint));
-  }
+  for (auto& hint : sig.hints) {
+    if (hint.cls == SignalClass::None)
+      continue;
 
-  if (!sig.exit_hints.empty()) {
-    for (const auto& hint : sig.exit_hints)
+    if (hint.cls == SignalClass::Entry)
+      entry_str += std::format("\n   + {}", to_str(hint));
+    else
       exit_str += std::format("\n   - {}", to_str(hint));
   }
 
   result += entry_str + exit_str;
 
   return result + "\n";
-}
-
-std::string Signal::color_bg() const {
-  if (type == SignalType::Entry)
-    return GREEN_BG;
-  if (type == SignalType::Exit)
-    return RED_BG;
-  if (type == SignalType::Watchlist)
-    return !entry_reasons.empty() ? GREEN_BG : RED_BG;
-  if (type == SignalType::HoldCautiously)
-    return RED_BG;
-  if (type == SignalType::Mixed)
-    return YELLOW_BG;
-  return RESET;
-}
-
-std::string Signal::color() const {
-  if (type == SignalType::Entry)
-    return GREEN_BG + BLACK;
-  if (type == SignalType::Exit)
-    return RED_BG + BLACK;
-  if (type == SignalType::Watchlist)
-    return GREEN;
-  if (type == SignalType::Caution)
-    return RED;
-  if (type == SignalType::HoldCautiously)
-    return RED;
-  if (type == SignalType::Mixed)
-    return YELLOW;
-  return RESET;
 }
 
 std::string Signal::emoji() const {
@@ -312,7 +301,9 @@ std::string to_str<FormatTarget::Telegram>(const Position* const& pos,
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
-  auto& [symbol, _, _, metrics, signal, _] = ticker;
+  auto &symbol = ticker.symbol; 
+  auto &metrics = ticker.metrics; 
+  auto &signal = ticker.signal;
 
   auto pos_line =
       to_str<FormatTarget::Telegram>(metrics.position, metrics.last_price());
@@ -410,16 +401,17 @@ std::string to_str<FormatTarget::Alert>(const Signal& a, const Signal& b) {
     output += std::format("{} -> {}\n", a.emoji(), b.emoji());
 
   auto compare = []<typename T>(const std::vector<T>& old_r,
-                                const std::vector<T>& new_r, auto& label) {
+                                const std::vector<T>& new_r, SignalClass cls,
+                                auto& label) {
     std::set<T> old_set{old_r.begin(), old_r.end()};
     std::set<T> new_set{new_r.begin(), new_r.end()};
 
     std::vector<std::string> added, removed;
     for (auto& t : new_set)
-      if (t.severity >= Severity::High && !old_set.count(t))
+      if (t.cls == cls && t.severity >= Severity::High && !old_set.count(t))
         added.push_back(to_str(t));
     for (auto& t : old_set)
-      if (t.severity >= Severity::High && !new_set.count(t))
+      if (t.cls == cls && t.severity >= Severity::High && !new_set.count(t))
         removed.push_back(to_str(t));
 
     std::string str;
@@ -433,10 +425,10 @@ std::string to_str<FormatTarget::Alert>(const Signal& a, const Signal& b) {
     return str;
   };
 
-  output += compare(a.entry_reasons, b.entry_reasons, "▲");
-  output += compare(a.exit_reasons, b.exit_reasons, "▼");
-  output += compare(a.entry_hints, b.entry_hints, "△");
-  output += compare(a.exit_hints, b.exit_hints, "▽");
+  output += compare(a.reasons, b.reasons, SignalClass::Entry, "▲");
+  output += compare(a.reasons, b.reasons, SignalClass::Exit, "▼");
+  output += compare(a.hints, b.hints, SignalClass::Entry, "△");
+  output += compare(a.hints, b.hints, SignalClass::Exit, "▽");
 
   return output.empty() ? "" : output;
 }

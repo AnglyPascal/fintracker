@@ -50,7 +50,7 @@ void Indicators::plot(const std::string& sym) const {
 }
 
 void Metrics::plot(const std::string& sym) const {
-  indicators_1h.plot(sym);
+  ind_1h.plot(sym);
 }
 
 void Portfolio::write_plot_data(const std::string& symbol) const {
@@ -119,7 +119,7 @@ std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
   std::string interesting;
   auto add = [&interesting, src](auto& iter) {
     for (auto& a : iter) {
-      if (a.src != src)
+      if (a.source != src)
         continue;
       if (a.severity >= Severity::Medium) {
         interesting += " " + to_str<FormatTarget::HTML>(a);
@@ -127,24 +127,69 @@ std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
     }
   };
 
-  add(s.entry_reasons);
-  add(s.entry_hints);
-  add(s.exit_reasons);
-  add(s.exit_hints);
+  add(s.reasons);
+  add(s.hints);
 
   return interesting;
 }
 
-template <>
-std::string to_str<FormatTarget::SignalExit>(const Signal& s) {
-  return index_reason_list("Exit Reasons", s.exit_reasons) +
-         index_reason_list("Exit Hints", s.exit_hints);
+inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
+  constexpr std::string_view div = R"(
+  <div><b>{}</b>
+    <ul>
+      {}
+    </ul>
+  </div>
+  )";
+
+  std::string body = "";
+  for (auto& r : lst)
+    if (r.cls == cls) {
+      auto colored = [cls](auto gain, auto loss) {
+        constexpr std::string_view red =
+            "<span style='color: #bf616a;'>{:.2f}</span>";
+        constexpr std::string_view green =
+            "<span style='color: #a3be8c;'>{:.2f}</span>";
+        auto g_str = std::format(green, gain);
+        auto l_str = std::format(red, loss);
+
+        if (cls == SignalClass::Entry)
+          return std::format("<b>{}</b> / {}", g_str, l_str);
+        else
+          return std::format("{} / <b>{}</b>", g_str, l_str);
+      };
+
+      std::string stat_str = "";
+      auto it = stats.find(r.type);
+      if (it != stats.end())
+        stat_str =
+            ": " + colored(it->second.avg_return, it->second.avg_drawdown);
+
+      body += std::format("<li>{}{}</li>", to_str(r), stat_str);
+    }
+
+  if (body.empty())
+    return "";
+
+  return std::format(div, header, body);
 }
 
 template <>
-std::string to_str<FormatTarget::SignalEntry>(const Signal& s) {
-  return index_reason_list("Entry Reasons", s.entry_reasons) +
-         index_reason_list("Entry Hints", s.entry_hints);
+std::string to_str<FormatTarget::SignalExit>(const Signal& s,
+                                             const Ticker& ticker) {
+  return reason_list("Exit Reasons", s.reasons, SignalClass::Exit,
+                     ticker.reason_stats) +
+         reason_list("Exit Hints", s.hints, SignalClass::Exit,
+                     ticker.hint_stats);
+}
+
+template <>
+std::string to_str<FormatTarget::SignalEntry>(const Signal& s,
+                                              const Ticker& ticker) {
+  return reason_list("Entry Reasons", s.reasons, SignalClass::Entry,
+                     ticker.reason_stats) +
+         reason_list("Entry Hints", s.hints, SignalClass::Entry,
+                     ticker.hint_stats);
 }
 
 template <>
@@ -210,8 +255,8 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
     body += std::format(index_signal_template,  //
                         symbol,                 //
-                        to_str<FormatTarget::SignalEntry>(sig),
-                        to_str<FormatTarget::SignalExit>(sig));
+                        to_str<FormatTarget::SignalEntry>(sig, ticker),
+                        to_str<FormatTarget::SignalExit>(sig, ticker));
   }
 
   auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated());

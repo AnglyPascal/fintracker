@@ -24,7 +24,19 @@ Ticker::Ticker(const std::string& symbol,
       metrics{std::move(candles), update_interval, position},
       signal{metrics},
       long_term_trend{long_term_trend}  //
-{}
+{
+  get_stats();
+
+  auto it = reason_stats.find(ReasonType::PullbackBounce);
+  if (it != reason_stats.end()) {
+    auto& s = it->second;
+    spdlog::debug(
+        "{}: pullback stats {{ trigger_count = {}, avg_return = {:.2f}, "
+        "avg_drawdown = {:.2f}, win_rate = {:.2f}%, importance = {:.2f} }}",
+        symbol.c_str(), s.trigger_count, s.avg_return, s.avg_drawdown,
+        s.win_rate, s.importance);
+  }
+}
 
 inline std::vector<SymbolInfo> read_symbols() {
   std::vector<SymbolInfo> symbols;
@@ -38,7 +50,7 @@ inline std::vector<SymbolInfo> read_symbols() {
     std::string add, symbol, tier_str, sector;
 
     if (std::getline(ss, add, ',') && std::getline(ss, symbol, ',') &&
-        std::getline(ss, tier_str) && std::getline(ss, sector, ',')) {
+        std::getline(ss, tier_str, ',') && std::getline(ss, sector, ',')) {
       if (add == "+")
         symbols.push_back({symbol, std::stoi(tier_str)});
     }
@@ -67,7 +79,7 @@ inline uint32_t intervals_passed() {
 
 Portfolio::Portfolio(Config config) noexcept
     : config{config},
-      symbols{read_symbols()},
+      symbols{::read_symbols()},
       tg{config.tg_en},
       td{symbols.size()},
       rp{td, symbols, config.replay_en},

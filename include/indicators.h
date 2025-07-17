@@ -82,19 +82,18 @@ struct MACD {
 };
 
 struct ATR {
-  double val = 0.0;
+  std::vector<double> values;
 
  private:
-  const int period = 14;
+  int period = 14;
   double prev_close = 0.0;
 
-  std::pair<double, double> prev_atr = {0.0, 0.0};
-
  public:
+  ATR() noexcept = default;
   ATR(const std::vector<Candle>& candles, int period = 14) noexcept;
 
   void add(const Candle& candle) noexcept;
-  void pop_back() noexcept;
+  void pop_back() noexcept { values.pop_back(); }  // FIXME: incorrect
 };
 
 struct Indicators {
@@ -143,7 +142,7 @@ struct Metrics {
   std::vector<Candle> candles;
   const minutes interval;
 
-  Indicators indicators_1h;
+  Indicators ind_1h;
   StopLoss stop_loss;
   const Position* position;
 
@@ -164,5 +163,26 @@ struct Metrics {
   bool has_position() const;
 
   void plot(const std::string& sym) const;
+
+ private:
+  size_t sanitize(int idx) const {
+    return idx < 0 ? ind_1h.candles.size() + idx : idx;
+  }
+
+ public:
+  double price(int idx) const { return ind_1h.candles[sanitize(idx)].price(); }
+
+  double ema9(int idx) const { return ind_1h.ema9.values[sanitize(idx)]; }
+  double ema21(int idx) const { return ind_1h.ema21.values[sanitize(idx)]; }
+  double ema50(int idx) const { return ind_1h.ema50.values[sanitize(idx)]; }
+
+  double atr(int idx) const { return ind_1h.atr.values[sanitize(idx)]; }
+  double rsi(int idx) const { return ind_1h.rsi.values[sanitize(idx)]; }
+
+  double macd(int idx) const { return ind_1h.macd.macd_line[sanitize(idx)]; }
+  double signal(int idx) const {
+    return ind_1h.macd.signal_ema.values[sanitize(idx)];
+  }
+  double hist(int idx) const { return macd(idx) - signal(idx); }
 };
 

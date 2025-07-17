@@ -9,12 +9,6 @@
 #include <iostream>
 #include <numeric>
 
-inline double true_range(double prev_close, const Candle& candle) {
-  auto high = candle.high, low = candle.low;
-  return std::max(
-      {high - low, std::abs(high - prev_close), std::abs(low - prev_close)});
-}
-
 EMA::EMA(const std::vector<Candle>& candles, int period) noexcept
     : values(candles.size()), period(period) {
   double sma = 0;
@@ -160,34 +154,48 @@ void MACD::pop_back() noexcept {
   histogram.pop_back();
 }
 
+inline double true_range(double prev_close, const Candle& c) {
+  double high_low = c.high - c.low;
+  double high_pc = std::abs(c.high - prev_close);
+  double low_pc = std::abs(c.low - prev_close);
+  return std::max({high_low, high_pc, low_pc});
+}
+
 ATR::ATR(const std::vector<Candle>& candles, int period) noexcept
-    : period{period} {
-  if (candles.size() < (size_t)period + 1)
+    : values(candles.size()), period(period) {
+  if (candles.size() < static_cast<size_t>(period + 1))
     return;
 
-  std::vector<double> tr;
-  for (size_t i = candles.size() - period; i < candles.size(); ++i) {
-    auto prev_close = candles[i - 1].close;
-    tr.push_back(true_range(prev_close, candles[i]));
+  std::vector<double> tr(period);
+  for (int i = 1; i <= period; ++i) {
+    double prev_close = candles[i - 1].close;
+    tr[i - 1] = true_range(prev_close, candles[i]);
   }
 
-  val = std::accumulate(tr.begin(), tr.end(), 0.0) / period;
+  double atr = std::accumulate(tr.begin(), tr.end(), 0.0) / period;
+  values[period] = atr;
+
+  // Fill first `period` entries as NaN or 0.0 (undefined ATR)
+  for (int i = 0; i < period; ++i)
+    values[i] = std::numeric_limits<double>::quiet_NaN();
+
+  for (size_t i = period + 1; i < candles.size(); ++i) {
+    double prev_atr = values[i - 1];
+    double tr = true_range(candles[i - 1].close, candles[i]);
+    atr = (prev_atr * (period - 1) + tr) / period;
+    values[i] = atr;
+  }
+
   prev_close = candles.back().close;
 }
 
 void ATR::add(const Candle& candle) noexcept {
-  prev_atr = {val, prev_close};
-
   double tr = true_range(prev_close, candle);
-  val = (val * (period - 1) + tr) / period;
-  prev_close = candle.close;
-}
+  double prev_atr = values.back();
+  double atr = (prev_atr * (period - 1) + tr) / period;
 
-void ATR::pop_back() noexcept {
-  auto [v, c] = prev_atr;
-  val = v;
-  prev_close = c;
-  prev_atr = {0.0, 0.0};
+  values.push_back(atr);
+  prev_close = candle.close;
 }
 
 Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
@@ -295,9 +303,9 @@ Metrics::Metrics(std::vector<Candle>&& candles,
                  const Position* position) noexcept
     : candles{std::move(candles)},
       interval{interval},
-      indicators_1h{downsample(this->candles, interval, H_1), H_1},  //
-      stop_loss{indicators_1h, position},                            //
-      position{position}                                             //
+      ind_1h{downsample(this->candles, interval, H_1), H_1},  //
+      stop_loss{ind_1h, position},                            //
+      position{position}                                      //
 {
   if (has_position())
     position->max_price_seen = std::max(position->max_price_seen, last_price());
@@ -332,14 +340,14 @@ void Metrics::add(const Candle& candle, const Position* position) noexcept {
     ind.add(new_candle);
   };
 
-  add_to_ind(indicators_1h);
+  add_to_ind(ind_1h);
 
   this->position = position;
   if (position != nullptr)
     position->max_price_seen =
         std::max(position->max_price_seen, candle.price());
 
-  stop_loss = StopLoss{indicators_1h, position};
+  stop_loss = StopLoss{ind_1h, position};
 }
 
 Candle Metrics::pop_back() noexcept {
@@ -359,8 +367,8 @@ Candle Metrics::pop_back() noexcept {
     ind.add(new_candle);
   };
 
-  pop_from_ind(indicators_1h);
-  stop_loss = StopLoss{indicators_1h, position};
+  pop_from_ind(ind_1h);
+  stop_loss = StopLoss{ind_1h, position};
 
   return candle;
 }
@@ -384,7 +392,7 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
   auto& ema21 = ind.ema21.values;
 
   double price = candles.back().price();
-  double atr = ind.atr.val;
+  double atr = ind.atr.values.back();
   double entry_price = pos->px;
   double gain = price - entry_price;
 

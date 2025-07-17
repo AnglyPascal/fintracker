@@ -446,25 +446,6 @@ inline constexpr std::string_view index_signal_template = R"(
   </tr>
 )";
 
-inline constexpr std::string index_reason_list(auto& header, auto& lst) {
-  if (lst.empty())
-    return "";
-
-  constexpr std::string_view div = R"(
-  <div><b>{}</b>
-    <ul>
-      {}
-    </ul>
-  </div>
-  )";
-
-  std::string body = "";
-  for (const auto& r : lst)
-    body += std::format("<li>{}</li>", to_str(r));
-
-  return std::format(div, header, body);
-}
-
 inline constexpr std::string index_row_class(SignalType type) {
   switch (type) {
     case SignalType::Entry:

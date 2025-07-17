@@ -1,17 +1,9 @@
 #include "signal.h"
+#include "backtest.h"
 #include "indicators.h"
+#include "portfolio.h"
 
 #include <iostream>
-
-template <typename T>
-inline T LAST(const std::vector<T>& v) {
-  return v.empty() ? T{} : v.back();
-}
-
-template <typename T>
-inline T PREV(const std::vector<T>& v) {
-  return v.size() < 2 ? T{} : v[v.size() - 2];
-}
 
 // Filters
 
@@ -104,166 +96,134 @@ std::pair<bool, std::string> filter(const std::vector<Candle>& candles,
 
 // Entry reasons
 
-inline Reason ema_crossover_entry(const Metrics& m) {
-  auto& ema9 = m.indicators_1h.ema9.values;
-  auto& ema21 = m.indicators_1h.ema21.values;
-  if (PREV(ema9) <= PREV(ema21) && LAST(ema9) > LAST(ema21))
-    return {ReasonType::EmaCrossover, Severity::High, Source::EMA};
+inline Reason ema_crossover_entry(const Metrics& m, int idx) {
+  if (m.ema9(idx - 1) <= m.ema21(idx - 1) && m.ema9(idx) > m.ema21(idx))
+    return ReasonType::EmaCrossover;
   return ReasonType::None;
 }
 
-inline Reason rsi_cross_50_entry(const Metrics& m) {
-  auto& rsi = m.indicators_1h.rsi.values;
-  if (PREV(rsi) < 50 && LAST(rsi) >= 50)
-    return {ReasonType::RsiCross50, Severity::Medium, Source::RSI};
+inline Reason rsi_cross_50_entry(const Metrics& m, int idx) {
+  if (m.rsi(idx - 1) < 50 && m.rsi(idx) >= 50)
+    return ReasonType::RsiCross50;
   return ReasonType::None;
 }
 
-inline Reason pullback_bounce_entry(const Metrics& m) {
-  auto& ema9 = m.indicators_1h.ema9.values;
-  auto& ema21 = m.indicators_1h.ema21.values;
-  auto& candles = m.indicators_1h.candles;
-
-  bool dipped_below_ema21 = PREV(candles).price() < PREV(ema21);
-  bool recovered_above_ema21 = LAST(candles).price() > LAST(ema21);
-  bool ema9_above_ema21 = LAST(ema9) > LAST(ema21);
+inline Reason pullback_bounce_entry(const Metrics& m, int idx) {
+  bool dipped_below_ema21 = m.price(idx - 1) < m.ema21(idx - 1);
+  bool recovered_above_ema21 = m.price(idx) > m.ema21(idx);
+  bool ema9_above_ema21 = m.ema9(idx) > m.ema21(idx);
 
   if (dipped_below_ema21 && recovered_above_ema21 && ema9_above_ema21)
-    return {ReasonType::PullbackBounce, Severity::Urgent, Source::Price};
+    return ReasonType::PullbackBounce;
 
   return ReasonType::None;
 }
 
-inline Reason macd_histogram_cross_entry(const Metrics& m) {
-  auto& hist = m.indicators_1h.macd.histogram;
-  if (PREV(hist) < 0 && LAST(hist) >= 0)
-    return {ReasonType::MacdHistogramCross, Severity::Medium, Source::MACD};
+inline Reason macd_histogram_cross_entry(const Metrics& m, int idx) {
+  if (m.hist(idx - 1) < 0 && m.hist(idx) >= 0)
+    return ReasonType::MacdHistogramCross;
   return ReasonType::None;
 }
 
 // Exit reasons
 
-inline Reason ema_crossdown_exit(const Metrics& m) {
-  auto& ema9 = m.indicators_1h.ema9.values;
-  auto& ema21 = m.indicators_1h.ema21.values;
-  if (PREV(ema9) >= PREV(ema21) && LAST(ema9) < LAST(ema21))
-    return {ReasonType::EmaCrossdown, Severity::High, Source::EMA};
+inline Reason ema_crossdown_exit(const Metrics& m, int idx) {
+  if (m.ema9(idx - 1) >= m.ema21(idx - 1) && m.ema9(idx) < m.ema21(idx))
+    return ReasonType::EmaCrossdown;
   return ReasonType::None;
 }
 
-inline Reason macd_bearish_cross_exit(const Metrics& m) {
-  auto& macd = m.indicators_1h.macd.macd_line;
-  auto& signal = m.indicators_1h.macd.signal_ema.values;
-  if (PREV(macd) >= PREV(signal) && LAST(macd) < LAST(signal))
-    return {ReasonType::MacdBearishCross, Severity::High, Source::MACD};
+inline Reason macd_bearish_cross_exit(const Metrics& m, int idx) {
+  if (m.macd(idx - 1) >= m.signal(idx - 1) && m.macd(idx) < m.signal(idx))
+    return ReasonType::MacdBearishCross;
   return ReasonType::None;
 }
 
-inline Reason stop_loss_exit(const Metrics& m) {
+inline Reason stop_loss_exit(const Metrics& m, int) {
   auto price = m.last_price();
   if (price < m.stop_loss.final_stop)
-    return {ReasonType::StopLossHit, Severity::Urgent, Source::Stop};
+    return ReasonType::StopLossHit;
   return ReasonType::None;
 }
 
-inline constexpr signal_f entry_funcs[] = {
+inline constexpr signal_f reason_funcs[] = {
+    // Entry
     ema_crossover_entry,
     rsi_cross_50_entry,
     pullback_bounce_entry,
     macd_histogram_cross_entry,
-};
-
-inline constexpr signal_f exit_funcs[] = {
+    // Exit
     ema_crossdown_exit,
     macd_bearish_cross_exit,
     stop_loss_exit,
 };
 
 // Entry Hints
-inline Hint ema_converging_hint(const Metrics& m) {
-  auto& ema9 = m.indicators_1h.ema9.values;
-  auto& ema21 = m.indicators_1h.ema21.values;
+inline Hint ema_converging_hint(const Metrics& m, int idx) {
+  double prev_dist = std::abs(m.ema9(idx - 1) - m.ema21(idx - 1));
+  double curr_dist = std::abs(m.ema9(idx) - m.ema21(idx));
 
-  double prev_dist = std::abs(PREV(ema9) - PREV(ema21));
-  double curr_dist = std::abs(LAST(ema9) - LAST(ema21));
-
-  if (LAST(ema9) < LAST(ema21) && curr_dist < prev_dist &&
-      curr_dist / LAST(ema21) < 0.01) {
-    return {HintType::Ema9ConvEma21, Severity::Low, Source::EMA};
+  if (m.ema9(idx) < m.ema21(idx) && curr_dist < prev_dist &&
+      curr_dist / m.ema21(idx) < 0.01) {
+    return HintType::Ema9ConvEma21;
   }
 
   return HintType::None;
 }
 
-inline Hint rsi_approaching_50_hint(const Metrics& m) {
-  auto& rsi = m.indicators_1h.rsi.values;
-  if (PREV(rsi) < LAST(rsi) && LAST(rsi) > 45 && LAST(rsi) < 50)
-    return {HintType::RsiConv50, Severity::Low, Source::RSI};
+inline Hint rsi_approaching_50_hint(const Metrics& m, int idx) {
+  if (m.rsi(idx - 1) < m.rsi(idx) && m.rsi(idx) > 45 && m.rsi(idx) < 50)
+    return HintType::RsiConv50;
   return HintType::None;
 }
 
-inline Hint macd_histogram_rising_hint(const Metrics& m) {
-  auto& hist = m.indicators_1h.macd.histogram;
-  if (PREV(hist) < LAST(hist) && LAST(hist) < 0)
-    return {HintType::MacdRising, Severity::Medium, Source::MACD};
+inline Hint macd_histogram_rising_hint(const Metrics& m, int idx) {
+  if (m.hist(idx - 1) < m.hist(idx) && m.hist(idx) < 0)
+    return HintType::MacdRising;
   return HintType::None;
 }
 
 // Exit Hints
 
-inline Hint ema_diverging_hint(const Metrics& m) {
-  auto& ema9 = m.indicators_1h.ema9.values;
-  auto& ema21 = m.indicators_1h.ema21.values;
+inline Hint ema_diverging_hint(const Metrics& m, int idx) {
+  double prev_dist = std::abs(m.ema9(idx - 1) - m.ema21(idx - 1));
+  double curr_dist = std::abs(m.ema9(idx) - m.ema21(idx));
 
-  double prev_dist = std::abs(PREV(ema9) - PREV(ema21));
-  double curr_dist = std::abs(LAST(ema9) - LAST(ema21));
-
-  if (LAST(ema9) > LAST(ema21) && curr_dist > prev_dist &&
-      curr_dist / LAST(ema21) > 0.02) {
-    return {HintType::Ema9DivergeEma21, Severity::Low, Source::EMA};
+  if (m.ema9(idx) > m.ema21(idx) && curr_dist > prev_dist &&
+      curr_dist / m.ema21(idx) > 0.02) {
+    return HintType::Ema9DivergeEma21;
   }
 
   return HintType::None;
 }
 
-inline Hint rsi_falling_from_overbought_hint(const Metrics& m) {
-  double prev = PREV(m.indicators_1h.rsi.values);
-  double now = LAST(m.indicators_1h.rsi.values);
+inline Hint rsi_falling_from_overbought_hint(const Metrics& m, int idx) {
+  double prev = m.rsi(idx - 1), now = m.rsi(idx);
   if (prev > 70 && now < prev && prev - now > 3.0)
-    return {HintType::RsiDropFromOverbought, Severity::Medium, Source::RSI};
+    return HintType::RsiDropFromOverbought;
   return HintType::None;
 }
 
-inline Hint macd_histogram_peaking_hint(const Metrics& m) {
-  auto& hist = m.indicators_1h.macd.histogram;
-
-  double h2 = hist[hist.size() - 3];
-  double h1 = hist[hist.size() - 2];
-  double h0 = hist.back();
-
-  if (h2 < h1 && h1 > h0)
-    return {HintType::MacdPeaked, Severity::Medium, Source::MACD};
-
+inline Hint macd_histogram_peaking_hint(const Metrics& m, int idx) {
+  if (m.hist(idx - 2) < m.hist(idx - 1) && m.hist(idx - 1) > m.hist(idx))
+    return HintType::MacdPeaked;
   return HintType::None;
 }
 
-inline Hint ema_flattens_hint(const Metrics& m) {
-  auto& ema9 = m.indicators_1h.ema9.values;
-  auto& ema21 = m.indicators_1h.ema21.values;
+inline Hint ema_flattens_hint(const Metrics& m, int idx) {
+  double slope = m.ema9(idx) - m.ema9(idx - 1);
+  bool is_flat = std::abs(slope / m.ema9(idx)) < 0.001;
 
-  double slope = LAST(ema9) - PREV(ema9);
-  bool is_flat = std::abs(slope / LAST(ema9)) < 0.001;
-
-  double dist = std::abs(LAST(ema9) - LAST(ema21));
-  bool is_close = dist / LAST(ema21) < 0.01;
+  double dist = std::abs(m.ema9(idx) - m.ema21(idx));
+  bool is_close = dist / m.ema21(idx) < 0.01;
 
   if (is_flat && is_close)
-    return {HintType::Ema9Flattening, Severity::Low, Source::EMA};
+    return HintType::Ema9Flattening;
 
   return HintType::None;
 }
 
-inline Hint stop_proximity_hint(const Metrics& m) {
+inline Hint stop_proximity_hint(const Metrics& m, int) {
   auto price = m.last_price();
   auto dist = price - m.stop_loss.final_stop;
   auto dist_pct = dist / price;
@@ -272,84 +232,76 @@ inline Hint stop_proximity_hint(const Metrics& m) {
     return HintType::StopInATR;
 
   if (dist_pct < 0.02)
-    return {HintType::StopProximity, Severity::High, Source::Stop};
+    return HintType::StopProximity;
 
   if (dist < 1.0 * m.stop_loss.atr_stop - m.stop_loss.final_stop)
-    return {HintType::StopInATR, Severity::High, Source::Stop};
+    return HintType::StopInATR;
 
   return HintType::None;
 }
 
-inline Hint price_trending_upward_hint(const Metrics& m) {
-  auto& best = m.indicators_1h.trends.price.top_trends[0];
-  if (best.slope() > 0.2 && best.r2 > 0.8)
-    return {HintType::PriceTrendingUp, Severity::Medium, Source::Price};
-  return HintType::None;
-}
-
-inline Hint price_trending_downward_hint(const Metrics& m) {
-  auto& price = m.indicators_1h.trends.price;
-  auto& best = price.top_trends[0];
-  if (best.slope() < -0.2 && best.r2 > 0.8)
-    return {HintType::PriceTrendingDown, Severity::Medium, Source::Price};
-  return HintType::None;
-}
-
-inline Hint ema21_trending_upward_hint(const Metrics& m) {
-  auto& ema21 = m.indicators_1h.trends.ema21;
-  auto& best = ema21.top_trends[0];
-  if (best.slope() > 0.15 && best.r2 > 0.8)
-    return {HintType::Ema21TrendingUp, Severity::Medium, Source::EMA};
-  return HintType::None;
-}
-
-inline Hint ema21_trending_downward_hint(const Metrics& m) {
-  auto& ema21 = m.indicators_1h.trends.ema21;
-  auto& best = ema21.top_trends[0];
-  if (best.slope() < -0.15 && best.r2 > 0.8)
-    return {HintType::Ema21TrendingDown, Severity::Medium, Source::EMA};
-  return HintType::None;
-}
-
-inline Hint rsi_trending_upward_hint(const Metrics& m) {
-  auto& best = m.indicators_1h.trends.rsi.top_trends[0];
-  if (best.slope() > 0.3 && best.r2 > 0.85)
-    return {HintType::RsiTrendingUpStrongly, Severity::High, Source::RSI};
-  if (best.slope() > 0.15 && best.r2 > 0.8)
-    return {HintType::RsiTrendingUp, Severity::Medium, Source::RSI};
-  return HintType::None;
-}
-
-inline Hint rsi_trending_downward_hint(const Metrics& m) {
-  auto& best = m.indicators_1h.trends.rsi.top_trends[0];
-  if (best.slope() < -0.3 && best.r2 > 0.85)
-    return {HintType::RsiTrendingDownStrongly, Severity::High, Source::RSI};
-  if (best.slope() < -0.15 && best.r2 > 0.8)
-    return {HintType::RsiTrendingDown, Severity::Medium, Source::RSI};
-  return HintType::None;
-}
-
-inline constexpr hint_f entry_hint_funcs[] = {
-    ema_converging_hint,         //
-    rsi_approaching_50_hint,     //
-    macd_histogram_rising_hint,  //
-                                 //
-    price_trending_upward_hint,  //
-    ema21_trending_upward_hint,  //
-    rsi_trending_upward_hint,    //
+inline constexpr hint_f hint_funcs[] = {
+    // Entry
+    ema_converging_hint,
+    rsi_approaching_50_hint,
+    macd_histogram_rising_hint,
+    // Exit
+    ema_diverging_hint,
+    rsi_falling_from_overbought_hint,
+    macd_histogram_peaking_hint,
+    ema_flattens_hint,
+    stop_proximity_hint,
 };
 
-inline constexpr hint_f exit_hint_funcs[] = {
-    ema_diverging_hint,                //
-    rsi_falling_from_overbought_hint,  //
-    rsi_trending_downward_hint,        //
-                                       //
-    macd_histogram_peaking_hint,       //
-    ema_flattens_hint,                 //
-    stop_proximity_hint,               //
-                                       //
-    price_trending_downward_hint,      //
-    ema21_trending_downward_hint,      //
+// Trends
+
+inline Trend price_trending(const Metrics& m) {
+  auto& top_trends = m.ind_1h.trends.price.top_trends;
+  if (top_trends.empty())
+    return TrendType::None;
+
+  auto& best = top_trends[0];
+  if (best.slope() > 0.2 && best.r2 > 0.8)
+    return TrendType::PriceTrendingUp;
+  if (best.slope() < -0.2 && best.r2 > 0.8)
+    return TrendType::PriceTrendingDown;
+  return TrendType::None;
+}
+
+inline Trend ema21_trending(const Metrics& m) {
+  auto& top_trends = m.ind_1h.trends.ema21.top_trends;
+  if (top_trends.empty())
+    return TrendType::None;
+
+  auto& best = top_trends[0];
+  if (best.slope() > 0.15 && best.r2 > 0.8)
+    return TrendType::Ema21TrendingUp;
+  if (best.slope() < -0.15 && best.r2 > 0.8)
+    return TrendType::Ema21TrendingDown;
+  return TrendType::None;
+}
+
+inline Trend rsi_trending(const Metrics& m) {
+  auto& top_trends = m.ind_1h.trends.rsi.top_trends;
+  if (top_trends.empty())
+    return TrendType::None;
+
+  auto& best = top_trends[0];
+  if (best.slope() > 0.3 && best.r2 > 0.85)
+    return TrendType::RsiTrendingUpStrongly;
+  if (best.slope() > 0.15 && best.r2 > 0.8)
+    return TrendType::RsiTrendingUp;
+  if (best.slope() < -0.3 && best.r2 > 0.85)
+    return TrendType::RsiTrendingDownStrongly;
+  if (best.slope() < -0.15 && best.r2 > 0.8)
+    return TrendType::RsiTrendingDown;
+  return TrendType::None;
+}
+
+inline constexpr trend_f trend_funcs[] = {
+    price_trending,
+    ema21_trending,
+    rsi_trending,
 };
 
 inline int severity_weight(Severity s) {
@@ -367,18 +319,22 @@ SignalType Signal::gen_signal(bool has_position) const {
     return SignalType::Watchlist;
 
   bool exit_hints_block_watchlist =
-      std::any_of(exit_hints.begin(), exit_hints.end(), [](auto& h) {
-        return h.type == HintType::StopProximity ||
-               h.severity == Severity::Urgent;
+      std::any_of(hints.begin(), hints.end(), [](auto& h) {
+        return h.cls == SignalClass::Exit &&
+               (h.type == HintType::StopProximity ||
+                h.severity == Severity::Urgent);
+        ;
       });
 
   if ((exit_score > 0 && exit_score < 5) || exit_hints_block_watchlist)
     return has_position ? SignalType::HoldCautiously : SignalType::Caution;
 
-  bool strong_entry_hint =
-      !entry_hints.empty() && entry_hints.front().severity >= Severity::High;
-  bool strong_exit_hint =
-      !exit_hints.empty() && exit_hints.front().severity >= Severity::High;
+  bool strong_entry_hint = std::any_of(hints.begin(), hints.end(), [](auto& h) {
+    return h.cls == SignalClass::Entry && h.severity >= Severity::High;
+  });
+  bool strong_exit_hint = std::any_of(hints.begin(), hints.end(), [](auto& h) {
+    return h.cls == SignalClass::Exit && h.severity >= Severity::High;
+  });
 
   if (strong_entry_hint && strong_exit_hint)
     return SignalType::Mixed;
@@ -394,6 +350,8 @@ SignalType Signal::gen_signal(bool has_position) const {
 
   return SignalType::None;
 }
+
+// Entry confirmations
 
 inline bool volume_above_ma(const std::vector<Candle>& candles) {
   double sum = 0;
@@ -412,19 +370,11 @@ inline Confirmation entry_confirmation_15m(const Metrics& m) {
   auto& candles = ind.candles;
   auto n = candles.size();
 
-  if (n < 5 || ind.ema21.values.size() < 1 || ind.rsi.values.size() < 2)
-    return "";
-
   if (!volume_above_ma(candles))
     return "low volume";
 
-  auto price = candles.back().price();
-  auto ema21 = LAST(ind.ema21.values);
-  auto rsi_now = LAST(ind.rsi.values);
-  auto rsi_prev = PREV(ind.rsi.values);
-
   // Overextension above EMA21
-  if ((price - ema21) / ema21 > 0.0125) {
+  if ((m.price(-1) - m.ema21(-1)) / m.ema21(-1) > 0.0125) {
     return "over ema21";  // Over 1.25% above EMA21
   }
 
@@ -438,25 +388,15 @@ inline Confirmation entry_confirmation_15m(const Metrics& m) {
     return "green run";
 
   // RSI quick spike (momentum fading)
-  if (rsi_now > 60 && (rsi_now - rsi_prev) > 15)
+  if (m.rsi(-1) > 60 && (m.rsi(-1) - m.rsi(-2)) > 15)
     return "rsi quick spike";
 
   // MACD early crossover
-  auto& macd_line = ind.macd.macd_line;
-  auto& signal_line = ind.macd.signal_ema.values;
-  if (macd_line.size() >= 2 && signal_line.size() >= 2) {
-    double macd_now = LAST(macd_line);
-    double macd_prev = PREV(macd_line);
-
-    double sig_now = LAST(signal_line);
-    double sig_prev = PREV(signal_line);
-
-    if (macd_prev < sig_prev && macd_now > sig_now)
-      return "macd early crossover";  // Crossover just happened
-  }
+  if (m.macd(-2) < m.signal(-2) && m.macd(-1) > m.signal(-1))
+    return "macd early crossover";  // Crossover just happened
 
   // RSI weakening or divergence (advanced)
-  if (ind.rsi.rising() == false && rsi_now < 60)
+  if (ind.rsi.rising() == false && m.rsi(-1) < 60)
     return "rsi divergence or weak";
 
   return "ok";
@@ -467,39 +407,38 @@ inline constexpr conf_f confirmation_funcs[] = {
 };
 
 Signal::Signal(const Metrics& m) noexcept {
-  // Hard entry signals
-  for (auto f : entry_funcs)
-    if (auto r = f(m); r.type != ReasonType::None) {
-      entry_score += severity_weight(r.severity);
-      entry_reasons.emplace_back(std::move(r));
+  // Hard signals
+  for (auto f : reason_funcs)
+    if (auto r = f(m, -1);
+        r.type != ReasonType::None && r.cls != SignalClass::None) {
+      if (r.cls == SignalClass::Exit) {
+        exit_score += severity_weight(r.severity);
+      } else {
+        entry_score += severity_weight(r.severity);
+      }
+      reasons.emplace_back(std::move(r));
     }
 
-  // Hard exit signals
-  for (auto f : exit_funcs)
-    if (auto r = f(m); r.type != ReasonType::None) {
-      exit_score += severity_weight(r.severity);
-      exit_reasons.emplace_back(std::move(r));
+  // Hints
+  for (auto f : hint_funcs)
+    if (auto h = f(m, -1);
+        h.type != HintType::None && h.cls != SignalClass::None) {
+      hints.emplace_back(std::move(h));
     }
 
-  // Entry hints
-  for (auto f : entry_hint_funcs)
-    if (auto h = f(m); h.type != HintType::None)
-      entry_hints.emplace_back(std::move(h));
-
-  // Exit hints
-  for (auto f : exit_hint_funcs)
-    if (auto h = f(m); h.type != HintType::None)
-      exit_hints.emplace_back(std::move(h));
+  // Trends
+  for (auto f : trend_funcs)
+    if (auto t = f(m); t.type != TrendType::None) {
+      trends.emplace_back(std::move(t));
+    }
 
   auto sort = [](auto& v) {
     std::sort(v.begin(), v.end(),
               [](auto& lhs, auto& rhs) { return lhs.severity < rhs.severity; });
   };
 
-  sort(entry_reasons);
-  sort(exit_reasons);
-  sort(entry_hints);
-  sort(exit_hints);
+  sort(reasons);
+  sort(hints);
 
   type = gen_signal(m.has_position());
   if (type != SignalType::Entry) {
@@ -524,11 +463,19 @@ bool Signal::is_interesting() const {
     return false;
   };
 
-  if (important(entry_reasons) || important(exit_reasons))
-    return true;
+  return important(reasons) || important(hints);
+}
 
-  if (important(entry_hints) || important(exit_hints))
-    return true;
+void Ticker::get_stats() {
+  Backtest bt{metrics};
 
-  return false;
+  for (auto& f : reason_funcs) {
+    auto [r, s] = bt.get_stats<ReasonType>(f);
+    reason_stats.try_emplace(r, s);
+  }
+
+  for (auto& f : hint_funcs) {
+    auto [r, s] = bt.get_stats<HintType>(f);
+    hint_stats.try_emplace(r, s);
+  }
 }

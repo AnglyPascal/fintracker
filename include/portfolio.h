@@ -1,6 +1,7 @@
 #pragma once
 
 #include "api.h"
+#include "backtest.h"
 #include "calendar.h"
 #include "config.h"
 #include "indicators.h"
@@ -25,6 +26,9 @@ struct Ticker {
   Signal signal = {};
   std::string long_term_trend;
 
+  std::unordered_map<ReasonType, SignalStats> reason_stats;
+  std::unordered_map<HintType, SignalStats> hint_stats;
+
   Ticker(const std::string& symbol,
          int priority,
          std::vector<Candle>&& candles,
@@ -33,6 +37,9 @@ struct Ticker {
          const std::string& long_term_trend) noexcept;
 
   void write_plot_data() const;
+
+ private:
+  void get_stats();
 };
 
 using Tickers = std::map<std::string, Ticker>;

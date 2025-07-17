@@ -7,8 +7,14 @@
 #include <vector>
 
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
-
 enum class Source { Price, Stop, EMA, RSI, MACD, None };
+enum class SignalClass { None, Entry, Exit };
+
+struct Meta {
+  Severity sev;
+  Source src;
+  SignalClass cls;
+};
 
 enum class SignalType {
   None,            // No action
@@ -22,13 +28,6 @@ enum class SignalType {
                    //
   Mixed,           // Conflicting signals
 };
-
-// FIXME: Severity and Source are functions on ReasonType and HintType
-// For signal function type, it should be
-// _ f(const Indicators& ind, int last_time)
-// last_time = -1 to represent the whole length
-// ind.VAL(i) should give the VAL at time i
-// Trends as a separate type
 
 enum class ReasonType {
   None,
@@ -48,21 +47,50 @@ enum class ReasonType {
   StopLossHit,
 };
 
+inline const std::unordered_map<ReasonType, Meta> reason_meta = {
+    {ReasonType::None,  //
+     {Severity::Low, Source::EMA, SignalClass::Entry}},
+    // Entry:
+    {ReasonType::EmaCrossover,  //
+     {Severity::High, Source::EMA, SignalClass::Entry}},
+    {ReasonType::RsiCross50,  //
+     {Severity::Medium, Source::RSI, SignalClass::Entry}},
+    {ReasonType::PullbackBounce,  //
+     {Severity::Urgent, Source::Price, SignalClass::Entry}},
+    {ReasonType::MacdHistogramCross,  //
+     {Severity::Medium, Source::MACD, SignalClass::Entry}},
+    // Exit:
+    {ReasonType::EmaCrossdown,  //
+     {Severity::High, Source::EMA, SignalClass::Exit}},
+    {ReasonType::RsiOverbought,  //
+     {Severity::Medium, Source::RSI, SignalClass::Exit}},
+    {ReasonType::MacdBearishCross,  //
+     {Severity::High, Source::MACD, SignalClass::Exit}},
+    {ReasonType::StopLossHit,  //
+     {Severity::Urgent, Source::Stop, SignalClass::Exit}},
+};
+
 struct Reason {
   ReasonType type;
-  Severity severity;
-  Source src = Source::None;
 
-  double importance = 0.0;
+  SignalClass cls = SignalClass::None;
+  Severity severity = Severity::Low;
+  Source source = Source::None;
 
-  Reason(ReasonType type) : type{type}, severity{Severity::Low} {}
-  Reason(ReasonType type, Severity severity) : type{type}, severity{severity} {}
-  Reason(ReasonType type, Severity severity, Source src)
-      : type{type}, severity{severity}, src{src} {}
+  Reason(ReasonType type) : type{type} {
+    auto it = reason_meta.find(type);
+    if (it == reason_meta.end())
+      return;
+    cls = it->second.cls;
+    severity = it->second.sev;
+    source = it->second.src;
+  }
 
   bool operator<(const Reason& other) const {
     return severity < other.severity;
   }
+
+  bool exists() const { return type != ReasonType::None; }
 };
 
 enum class HintType {
@@ -73,11 +101,6 @@ enum class HintType {
   RsiConv50,
   MacdRising,
 
-  PriceTrendingUp,
-  Ema21TrendingUp,
-  RsiTrendingUp,
-  RsiTrendingUpStrongly,
-
   // Exit hints
   Ema9DivergeEma21,
   RsiDropFromOverbought,
@@ -85,6 +108,61 @@ enum class HintType {
   Ema9Flattening,
   StopProximity,
   StopInATR,
+};
+
+inline const std::unordered_map<HintType, Meta> hint_meta = {
+    {HintType::None,  //
+     {Severity::Low, Source::None, SignalClass::None}},
+    // Entry
+    {HintType::Ema9ConvEma21,  //
+     {Severity::Low, Source::EMA, SignalClass::Entry}},
+    {HintType::RsiConv50,  //
+     {Severity::Low, Source::RSI, SignalClass::Entry}},
+    {HintType::MacdRising,  //
+     {Severity::Medium, Source::MACD, SignalClass::Entry}},
+    // Exit
+    {HintType::Ema9DivergeEma21,  //
+     {Severity::Low, Source::EMA, SignalClass::Exit}},
+    {HintType::RsiDropFromOverbought,  //
+     {Severity::Medium, Source::RSI, SignalClass::Exit}},
+    {HintType::MacdPeaked,  //
+     {Severity::Medium, Source::MACD, SignalClass::Exit}},
+    {HintType::Ema9Flattening,  //
+     {Severity::Low, Source::EMA, SignalClass::Exit}},
+    {HintType::StopProximity,  //
+     {Severity::High, Source::Stop, SignalClass::Exit}},
+    {HintType::StopInATR,  //
+     {Severity::High, Source::Stop, SignalClass::Exit}},
+};
+
+struct Hint {
+  HintType type;
+
+  SignalClass cls = SignalClass::None;
+  Severity severity = Severity::Low;
+  Source source = Source::None;
+
+  Hint(HintType type) : type{type} {
+    auto it = hint_meta.find(type);
+    if (it == hint_meta.end())
+      return;
+    cls = it->second.cls;
+    severity = it->second.sev;
+    source = it->second.src;
+  }
+
+  bool operator<(const Hint& other) const { return severity < other.severity; }
+
+  bool exists() const { return type != HintType::None; }
+};
+
+enum class TrendType {
+  None,
+
+  PriceTrendingUp,
+  Ema21TrendingUp,
+  RsiTrendingUp,
+  RsiTrendingUpStrongly,
 
   PriceTrendingDown,
   Ema21TrendingDown,
@@ -92,19 +170,9 @@ enum class HintType {
   RsiTrendingDownStrongly,
 };
 
-struct Hint {
-  HintType type;
-  Severity severity;
-  Source src = Source::None;
-
-  double importance = 0.0;
-
-  Hint(HintType type) : type{type}, severity{Severity::Low} {}
-  Hint(HintType type, Severity severity) : type{type}, severity{severity} {}
-  Hint(HintType type, Severity severity, Source src)
-      : type{type}, severity{severity}, src{src} {}
-
-  bool operator<(const Hint& other) const { return severity < other.severity; }
+struct Trend {
+  TrendType type;
+  Trend(TrendType type) : type{type} {}
 };
 
 enum class Confidence {
@@ -130,11 +198,6 @@ struct Confirmation {
   Confirmation() : str{""} {}
 };
 
-struct SignalStats {
-  std::unordered_map<ReasonType, double> reason_perf;
-  std::unordered_map<HintType, double> hint_perf;
-};
-
 struct Metrics;
 
 struct Candle;
@@ -144,19 +207,19 @@ using filter_f = Filter (*)(const std::vector<Candle>& candles,
 std::pair<bool, std::string> filter(const std::vector<Candle>& candles,
                                     minutes interval);
 
-using signal_f = Reason (*)(const Metrics&);
-using hint_f = Hint (*)(const Metrics&);
+using signal_f = Reason (*)(const Metrics&, int idx);
+using hint_f = Hint (*)(const Metrics&, int idx);
+using trend_f = Trend (*)(const Metrics&);
 using conf_f = Confirmation (*)(const Metrics&);
 
 struct Signal {
   SignalType type = SignalType::None;
 
-  std::vector<Reason> entry_reasons, exit_reasons;
-  std::vector<Hint> entry_hints, exit_hints;
+  std::vector<Reason> reasons;
+  std::vector<Hint> hints;
+  std::vector<Trend> trends;
   std::vector<Confirmation> confirmations;
 
-  std::string color() const;
-  std::string color_bg() const;
   std::string emoji() const;
 
   Signal() noexcept = default;
@@ -164,7 +227,7 @@ struct Signal {
   Signal& operator=(const Signal& _) noexcept = default;
 
   bool has_signal() const { return type != SignalType::None; }
-  bool has_hints() const { return !entry_hints.empty() || !exit_hints.empty(); }
+  bool has_hints() const { return !hints.empty(); }
   bool is_interesting() const;
 
  private:
