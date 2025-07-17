@@ -1,11 +1,11 @@
 #pragma once
 
 #include "api.h"
-#include "backtest.h"
 #include "calendar.h"
 #include "config.h"
 #include "indicators.h"
 #include "positions.h"
+#include "replay.h"
 #include "signal.h"
 #include "times.h"
 
@@ -57,7 +57,7 @@ class Portfolio {
 
  private:
   TD td;
-  Backtest bt;
+  Replay rp;
 
   Tickers tickers;
   OpenPositions positions;
@@ -73,14 +73,14 @@ class Portfolio {
   std::pair<const Position*, double> add_trade(const Trade& trade) const;
 
  private:
-  void run_backtest();
+  void run_replay();
 
   auto time_series(auto& symbol) {
-    return bt.enabled ? bt.time_series(symbol) : td.time_series(symbol);
+    return rp.enabled ? rp.time_series(symbol) : td.time_series(symbol);
   }
 
   auto real_time(auto& symbol) {
-    return bt.enabled ? bt.real_time(symbol) : td.real_time(symbol);
+    return rp.enabled ? rp.real_time(symbol) : td.real_time(symbol);
   }
 
   void add_candle();

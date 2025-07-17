@@ -6,7 +6,7 @@ struct Config {
   bool tg_en = true;
   bool plot_en = true;
 
-  bool backtest_en = false;
+  bool replay_en = false;
   bool continuous_en = false;
 
   Config(int argc, char* argv[]);

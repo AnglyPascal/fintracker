@@ -15,20 +15,20 @@ Config::Config(int argc, char* argv[]) {
       .implicit_value(true)
       .help("Disable Telegram");
 
-  program.add_argument("-bt", "--backtest")
+  program.add_argument("-r", "--replay")
       .default_value(false)
       .implicit_value(true)
-      .help("Enable backtesting mode");
+      .help("Enable replaying mode");
 
   program.add_argument("-p", "--disable-plot")
       .default_value(false)
       .implicit_value(true)
-      .help("Enable backtesting mode");
+      .help("Enable replaying mode");
 
   program.add_argument("-c", "--continuous")
       .default_value(false)
       .implicit_value(true)
-      .help("Enable continuous backtesting mode");
+      .help("Enable continuous replaying mode");
 
   try {
     program.parse_args(argc, argv);
@@ -37,7 +37,7 @@ Config::Config(int argc, char* argv[]) {
   }
 
   tg_en = !program.get<bool>("--disable-tg");
-  backtest_en = program.get<bool>("--backtest");
+  replay_en = program.get<bool>("--replay");
   plot_en = !program.get<bool>("--disable-plot");
   debug_en = program.get<bool>("--debug");
   continuous_en = program.get<bool>("--continuous");

@@ -70,7 +70,7 @@ Portfolio::Portfolio(Config config) noexcept
       symbols{read_symbols()},
       tg{config.tg_en},
       td{symbols.size()},
-      bt{td, symbols, config.backtest_en},
+      rp{td, symbols, config.replay_en},
       positions{},
       calendar{},
       update_interval{td.interval},
@@ -197,14 +197,14 @@ void Portfolio::add_candle_sync() {
 }
 
 void Portfolio::rollback() {
-  if (!config.backtest_en)
+  if (!config.replay_en)
     return;
 
   {
     auto _ = writer_lock();
     for (auto& [symbol, ticker] : tickers) {
       auto candle = ticker.metrics.pop_back();
-      bt.rollback(symbol, candle);
+      rp.rollback(symbol, candle);
       ticker.signal = Signal{ticker.metrics};
       write_plot_data(symbol);
     }
@@ -244,8 +244,8 @@ inline auto sleep(auto mins) {
 }
 
 void Portfolio::run() {
-  if (bt.enabled)
-    return run_backtest();
+  if (rp.enabled)
+    return run_replay();
 
   while (true) {
     auto [open, remaining] = market_status();
@@ -265,9 +265,9 @@ void Portfolio::run() {
     sleep(1);
 }
 
-void Portfolio::run_backtest() {
+void Portfolio::run_replay() {
   if (config.continuous_en) {
-    while (bt.has_data()) {
+    while (rp.has_data()) {
       add_candle();
       sleep(1);
     }
@@ -276,7 +276,7 @@ void Portfolio::run_backtest() {
 
   RawMode _;
 
-  while (bt.has_data()) {
+  while (rp.has_data()) {
     char ch;
     if (read(STDIN_FILENO, &ch, 1) == 1) {
       std::cout << "\b \b" << std::flush;

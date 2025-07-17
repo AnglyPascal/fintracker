@@ -23,6 +23,13 @@ enum class SignalType {
   Mixed,           // Conflicting signals
 };
 
+// FIXME: Severity and Source are functions on ReasonType and HintType
+// For signal function type, it should be
+// _ f(const Indicators& ind, int last_time)
+// last_time = -1 to represent the whole length
+// ind.VAL(i) should give the VAL at time i
+// Trends as a separate type
+
 enum class ReasonType {
   None,
 
@@ -45,6 +52,8 @@ struct Reason {
   ReasonType type;
   Severity severity;
   Source src = Source::None;
+
+  double importance = 0.0;
 
   Reason(ReasonType type) : type{type}, severity{Severity::Low} {}
   Reason(ReasonType type, Severity severity) : type{type}, severity{severity} {}
@@ -88,6 +97,8 @@ struct Hint {
   Severity severity;
   Source src = Source::None;
 
+  double importance = 0.0;
+
   Hint(HintType type) : type{type}, severity{Severity::Low} {}
   Hint(HintType type, Severity severity) : type{type}, severity{severity} {}
   Hint(HintType type, Severity severity, Source src)
@@ -117,6 +128,11 @@ struct Confirmation {
 
   Confirmation(const char* str) : str{str} {}
   Confirmation() : str{""} {}
+};
+
+struct SignalStats {
+  std::unordered_map<ReasonType, double> reason_perf;
+  std::unordered_map<HintType, double> hint_perf;
 };
 
 struct Metrics;

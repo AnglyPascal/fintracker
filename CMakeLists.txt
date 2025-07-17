@@ -69,6 +69,7 @@ add_executable(${TARGET}
   src/webpage.cpp
   src/calendar.cpp
   src/backtest.cpp
+  src/replay.cpp
 )
 
 target_include_directories(${TARGET} PRIVATE

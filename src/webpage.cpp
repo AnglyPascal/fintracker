@@ -216,7 +216,7 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
   auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated());
   auto subtitle = std::format(index_subtitle_template, datetime);
-  auto reload = (p.config.backtest_en) ? index_reload : "";
+  auto reload = (p.config.replay_en) ? index_reload : "";
 
   return std::format(index_template, reload, subtitle, body);
 }
