@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    PLACEHOLDER
+  </head>
+  <style>
+    CSS
+  </style>
+
+  <body>
+    <h2>Portfolio Overview</h2>
+    PLACEHOLDER
+
+    <div id="signal-filters" style="margin-bottom: 0.5em;">
+      <button class="filter-btn active" 
+              data-type="entry" onclick="toggleSignal(this) ">Entry</button>
+      <button class="filter-btn active" 
+              data-type="exit" onclick="toggleSignal(this) ">Exit</button>
+      <button class="filter-btn active" 
+              data-type="watchlist" onclick="toggleSignal(this) ">Watchlist</button>
+      <button class="filter-btn" 
+              data-type="caution" onclick="toggleSignal(this) ">Caution</button>
+      <button class="filter-btn active" 
+              data-type="holdcautiously" 
+              onclick="toggleSignal(this) ">Hold Cautiously</button>
+      <button class="filter-btn" 
+              data-type="mixed" onclick="toggleSignal(this) ">Mixed</button>
+      <button class="filter-btn" 
+              data-type="none" onclick="toggleSignal(this) ">None</button>
+      <button onclick="showAllSignals() ">Show All</button>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(1) ">
+                <span class="label">Signal</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(2) ">
+                <span class="label">Symbol</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(3) ">
+                <span class="label">Price</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(4) ">
+                <span class="label">EMA</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(5) ">
+                <span class="label">RSI</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(6) ">
+                <span class="label">MACD</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(7) ">
+                <span class="label">Position</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+            <th>
+              <div class="col-header" onclick=" toggleColumn(8) ">
+                <span class="label">Price & Stop</span>
+                <span class="toggle-btn"></span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          PLACEHOLDER
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      JS
+    </script>
+  </body>
+</html>

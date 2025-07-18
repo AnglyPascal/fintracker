@@ -185,7 +185,7 @@ th.collapsed .toggle-btn::after {
 /* Mobile Support */
 @media (max-width: 768px) {
   body {
-    font-size: 14px;
+    font-size: 18px;
   }
 
   table, thead, tbody, th, td, tr {
@@ -222,19 +222,15 @@ th.collapsed .toggle-btn::after {
   td::before {
     content: attr(data-label);
     font-weight: bold;
+    color: var(--color-border);
   }
 
   .signal-details-row,
   .signal-details {
-    font-size: 13px;
+    font-size: 0.85em;
     line-height: 1.2;
-    border: none;
     background-color: var(--color-bg);
     color: var(--color-fg);
-  }
-  
-  .signal-details {
-    padding: 20px; 
   }
 
   tr.signal-entry,

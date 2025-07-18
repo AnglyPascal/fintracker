@@ -87,69 +87,8 @@ std::string to_str<FormatTarget::Telegram>(const Metrics& metrics) {
 }
 
 template <>
-std::string to_str(const HintType& h) {
-  switch (h) {
-    // Entry reasons
-    case HintType::Ema9ConvEma21:
-      return "ema9↗21";
-    case HintType::RsiConv50:
-      return "rsi↗50";
-    case HintType::MacdRising:
-      return "macd↗";
-
-    // Exit hints
-    case HintType::Ema9DivergeEma21:
-      return "ema9↘21";
-    case HintType::RsiDropFromOverbought:
-      return "rsi⭛";
-    case HintType::MacdPeaked:
-      return "macd▲";
-    case HintType::Ema9Flattening:
-      return "ema9↝21";
-    case HintType::StopProximity:
-      return "stop⨯";
-    case HintType::StopInATR:
-      return "stop!";
-
-    default:
-      return "";
-  }
-}
-
-template <>
-std::string to_str(const Hint& h) {
-  return to_str(h.type);
-}
-
-template <>
-std::string to_str(const TrendType& t) {
-  switch (t) {
-    case TrendType::PriceTrendingUp:
-      return "price↗";
-    case TrendType::Ema21TrendingUp:
-      return "ema21↗";
-    case TrendType::RsiTrendingUp:
-      return "rsi↗";
-    case TrendType::RsiTrendingUpStrongly:
-      return "rsi⇗";
-
-    case TrendType::PriceTrendingDown:
-      return "price↘";
-    case TrendType::Ema21TrendingDown:
-      return "ema21↘";
-    case TrendType::RsiTrendingDown:
-      return "rsi↘";
-    case TrendType::RsiTrendingDownStrongly:
-      return "rsi⇘";
-
-    default:
-      return "";
-  }
-}
-
-template <>
-std::string to_str(const Trend& t) {
-  return to_str(t.type);
+std::string to_str(const std::string& str) {
+  return str;
 }
 
 template <>
@@ -158,43 +97,21 @@ std::string to_str(const Confirmation& h) {
 }
 
 template <>
-std::string to_str(const ReasonType& r) {
-  switch (r) {
-    // Entry reasons
-    case ReasonType::EmaCrossover:
-      return "ema⤯";
-    case ReasonType::RsiCross50:
-      return "rsi⤯50";
-    case ReasonType::PullbackBounce:
-      return "pullback⤴";
-    case ReasonType::MacdHistogramCross:
-      return "macd⤯";
-
-    // Exit reasons
-    case ReasonType::EmaCrossdown:
-      return "ema⤰";
-    case ReasonType::RsiOverbought:
-      return "rsi↱70";
-    case ReasonType::MacdBearishCross:
-      return "macd⤰";
-    // case ReasonType::TimeExit:
-    //   return "exit⏲";
-    case ReasonType::StopLossHit:
-      return "stop⤰";
-
-    default:
-      return "";
-  }
-}
-
-template <>
 std::string to_str(const Reason& r) {
-  return to_str(r.type);
+  auto it = reason_meta.find(r.type);
+  return it != reason_meta.end() ? it->second.str : "";
 }
 
 template <>
-std::string to_str(const std::string& str) {
-  return str;
+std::string to_str(const Hint& h) {
+  auto it = hint_meta.find(h.type);
+  return it != hint_meta.end() ? it->second.str : "";
+}
+
+template <>
+std::string to_str(const Trend& t) {
+  auto it = trend_meta.find(t.type);
+  return it != trend_meta.end() ? it->second.str : "";
 }
 
 template <>
@@ -301,9 +218,9 @@ std::string to_str<FormatTarget::Telegram>(const Position* const& pos,
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
-  auto &symbol = ticker.symbol; 
-  auto &metrics = ticker.metrics; 
-  auto &signal = ticker.signal;
+  auto& symbol = ticker.symbol;
+  auto& metrics = ticker.metrics;
+  auto& signal = ticker.signal;
 
   auto pos_line =
       to_str<FormatTarget::Telegram>(metrics.position, metrics.last_price());

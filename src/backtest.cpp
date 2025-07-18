@@ -62,7 +62,7 @@ std::pair<T, SignalStats> Backtest::get_stats(Func signal_fn) const {
     double future_dd = lookahead[i].max_drawdown;
     sum_ret += future_ret;
     sum_dd += future_dd;
-    if (future_ret > 0)
+    if (future_ret > future_dd)
       ++wins;
   }
 

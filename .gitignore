@@ -1081,3 +1081,5 @@ data/positions.csv
 *.jpg
 *.csv
 page/
+
+include/_html_template.h

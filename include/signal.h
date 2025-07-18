@@ -14,6 +14,7 @@ struct Meta {
   Severity sev;
   Source src;
   SignalClass cls;
+  std::string str = "";
 };
 
 enum class SignalType {
@@ -49,25 +50,25 @@ enum class ReasonType {
 
 inline const std::unordered_map<ReasonType, Meta> reason_meta = {
     {ReasonType::None,  //
-     {Severity::Low, Source::EMA, SignalClass::Entry}},
+     {Severity::Low, Source::EMA, SignalClass::Entry, ""}},
     // Entry:
     {ReasonType::EmaCrossover,  //
-     {Severity::High, Source::EMA, SignalClass::Entry}},
+     {Severity::High, Source::EMA, SignalClass::Entry, "ema⤯"}},
     {ReasonType::RsiCross50,  //
-     {Severity::Medium, Source::RSI, SignalClass::Entry}},
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤯50"}},
     {ReasonType::PullbackBounce,  //
-     {Severity::Urgent, Source::Price, SignalClass::Entry}},
+     {Severity::Urgent, Source::Price, SignalClass::Entry, "pullback"}},
     {ReasonType::MacdHistogramCross,  //
-     {Severity::Medium, Source::MACD, SignalClass::Entry}},
+     {Severity::Medium, Source::MACD, SignalClass::Entry, "macd⤯"}},
     // Exit:
     {ReasonType::EmaCrossdown,  //
-     {Severity::High, Source::EMA, SignalClass::Exit}},
+     {Severity::High, Source::EMA, SignalClass::Exit, "ema⤰"}},
     {ReasonType::RsiOverbought,  //
-     {Severity::Medium, Source::RSI, SignalClass::Exit}},
+     {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi↱70"}},
     {ReasonType::MacdBearishCross,  //
-     {Severity::High, Source::MACD, SignalClass::Exit}},
+     {Severity::High, Source::MACD, SignalClass::Exit, "macd⤰"}},
     {ReasonType::StopLossHit,  //
-     {Severity::Urgent, Source::Stop, SignalClass::Exit}},
+     {Severity::Urgent, Source::Stop, SignalClass::Exit, "stop⤰"}},
 };
 
 struct Reason {
@@ -112,27 +113,27 @@ enum class HintType {
 
 inline const std::unordered_map<HintType, Meta> hint_meta = {
     {HintType::None,  //
-     {Severity::Low, Source::None, SignalClass::None}},
+     {Severity::Low, Source::None, SignalClass::None, ""}},
     // Entry
     {HintType::Ema9ConvEma21,  //
-     {Severity::Low, Source::EMA, SignalClass::Entry}},
+     {Severity::Low, Source::EMA, SignalClass::Entry, "ema9↗21"}},
     {HintType::RsiConv50,  //
-     {Severity::Low, Source::RSI, SignalClass::Entry}},
+     {Severity::Low, Source::RSI, SignalClass::Entry, "rsi↗50"}},
     {HintType::MacdRising,  //
-     {Severity::Medium, Source::MACD, SignalClass::Entry}},
+     {Severity::Medium, Source::MACD, SignalClass::Entry, "macd↗"}},
     // Exit
     {HintType::Ema9DivergeEma21,  //
-     {Severity::Low, Source::EMA, SignalClass::Exit}},
+     {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↘21"}},
     {HintType::RsiDropFromOverbought,  //
-     {Severity::Medium, Source::RSI, SignalClass::Exit}},
+     {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi⭛"}},
     {HintType::MacdPeaked,  //
-     {Severity::Medium, Source::MACD, SignalClass::Exit}},
+     {Severity::Medium, Source::MACD, SignalClass::Exit, "macd▲"}},
     {HintType::Ema9Flattening,  //
-     {Severity::Low, Source::EMA, SignalClass::Exit}},
+     {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↝21"}},
     {HintType::StopProximity,  //
-     {Severity::High, Source::Stop, SignalClass::Exit}},
+     {Severity::High, Source::Stop, SignalClass::Exit, "stop⨯"}},
     {HintType::StopInATR,  //
-     {Severity::High, Source::Stop, SignalClass::Exit}},
+     {Severity::High, Source::Stop, SignalClass::Exit, "stop!"}},
 };
 
 struct Hint {
@@ -170,9 +171,46 @@ enum class TrendType {
   RsiTrendingDownStrongly,
 };
 
+inline const std::unordered_map<TrendType, Meta> trend_meta = {
+    {TrendType::None,  //
+     {Severity::Low, Source::None, SignalClass::None, ""}},
+    // Entry
+    {TrendType::PriceTrendingUp,  //
+     {Severity::Medium, Source::EMA, SignalClass::Entry, "price↗"}},
+    {TrendType::Ema21TrendingUp,  //
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "ema21↗"}},
+    {TrendType::RsiTrendingUp,  //
+     {Severity::Medium, Source::MACD, SignalClass::Entry, "rsi↗"}},
+    {TrendType::RsiTrendingUpStrongly,  //
+     {Severity::Medium, Source::EMA, SignalClass::Exit, "rsi⇗"}},
+    // Exit
+    {TrendType::PriceTrendingDown,  //
+     {Severity::Medium, Source::EMA, SignalClass::Exit, "price↘"}},
+    {TrendType::Ema21TrendingDown,  //
+     {Severity::Medium, Source::RSI, SignalClass::Exit, "ema21↘"}},
+    {TrendType::RsiTrendingDown,  //
+     {Severity::Medium, Source::MACD, SignalClass::Exit, "price↘"}},
+    {TrendType::RsiTrendingDownStrongly,  //
+     {Severity::Medium, Source::EMA, SignalClass::Exit, "rsi⇘"}},
+};
+
 struct Trend {
   TrendType type;
-  Trend(TrendType type) : type{type} {}
+
+  SignalClass cls = SignalClass::None;
+  Severity severity = Severity::Low;
+  Source source = Source::None;
+
+  Trend(TrendType type) : type{type} {
+    auto it = trend_meta.find(type);
+    if (it == trend_meta.end())
+      return;
+    cls = it->second.cls;
+    severity = it->second.sev;
+    source = it->second.src;
+  }
+
+  bool exists() const { return type != TrendType::None; }
 };
 
 enum class Confidence {

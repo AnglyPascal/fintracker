@@ -147,9 +147,10 @@ inline void handle_command(const Portfolio& portfolio,
   spdlog::error("[tg] wrong command: {}", line.c_str());
 }
 
-inline void send_html(const auto& tg) {
-  if (wait_for_file("page/index.html")) {
-    auto msg_id = tg.send_doc("page/index.html", "portfolio.html", "");
+inline void send_html(bool replay_en, const auto& tg) {
+  auto index_fname = replay_en ? "page/index_replay.html" : "page/index.html";
+  if (wait_for_file(index_fname)) {
+    auto msg_id = tg.send_doc(index_fname, "portfolio.html", "");
     if (msg_id != -1)
       tg.pin_message(msg_id);
   } else {
@@ -188,7 +189,7 @@ void Notifier::iter(Notifier* notifier) {
 
     if (portfolio.intervals_passed % 4 == 0) {  // every 1 hour
       if (!notifier->update_sent) {
-        send_html(notifier->tg);
+        send_html(portfolio.config.replay_en, notifier->tg);
         notifier->update_sent = true;
       }
     } else {
@@ -208,7 +209,7 @@ Notifier::Notifier(const Portfolio& portfolio) noexcept
   auto str = to_str<FormatTarget::Telegram>(portfolio);
   auto msg = to_str<FormatTarget::Telegram>(HASKELL, str);
   tg.send(msg);
-  send_html(tg);
+  send_html(portfolio.config.replay_en, tg);
   update_sent = true;
 
   td = std::thread{Notifier::iter, this};

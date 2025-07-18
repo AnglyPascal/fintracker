@@ -35,19 +35,5 @@ custom_dark = pio.templates["plotly_dark"].to_plotly_json()
 custom_dark["layout"]["font"]["family"] = "Courier New, monospace"
 custom_dark["layout"]["font"]["size"] = 11
 
-custom_dark["layout"]["xaxis"] = dict(
-    linecolor="red",
-    tickcolor="red",
-    titlefont=dict(color="red"),
-    tickfont=dict(color="red"),
-)
-
-custom_dark["layout"]["yaxis"] = dict(
-    linecolor="green",
-    tickcolor="green",
-    titlefont=dict(color="green"),
-    tickfont=dict(color="green"),
-)
-
 pio.templates["plotly_dark_mono"] = custom_dark
 

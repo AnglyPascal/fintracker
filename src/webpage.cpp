@@ -10,9 +10,6 @@
 #include <ranges>
 #include <thread>
 
-std::string css = "";
-std::string js = "";
-
 inline constexpr std::string csv_fname(const std::string& symbol,
                                        const std::string& fn) {
   return std::format("page/src/{}_{}.csv", symbol, fn);
@@ -97,15 +94,15 @@ void Portfolio::plot(const std::string& symbol) const {
 template <>
 std::string to_str<FormatTarget::HTML>(const Hint& h) {
   if (h.severity >= Severity::Urgent)
-    return std::format("<b>{}</b>", to_str(h.type));
-  return to_str(h.type);
+    return std::format("<b>{}</b>", to_str(h));
+  return to_str(h);
 }
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Reason& r) {
   if (r.severity >= Severity::Urgent)
-    return std::format("<b>{}</b>", to_str(r.type));
-  return to_str(r.type);
+    return std::format("<b>{}</b>", to_str(r));
+  return to_str(r);
 }
 
 template <>
@@ -148,25 +145,26 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
   std::string body = "";
   for (auto& r : lst)
     if (r.cls == cls) {
-      auto colored = [cls](auto gain, auto loss) {
+      auto colored = [cls](auto gain, auto loss, auto win) {
         constexpr std::string_view red =
             "<span style='color: #bf616a;'>{:.2f}</span>";
         constexpr std::string_view green =
             "<span style='color: #a3be8c;'>{:.2f}</span>";
         auto g_str = std::format(green, gain);
         auto l_str = std::format(red, loss);
+        auto w_str = std::format("<b>{:.2f}%</b>", win * 100);
 
         if (cls == SignalClass::Entry)
-          return std::format("<b>{}</b> / {}", g_str, l_str);
+          return std::format("<b>{}</b> / {}, {}", g_str, l_str, w_str);
         else
-          return std::format("{} / <b>{}</b>", g_str, l_str);
+          return std::format("{} / <b>{}</b>, {}", g_str, l_str, w_str);
       };
 
       std::string stat_str = "";
       auto it = stats.find(r.type);
       if (it != stats.end())
-        stat_str =
-            ": " + colored(it->second.avg_return, it->second.avg_drawdown);
+        stat_str = ": " + colored(it->second.avg_return,
+                                  it->second.avg_drawdown, it->second.win_rate);
 
       body += std::format("<li>{}{}</li>", to_str(r), stat_str);
     }
@@ -267,7 +265,7 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   // auto reload = (p.config.replay_en) ? index_reload : "";
   std::string reload = "";
 
-  return std::format(index_template, reload, css, subtitle, body, js);
+  return std::format(index_template, reload, subtitle, body);
 }
 
 template <>
@@ -290,25 +288,12 @@ std::string to_str<FormatTarget::HTML>(const Trades& all_trades) {
                         qty, px, fees);
   }
 
-  return std::format(trades_template, css, body, js);
+  return std::format(trades_template, body);
 }
 
 void Portfolio::write_page() const {
-  if (css.empty()) {
-    std::ifstream file("data/index.css");
-    std::ostringstream ss;
-    ss << file.rdbuf();
-    css = ss.str();
-  }
-
-  if (js.empty()) {
-    std::ifstream file("data/index.js");
-    std::ostringstream ss;
-    ss << file.rdbuf();
-    js = ss.str();
-  }
-
   std::thread([this]() {
+    Timer timer;
     auto _ = reader_lock();
 
     auto index_fname =
@@ -325,10 +310,14 @@ void Portfolio::write_page() const {
 
     std::ofstream index(index_fname);
     index << to_str<FormatTarget::HTML>(*this);
+    index.flush();
     index.close();
 
     std::ofstream trades(trades_fname);
     trades << to_str<FormatTarget::HTML>(get_trades());
+    trades.flush();
     trades.close();
+
+    spdlog::info("[page] written in {:.2f}ms", timer.diff_ms());
   }).detach();
 }

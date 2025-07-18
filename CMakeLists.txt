@@ -84,6 +84,22 @@ target_link_libraries(${TARGET}
   ${ZMQ_LIB}
 )
 
+set(EMBED_SCRIPT scripts/embed_str.py)
+set(INPUT_CSS data/index.css data/trades.css)
+set(INPUT_JS data/index.js data/trades.js)
+set(INPUT_HTML data/index.html data/trades.html)
+set(OUTPUT_HEADER include/_html_template.h)
+
+add_custom_command(
+  OUTPUT ${OUTPUT_HEADER} 
+  COMMAND python ${EMBED_SCRIPT}
+  DEPENDS ${INPUT_CSS} ${INPUT_JS} ${INPUT_HTML} ${EMBED_SCRIPT} 
+  COMMENT "Generating html_templates"
+)
+
+add_custom_target(html_header DEPENDS ${OUTPUT_HEADER})
+add_dependencies(${TARGET} html_header)
+
 add_executable(get_calendar
   src/get_calendar.cpp
 )
