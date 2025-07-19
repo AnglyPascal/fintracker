@@ -55,8 +55,10 @@ enum class FormatTarget;
 inline constexpr int max_concurrency = 32;
 
 class Portfolio {
+ public:
+  const Config config;
+
  private:
-  Config config;
   std::vector<SymbolInfo> symbols;
   mutable std::shared_mutex mtx;
 
@@ -72,7 +74,6 @@ class Portfolio {
   Calendar calendar;
 
   const minutes update_interval;
-  uint32_t intervals_passed;
 
  public:
   Portfolio(Config config) noexcept;
@@ -99,8 +100,8 @@ class Portfolio {
  public:  // getters
   LocalTimePoint last_updated() const;
 
-  const Trades& get_trades() const { return positions.get_trades(); }
-  const Positions& get_positions() const { return positions.get_positions(); }
+  auto& get_trades() const { return positions.get_trades(); }
+  auto& get_positions() const { return positions.get_positions(); }
 
   const Ticker* get_ticker(const std::string& symbol) const {
     auto it = tickers.find(symbol);

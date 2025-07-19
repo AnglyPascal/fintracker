@@ -54,19 +54,6 @@ LocalTimePoint Portfolio::last_updated() const {
                          : tickers.begin()->second.metrics.last_updated();
 }
 
-inline uint32_t intervals_passed() {
-  auto now = now_ny_time();
-  auto time_of_day = now - floor<days>(now);
-
-  auto market_open = hours{9} + minutes{30};
-
-  if (time_of_day <= market_open)
-    return 0;
-
-  auto elapsed = time_of_day - market_open;
-  return elapsed / minutes{15};
-}
-
 Portfolio::Portfolio(Config config) noexcept
     : config{config},
       symbols{::read_symbols()},
@@ -75,8 +62,7 @@ Portfolio::Portfolio(Config config) noexcept
       rp{td, symbols, config.replay_en},
       positions{},
       calendar{},
-      update_interval{td.interval},
-      intervals_passed{::intervals_passed()}  //
+      update_interval{td.interval}  //
 {
   std::counting_semaphore<max_concurrency> sem(
       std::thread::hardware_concurrency() / 2);
@@ -120,8 +106,7 @@ Portfolio::Portfolio(Config config) noexcept
   spdlog::info("[init] took {:.2f}ms", timer.diff_ms());
 
   std::thread([] {
-    auto cmd =
-        std::format("python3 scripts/plot_metrics.py {}", plot_daemon_port);
+    std::string cmd = "python3 scripts/plot_metrics.py " + plot_daemon_port;
     std::system(cmd.c_str());
   }).detach();
   plot();
@@ -171,8 +156,6 @@ void Portfolio::add_candle() {
 
     done.wait();
     spdlog::info("[add_candle] took {:.2f}ms", timer.diff_ms());
-
-    intervals_passed++;
   }
 
   plot();
@@ -193,8 +176,6 @@ void Portfolio::add_candle_sync() {
       write_plot_data(symbol);
     }
     spdlog::info("[add_candle_sync] completed in {:.2f} ms", timer.diff_ms());
-
-    intervals_passed++;
   }
 
   plot();
@@ -214,7 +195,6 @@ void Portfolio::rollback() {
       ticker.signal = ticker.gen_signal();
       write_plot_data(symbol);
     }
-    intervals_passed--;
   }
 
   plot();

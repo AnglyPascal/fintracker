@@ -43,20 +43,19 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
         str = to_str<FormatTarget::Telegram>(*ticker);
     }
 
-    if (symbol == "")
+    if (symbol == "") {
       tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
-    else
+      auto fname = portfolio.config.replay_en ? "page/index_replay.html"
+                                              : "page/index.html";
+      tg.send_doc(fname, "portfolio.html", "");
+    } else
       tg.send(to_str<FormatTarget::Telegram>(TEXT, str));
   }
 
   else if constexpr (command == Commands::TRADES) {
-    // FIXME: need to send an html, not the text
-    std::string str;
-    {
-      auto _ = portfolio.reader_lock();
-      str = to_str<FormatTarget::HTML>(portfolio.get_trades());
-    }
-    tg.send(str);
+    auto fname = portfolio.config.replay_en ? "page/trades_replay.html"
+                                            : "page/trades.html";
+    tg.send_doc(fname, "trades.html", "");
   }
 
   else if constexpr (command == Commands::POSITIONS) {
@@ -149,17 +148,6 @@ inline void handle_command(const Portfolio& portfolio,
   spdlog::error("[tg] wrong command: {}", line.c_str());
 }
 
-inline void send_html(bool replay_en, const auto& tg) {
-  auto index_fname = replay_en ? "page/index_replay.html" : "page/index.html";
-  if (wait_for_file(index_fname)) {
-    auto msg_id = tg.send_doc(index_fname, "portfolio.html", "");
-    if (msg_id != -1)
-      tg.pin_message(msg_id);
-  } else {
-    tg.send("Report not yet created");
-  }
-}
-
 void Notifier::iter(Notifier* notifier) {
   auto& portfolio = notifier->portfolio;
 
@@ -188,15 +176,6 @@ void Notifier::iter(Notifier* notifier) {
       handle_command(portfolio, line);
     last_update_id = id;
     std::this_thread::sleep_for(seconds(5));
-
-    if (portfolio.intervals_passed % 4 == 0) {  // every 1 hour
-      if (!notifier->update_sent) {
-        send_html(portfolio.config.replay_en, notifier->tg);
-        notifier->update_sent = true;
-      }
-    } else {
-      notifier->update_sent = false;
-    }
   }
 }
 
@@ -211,8 +190,6 @@ Notifier::Notifier(const Portfolio& portfolio) noexcept
   auto str = to_str<FormatTarget::Telegram>(portfolio);
   auto msg = to_str<FormatTarget::Telegram>(HASKELL, str);
   tg.send(msg);
-  send_html(portfolio.config.replay_en, tg);
-  update_sent = true;
 
   td = std::thread{Notifier::iter, this};
 }

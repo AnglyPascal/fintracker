@@ -1,66 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Trades Viewer</title>
     <style>
       CSS
     </style>
   </head>
-
   <body>
-    <h2>Trades Overview</h2>
 
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>
-              <div class="col-header" onclick=" toggleColumn(1) ">
-                <span class="label">Time</span>
-                <span class="toggle-btn"></span>
-              </div>
-            </th>
-            <th>
-              <div class="col-header" onclick=" toggleColumn(2) ">
-                <span class="label">Symbol</span>
-                <span class="toggle-btn"></span>
-              </div>
-            </th>
-            <th>
-              <div class="col-header" onclick=" toggleColumn(3) ">
-                <span class="label">Action</span>
-                <span class="toggle-btn"></span>
-              </div>
-            </th>
-            <th>
-              <div class="col-header" onclick=" toggleColumn(4) ">
-                <span class="label">Quantity</span>
-                <span class="toggle-btn"></span>
-              </div>
-            </th>
-            <th>
-              <div class="col-header" onclick=" toggleColumn(5) ">
-                <span class="label">Price</span>
-                <span class="toggle-btn"></span>
-              </div>
-            </th>
-            <th>
-              <div class="col-header" onclick=" toggleColumn(6) ">
-                <span class="label">Total</span>
-                <span class="toggle-btn"></span>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          PLACEHOLDER
-        </tbody>
-      </table>
+    <h1>Trade History</h1>
+
+    <div class="filters">
+      <!-- Ticker checkboxes -->
+      <div class="filter-group">
+        <label><strong>Tickers:</strong></label>
+        <button id="toggle-btn">Toggle All</button>
+        <div class="checkbox-group" id="ticker-filters">
+        </div>
+      </div>
+
+      <!-- Date range and "Show All" -->
+      <div class="filter-group">
+        <label><strong>Date Range:</strong></label>
+        <input type="date" id="from-date">
+        to
+        <input type="date" id="to-date">
+      </div>
     </div>
 
+    <table id="trades-table">
+      <thead>
+        <tr>
+          <th id="date-header" style="cursor: pointer;">Date ⬍</th>
+          <th>Ticker</th>
+          <th>Action</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
     <script>
+      const tradesData = {
+        PLACEHOLDER
+      };
       JS
     </script>
+
   </body>
 </html>
+

@@ -54,6 +54,6 @@ class OpenPositions {
 
   const Position* get_position(const std::string& symbol) const;
 
-  const Positions& get_positions() const { return positions; };
-  const Trades& get_trades() const { return trades_by_ticker; }
+  auto& get_positions() const { return positions; };
+  auto& get_trades() const { return trades_by_ticker; }
 };

@@ -182,87 +182,100 @@ th.collapsed .toggle-btn::after {
   color: var(--color-link);
 }
 
-/* Mobile Support */
-@media (max-width: 768px) {
-  body {
-    font-size: 18px;
-  }
-
-  table, thead, tbody, th, td, tr {
-    display: block;
-    width: 100%;
-    padding-right: 1em;
-  }
-
-  thead {
-    display: none;
-  }
-
-  tr {
-    margin-bottom: var(--row-gap);
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 0.3em;
-  }
-
-  td {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    padding: var(--padding-mobile);
-    border: none;
-    border-bottom: 1px solid var(--color-border);
-    box-sizing: border-box;
-  }
-
-  td:last-child {
-    border-bottom: none;
-  }
-
-  td::before {
-    content: attr(data-label);
-    font-weight: bold;
-    color: var(--color-border);
-  }
-
-  .signal-details-row,
-  .signal-details {
-    font-size: 0.85em;
-    line-height: 1.2;
-    background-color: var(--color-bg);
-    color: var(--color-fg);
-  }
-
-  tr.signal-entry,
-  tr.signal-exit,
-  tr.signal-watchlist,
-  tr.signal-caution,
-  tr.signal-holdcautiously,
-  tr.signal-mixed {
-    color: var(--color-bg) !important;
-  }
-
-  tr.signal-entry a,
-  tr.signal-exit a,
-  tr.signal-watchlist a,
-  tr.signal-caution a,
-  tr.signal-holdcautiously a,
-  tr.signal-none a,
-  tr.signal-mixed a {
-    color: inherit !important;
-    text-decoration: none;
-  }
-
-  td .inner-div {
-    max-width: 100%;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
-  div.eventful {
-    width: 120px;
-    display: flex;
-    justify-content: space-between;
-    flex-direction: row-reverse;
-  }
+.filter-group {
+  margin-bottom: 1em;
 }
+
+input[type="date"], button {
+  padding: 1px 2px;
+  font-size: 12px;
+}
+
+button {
+  background: #007acc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #005fa3;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: .7em;
+}
+
+.checkbox-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 20px;
+}
+
+.custom-checkbox {
+  position: relative;
+  padding-left: 25px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+.custom-checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.custom-checkbox .checkmark {
+  position: absolute;
+  left: 0;
+  height: 16px;
+  width: 16px;
+  background-color: #eee;
+  border-radius: 4px;
+}
+
+.custom-checkbox:hover input ~ .checkmark {
+  background-color: #ccc;
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+  background-color: #007acc;
+}
+
+.custom-checkbox .checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.custom-checkbox input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.custom-checkbox .checkmark:after {
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.buy-row {
+  color: var(--color-green); /* light green */
+}
+
+.sell-row {
+  color: var(--color-red); /* light green */
+}
+

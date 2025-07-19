@@ -311,25 +311,18 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Trades& all_trades) {
-  std::vector<Trade> trades;
-  for (auto& [_, t] : all_trades)
-    trades.insert(trades.end(), t.begin(), t.end());
-
-  std::sort(trades.begin(), trades.end(),
-            [](auto& lhs, auto& rhs) { return lhs.date < rhs.date; });
-
-  std::string body;
-
-  for (auto& trade : trades) {
-    auto& [date, symbol, action, qty, px, fees] = trade;
-    body += std::format(trades_row_template,
-                        action == Action::BUY ? "buy" : "sell",  //
-                        date, symbol, symbol,                    //
-                        action == Action::BUY ? "Buy" : "Sell",  //
-                        qty, px, fees);
+  std::string str = "";
+  for (auto& [ticker, trades] : all_trades) {
+    std::string lst = "";
+    for (auto& [date, symbol, action, qty, px, total] : trades) {
+      lst +=
+          std::format(trades_json_item, date, symbol,
+                      action == Action::BUY ? "BUY" : "SELL", qty, px, total);
+    }
+    str += std::format(trades_json_dict, ticker, lst);
   }
 
-  return std::format(trades_template, body);
+  return std::format(trades_template, str);
 }
 
 void Portfolio::write_page() const {

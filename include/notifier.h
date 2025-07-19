@@ -19,7 +19,6 @@ class Notifier {
   std::thread td;
   static void iter(Notifier* notifier);
 
-  bool update_sent = false;
  public:
   Notifier(const Portfolio& portfolio) noexcept;
   ~Notifier() noexcept;

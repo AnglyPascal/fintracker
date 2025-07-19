@@ -81,3 +81,14 @@ inline constexpr std::string_view trades_row_template = R"(
     <td data-label="Total">{:.2f}</td>
   </tr>
 )";
+
+inline constexpr std::string_view trades_json_item = R"(
+  {{ "date": "{}", "ticker": "{}", "action": "{}", 
+    "qty": {:.2f}, "px": {:.2f}, "total": {:.2f} }},
+)";
+
+inline constexpr std::string_view trades_json_dict = R"(
+"{}": [
+{}
+],
+)";
