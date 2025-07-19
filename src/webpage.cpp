@@ -93,25 +93,27 @@ void Portfolio::plot(const std::string& symbol) const {
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Hint& h) {
-  if (h.severity >= Severity::Urgent)
+  if (h.severity() >= Severity::Urgent)
     return std::format("<b>{}</b>", to_str(h));
   return to_str(h);
 }
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Reason& r) {
-  if (r.severity >= Severity::Urgent)
+  if (r.severity() >= Severity::Urgent)
     return std::format("<b>{}</b>", to_str(r));
   return to_str(r);
 }
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Signal& s) {
-  if (s.type != SignalType::Entry)
-    return to_str(s.type);
   auto& conf = s.confirmations;
-  return std::format("{}: ({})", to_str(s.type),
-                     join(conf.begin(), conf.end()));
+  auto sig_str = s.type != Rating::Entry
+                     ? to_str(s.type)
+                     : std::format("{}: ({})", to_str(s.type),
+                                   join(conf.begin(), conf.end()));
+  auto scr_str = std::format("{:+}", (int)std::round(s.score * 10));
+  return std::format("<div>{}</div> <div>{}</div>", sig_str, scr_str);
 }
 
 template <>
@@ -119,9 +121,9 @@ std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
   std::string interesting;
   auto add = [&interesting, src](auto& iter) {
     for (auto& a : iter) {
-      if (a.source != src)
+      if (a.source() != src)
         continue;
-      if (a.severity >= Severity::Medium) {
+      if (a.severity() >= Severity::Medium) {
         interesting += " " + to_str<FormatTarget::HTML>(a);
       }
     }
@@ -144,28 +146,34 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
 
   std::string body = "";
   for (auto& r : lst)
-    if (r.cls == cls) {
-      auto colored = [cls](auto gain, auto loss, auto win) {
+    if (r.cls() == cls) {
+      auto colored = [cls](auto gain, auto loss, auto win, auto imp) {
         constexpr std::string_view red =
             "<span style='color: #bf616a;'>{:.2f}</span>";
         constexpr std::string_view green =
             "<span style='color: #a3be8c;'>{:.2f}</span>";
+        constexpr std::string_view blue =
+            "<span style='color: #5e81ac;'>{:.2f}</span>";
+
         auto g_str = std::format(green, gain);
         auto l_str = std::format(red, loss);
-        auto w_str = std::format("<b>{:.2f}%</b>", win * 100);
+        auto w_str = std::format("<b>{:.2f}</b>", win);
+        auto i_str = std::format(blue, imp);
 
         if (cls == SignalClass::Entry)
-          return std::format("<b>{}</b> / {}, {}", g_str, l_str, w_str);
+          return std::format("<b>{}</b> / {}, {}, {}", g_str, l_str, w_str,
+                             i_str);
         else
-          return std::format("{} / <b>{}</b>, {}", g_str, l_str, w_str);
+          return std::format("{} / <b>{}</b>, {}, {}", g_str, l_str, w_str,
+                             i_str);
       };
 
       std::string stat_str = "";
       auto it = stats.find(r.type);
-      if (it != stats.end())
-        stat_str = ": " + colored(it->second.avg_return,
-                                  it->second.avg_drawdown, it->second.win_rate);
-
+      if (it != stats.end()) {
+        auto [_, ret, dd, w, imp] = it->second;
+        stat_str = ": " + colored(ret, dd, w, imp);
+      }
       body += std::format("<li>{}{}</li>", to_str(r), stat_str);
     }
 
@@ -220,15 +228,49 @@ std::string to_str<FormatTarget::HTML>(const Position* const& pos,
 inline bool hide(auto& m, auto& type) {
   if (m.has_position())
     return false;
-  return (type == SignalType::Caution || type == SignalType::Mixed ||
-          type == SignalType::None);
+  return (type == Rating::Caution || type == Rating::Mixed ||
+          type == Rating::None);
 };
+
+inline constexpr std::string index_row_class(Rating type) {
+  switch (type) {
+    case Rating::Entry:
+      return "signal-entry";
+    case Rating::Exit:
+      return "signal-exit";
+    case Rating::Watchlist:
+      return "signal-watchlist";
+    case Rating::Caution:
+      return "signal-caution";
+    case Rating::HoldCautiously:
+      return "signal-holdcautiously";
+    case Rating::Mixed:
+      return "signal-mixed";
+    default:
+      return "signal-none";
+  }
+}
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   std::string body;
 
-  for (auto& [symbol, ticker] : p.tickers) {
+  std::vector<std::pair<const std::string*, const Ticker*>> sorted;
+  for (auto& [symbol, ticker] : p.tickers)
+    sorted.emplace_back(&symbol, &ticker);
+
+  std::sort(sorted.begin(), sorted.end(), [](auto& lhs, auto& rhs) {
+    auto lt = lhs.second->signal.type;
+    auto rt = rhs.second->signal.type;
+    if (lt == rt)
+      return *lhs.first < *rhs.first;
+    return lt < rt;
+  });
+
+  for (auto [s, t] : sorted) {
+    auto& symbol = *s;
+    auto& ticker = *t;
+
     auto& m = ticker.metrics;
     auto& sig = ticker.signal;
 
@@ -262,8 +304,7 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
   auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated());
   auto subtitle = std::format(index_subtitle_template, datetime);
-  // auto reload = (p.config.replay_en) ? index_reload : "";
-  std::string reload = "";
+  auto reload = (p.config.replay_en && p.config.debug_en) ? index_reload : "";
 
   return std::format(index_template, reload, subtitle, body);
 }

@@ -113,7 +113,9 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
                           command == Commands::BUY ? "BUY" : "SELL",  //
                           qty_str, px_str, total_str);
   } catch (const std::invalid_argument& e) {
-    spdlog::error("[tg] invalid argument to buy/sell");
+    spdlog::error("[tg] invalid argument to buy/sell: {} {} @ {}, {}",
+                  symbol.c_str(), qty_str.c_str(), px_str.c_str(),
+                  total_str.c_str());
   } catch (...) {
     spdlog::error("[tg] wrong format for buy/sell");
   }

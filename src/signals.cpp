@@ -1,9 +1,100 @@
-#include "signal.h"
 #include "backtest.h"
 #include "indicators.h"
 #include "portfolio.h"
+#include "signal.h"
 
 #include <iostream>
+
+inline const std::unordered_map<ReasonType, Meta> reason_meta = {
+    {ReasonType::None,  //
+     {Severity::Low, Source::EMA, SignalClass::Entry, ""}},
+    // Entry:
+    {ReasonType::EmaCrossover,  //
+     {Severity::High, Source::EMA, SignalClass::Entry, "ema⤯"}},
+    {ReasonType::RsiCross50,  //
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤯50"}},
+    {ReasonType::PullbackBounce,  //
+     {Severity::Urgent, Source::Price, SignalClass::Entry, "pullback"}},
+    {ReasonType::MacdHistogramCross,  //
+     {Severity::Medium, Source::MACD, SignalClass::Entry, "macd⤯"}},
+    // Exit:
+    {ReasonType::EmaCrossdown,  //
+     {Severity::High, Source::EMA, SignalClass::Exit, "ema⤰"}},
+    {ReasonType::RsiOverbought,  //
+     {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi↱70"}},
+    {ReasonType::MacdBearishCross,  //
+     {Severity::High, Source::MACD, SignalClass::Exit, "macd⤰"}},
+    {ReasonType::StopLossHit,  //
+     {Severity::Urgent, Source::Stop, SignalClass::Exit, "stop⤰"}},
+};
+
+inline const std::unordered_map<HintType, Meta> hint_meta = {
+    {HintType::None,  //
+     {Severity::Low, Source::None, SignalClass::None, ""}},
+    // Entry
+    {HintType::Ema9ConvEma21,  //
+     {Severity::Low, Source::EMA, SignalClass::Entry, "ema9↗21"}},
+    {HintType::RsiConv50,  //
+     {Severity::Low, Source::RSI, SignalClass::Entry, "rsi↗50"}},
+    {HintType::MacdRising,  //
+     {Severity::Medium, Source::MACD, SignalClass::Entry, "macd↗"}},
+    // Exit
+    {HintType::Ema9DivergeEma21,  //
+     {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↘21"}},
+    {HintType::RsiDropFromOverbought,  //
+     {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi⭛"}},
+    {HintType::MacdPeaked,  //
+     {Severity::Medium, Source::MACD, SignalClass::Exit, "macd▲"}},
+    {HintType::Ema9Flattening,  //
+     {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↝21"}},
+    {HintType::StopProximity,  //
+     {Severity::High, Source::Stop, SignalClass::Exit, "stop⨯"}},
+    {HintType::StopInATR,  //
+     {Severity::High, Source::Stop, SignalClass::Exit, "stop!"}},
+};
+
+inline const std::unordered_map<TrendType, Meta> trend_meta = {
+    {TrendType::None,  //
+     {Severity::Low, Source::None, SignalClass::None, ""}},
+    // Entry
+    {TrendType::PriceUp,  //
+     {Severity::Medium, Source::EMA, SignalClass::Entry, "price↗"}},
+    {TrendType::Ema21Up,  //
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "ema21↗"}},
+    {TrendType::RsiUp,  //
+     {Severity::Medium, Source::MACD, SignalClass::Entry, "rsi↗"}},
+    {TrendType::RsiUpStrongly,  //
+     {Severity::Medium, Source::EMA, SignalClass::Exit, "rsi⇗"}},
+    // Exit
+    {TrendType::PriceDown,  //
+     {Severity::Medium, Source::EMA, SignalClass::Exit, "price↘"}},
+    {TrendType::Ema21Down,  //
+     {Severity::Medium, Source::RSI, SignalClass::Exit, "ema21↘"}},
+    {TrendType::RsiDown,  //
+     {Severity::Medium, Source::MACD, SignalClass::Exit, "price↘"}},
+    {TrendType::RsiDownStrongly,  //
+     {Severity::Medium, Source::EMA, SignalClass::Exit, "rsi⇘"}},
+};
+
+template <>
+SignalType<ReasonType, ReasonType::None>::SignalType(ReasonType type)
+    : type{type} {
+  auto it = reason_meta.find(type);
+  meta = it == reason_meta.end() ? nullptr : &it->second;
+}
+
+template <>
+SignalType<HintType, HintType::None>::SignalType(HintType type) : type{type} {
+  auto it = hint_meta.find(type);
+  meta = it == hint_meta.end() ? nullptr : &it->second;
+}
+
+template <>
+SignalType<TrendType, TrendType::None>::SignalType(TrendType type)
+    : type{type} {
+  auto it = trend_meta.find(type);
+  meta = it == trend_meta.end() ? nullptr : &it->second;
+}
 
 // Filters
 
@@ -262,9 +353,9 @@ inline Trend price_trending(const Metrics& m) {
 
   auto& best = top_trends[0];
   if (best.slope() > 0.2 && best.r2 > 0.8)
-    return TrendType::PriceTrendingUp;
+    return TrendType::PriceUp;
   if (best.slope() < -0.2 && best.r2 > 0.8)
-    return TrendType::PriceTrendingDown;
+    return TrendType::PriceDown;
   return TrendType::None;
 }
 
@@ -275,9 +366,9 @@ inline Trend ema21_trending(const Metrics& m) {
 
   auto& best = top_trends[0];
   if (best.slope() > 0.15 && best.r2 > 0.8)
-    return TrendType::Ema21TrendingUp;
+    return TrendType::Ema21Up;
   if (best.slope() < -0.15 && best.r2 > 0.8)
-    return TrendType::Ema21TrendingDown;
+    return TrendType::Ema21Down;
   return TrendType::None;
 }
 
@@ -288,13 +379,13 @@ inline Trend rsi_trending(const Metrics& m) {
 
   auto& best = top_trends[0];
   if (best.slope() > 0.3 && best.r2 > 0.85)
-    return TrendType::RsiTrendingUpStrongly;
+    return TrendType::RsiUpStrongly;
   if (best.slope() > 0.15 && best.r2 > 0.8)
-    return TrendType::RsiTrendingUp;
+    return TrendType::RsiUp;
   if (best.slope() < -0.3 && best.r2 > 0.85)
-    return TrendType::RsiTrendingDownStrongly;
+    return TrendType::RsiDownStrongly;
   if (best.slope() < -0.15 && best.r2 > 0.8)
-    return TrendType::RsiTrendingDown;
+    return TrendType::RsiDown;
   return TrendType::None;
 }
 
@@ -306,49 +397,6 @@ inline constexpr trend_f trend_funcs[] = {
 
 inline int severity_weight(Severity s) {
   return static_cast<int>(s);
-}
-
-SignalType Signal::gen_signal(bool has_position) const {
-  if (entry_score >= 6 && exit_score <= 2)
-    return SignalType::Entry;
-
-  if (exit_score >= 5 && entry_score <= 2)
-    return has_position ? SignalType::Exit : SignalType::Caution;
-
-  if (entry_score > 0 && entry_score < 5)
-    return SignalType::Watchlist;
-
-  bool exit_hints_block_watchlist =
-      std::any_of(hints.begin(), hints.end(), [](auto& h) {
-        return h.cls == SignalClass::Exit &&
-               (h.type == HintType::StopProximity ||
-                h.severity == Severity::Urgent);
-        ;
-      });
-
-  if ((exit_score > 0 && exit_score < 5) || exit_hints_block_watchlist)
-    return has_position ? SignalType::HoldCautiously : SignalType::Caution;
-
-  bool strong_entry_hint = std::any_of(hints.begin(), hints.end(), [](auto& h) {
-    return h.cls == SignalClass::Entry && h.severity >= Severity::High;
-  });
-  bool strong_exit_hint = std::any_of(hints.begin(), hints.end(), [](auto& h) {
-    return h.cls == SignalClass::Exit && h.severity >= Severity::High;
-  });
-
-  if (strong_entry_hint && strong_exit_hint)
-    return SignalType::Mixed;
-
-  if (strong_entry_hint)
-    return SignalType::Watchlist;
-
-  if (strong_exit_hint)
-    return has_position ? SignalType::HoldCautiously : SignalType::Caution;
-
-  if (entry_score > 0 && exit_score > 0)
-    return SignalType::Mixed;
-
-  return SignalType::None;
 }
 
 // Entry confirmations
@@ -406,59 +454,14 @@ inline constexpr conf_f confirmation_funcs[] = {
     entry_confirmation_15m,
 };
 
-Signal::Signal(const Metrics& m) noexcept {
-  // Hard signals
-  for (auto f : reason_funcs)
-    if (auto r = f(m, -1);
-        r.type != ReasonType::None && r.cls != SignalClass::None) {
-      if (r.cls == SignalClass::Exit) {
-        exit_score += severity_weight(r.severity);
-      } else {
-        entry_score += severity_weight(r.severity);
-      }
-      reasons.emplace_back(std::move(r));
-    }
-
-  // Hints
-  for (auto f : hint_funcs)
-    if (auto h = f(m, -1);
-        h.type != HintType::None && h.cls != SignalClass::None) {
-      hints.emplace_back(std::move(h));
-    }
-
-  // Trends
-  for (auto f : trend_funcs)
-    if (auto t = f(m); t.type != TrendType::None) {
-      trends.emplace_back(std::move(t));
-    }
-
-  auto sort = [](auto& v) {
-    std::sort(v.begin(), v.end(),
-              [](auto& lhs, auto& rhs) { return lhs.severity < rhs.severity; });
-  };
-
-  sort(reasons);
-  sort(hints);
-
-  type = gen_signal(m.has_position());
-  if (type != SignalType::Entry) {
-    confirmations.clear();
-    return;
-  }
-
-  for (auto f : confirmation_funcs)
-    if (auto conf = f(m); conf.str != "")
-      confirmations.push_back(conf);
-}
-
 bool Signal::is_interesting() const {
-  if (type == SignalType::Entry || type == SignalType::Exit ||
-      type == SignalType::HoldCautiously)
+  if (type == Rating::Entry || type == Rating::Exit ||
+      type == Rating::HoldCautiously)
     return true;
 
   auto important = [](auto& iter) {
     for (auto& a : iter)
-      if (a.severity >= Severity::High)
+      if (a.severity() >= Severity::High)
         return true;
     return false;
   };
@@ -479,3 +482,156 @@ void Ticker::get_stats() {
     hint_stats.try_emplace(r, s);
   }
 }
+
+inline constexpr double ENTRY_MIN = 1.0;  // ignore entry_w < 1.0 entirely
+inline constexpr double EXIT_MIN = 1.0;   // ignore exit_w  < 1.0 entirely
+inline constexpr double ENTRY_THRESHOLD = 3.5;
+inline constexpr double EXIT_THRESHOLD = 3.0;
+inline constexpr double MIXED_MIN = 1.2;  // require at least this on both sides
+inline constexpr double WATCHLIST_THRESHOLD = ENTRY_THRESHOLD;  // for symmetry
+
+inline Rating gen_rating(double entry_w,
+                         double exit_w,
+                         bool has_position,
+                         const std::vector<Hint>& hints,
+                         bool has_reason) {
+  // 1. Strong Entry
+  if (entry_w >= ENTRY_THRESHOLD && exit_w <= WATCHLIST_THRESHOLD && has_reason)
+    return Rating::Entry;
+
+  // 2. Strong Exit
+  if (exit_w >= EXIT_THRESHOLD && entry_w <= WATCHLIST_THRESHOLD && has_reason)
+    return has_position ? Rating::Exit : Rating::Caution;
+
+  // 3. Mixed
+  if (entry_w >= MIXED_MIN && exit_w >= MIXED_MIN)
+    return Rating::Mixed;
+
+  // 4. Moderate Exit or urgent exit hint
+  bool exit_hints_block_watchlist =
+      std::any_of(hints.begin(), hints.end(), [](auto& h) {
+        return h.cls() == SignalClass::Exit &&
+               (h.type == HintType::StopProximity ||
+                h.severity() == Severity::Urgent);
+      });
+
+  if ((exit_w >= EXIT_MIN && exit_w < EXIT_THRESHOLD) ||
+      (exit_hints_block_watchlist && exit_w >= EXIT_MIN)) {
+    return has_position ? Rating::HoldCautiously : Rating::Caution;
+  }
+
+  // 5. Entry bias
+  if (entry_w >= ENTRY_MIN && entry_w < ENTRY_THRESHOLD)
+    return Rating::Watchlist;
+
+  // 6. Strong hint conflicts and fallbacks
+  bool strong_entry_hint =
+      std::any_of(hints.begin(), hints.end(), [](const auto& h) {
+        return h.cls() == SignalClass::Entry && h.severity() >= Severity::High;
+      });
+  bool strong_exit_hint =
+      std::any_of(hints.begin(), hints.end(), [](const auto& h) {
+        return h.cls() == SignalClass::Exit && h.severity() >= Severity::High;
+      });
+
+  if (strong_entry_hint && strong_exit_hint)
+    return Rating::Mixed;
+  if (strong_entry_hint)
+    return Rating::Watchlist;
+  if (strong_exit_hint)
+    return has_position ? Rating::HoldCautiously : Rating::Caution;
+
+  return Rating::None;
+}
+
+inline constexpr double weight(double importance, double severity) {
+  return importance * severity;
+}
+
+inline double signal_score(double entry_w, double exit_w, bool has_position) {
+  double raw = has_position ? entry_w - 1.5 * exit_w : 1.2 * entry_w - exit_w;
+  return std::tanh(raw / 3.0);  // squashes to [-1,1]
+}
+
+Signal Ticker::gen_signal() const {
+  Signal s;
+  double entry_w = 0.0, exit_w = 0.0;
+  auto& m = metrics;
+
+  // Hard signals
+  for (auto f : reason_funcs) {
+    auto r = f(m, -1);
+    if (r.type != ReasonType::None && r.cls() != SignalClass::None) {
+      auto importance = 0.0;
+      if (auto it = reason_stats.find(r.type); it != reason_stats.end())
+        importance = it->second.importance;
+      if (r.source() == Source::Stop)
+        importance = 0.8;
+
+      auto severity = severity_weight(r.severity());
+      auto w = weight(importance, severity);
+
+      if (r.cls() == SignalClass::Exit)
+        exit_w += w;
+      else
+        entry_w += w;
+
+      s.reasons.emplace_back(std::move(r));
+    }
+  }
+
+  // Hints
+  for (auto f : hint_funcs) {
+    auto h = f(m, -1);
+    if (h.type != HintType::None && h.cls() != SignalClass::None) {
+      if (h.severity() < Severity::High)
+        continue;
+
+      auto importance = 0.0;
+      if (auto it = hint_stats.find(h.type); it != hint_stats.end())
+        importance = it->second.importance;
+      if (h.source() == Source::Stop)
+        importance = 0.8;
+
+      auto severity = severity_weight(h.severity());
+      // slightly lower weight than reasons
+      auto w = 0.7 * weight(importance, severity);
+
+      if (h.cls() == SignalClass::Exit)
+        exit_w += w;
+      else
+        entry_w += w;
+
+      s.hints.emplace_back(std::move(h));
+    }
+  }
+
+  // Trends
+  for (auto f : trend_funcs)
+    if (auto t = f(m); t.type != TrendType::None) {
+      s.trends.emplace_back(std::move(t));
+    }
+
+  auto sort = [](auto& v) {
+    std::sort(v.begin(), v.end(), [](auto& lhs, auto& rhs) {
+      return lhs.severity() < rhs.severity();
+    });
+  };
+
+  sort(s.reasons);
+  sort(s.hints);
+
+  s.type =
+      gen_rating(entry_w, exit_w, m.has_position(), s.hints, s.has_reasons());
+  s.score = signal_score(entry_w, exit_w, m.has_position());
+
+  if (s.type != Rating::Entry)
+    s.confirmations.clear();
+
+  for (auto f : confirmation_funcs)
+    if (auto conf = f(m); conf.str != "")
+      s.confirmations.push_back(conf);
+
+  return s;
+}
+

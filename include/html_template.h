@@ -1,7 +1,6 @@
 #pragma once
 
 #include "_html_template.h"
-#include "signal.h"
 
 #include <string_view>
 
@@ -40,7 +39,7 @@ inline constexpr std::string_view index_row_template = R"(
       id="row-{}" 
       style="{}"
       onclick="toggleSignalDetails(this, '{}-details') ">
-    <td data-label="Signal"><div>{}</div></td>
+    <td data-label="Signal"><div class="eventful">{}</div></td>
     <td data-label="Symbol">
       <div class="eventful">
         <a href="{}.html" target="_blank"><b>{}</b></a>{}
@@ -71,25 +70,6 @@ inline constexpr std::string_view index_signal_template = R"(
     </td>
   </tr>
 )";
-
-inline constexpr std::string index_row_class(SignalType type) {
-  switch (type) {
-    case SignalType::Entry:
-      return "signal-entry";
-    case SignalType::Exit:
-      return "signal-exit";
-    case SignalType::Watchlist:
-      return "signal-watchlist";
-    case SignalType::Caution:
-      return "signal-caution";
-    case SignalType::HoldCautiously:
-      return "signal-holdcautiously";
-    case SignalType::Mixed:
-      return "signal-mixed";
-    default:
-      return "signal-none";
-  }
-}
 
 inline constexpr std::string_view trades_row_template = R"(
   <tr class="{}">

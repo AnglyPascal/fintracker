@@ -1,6 +1,6 @@
 #include "prediction.h"
 #include "indicators.h"
-#include "signal.h"
+#include "signals.h"
 
 #include <iostream>
 #include <numeric>

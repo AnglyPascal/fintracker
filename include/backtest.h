@@ -1,6 +1,6 @@
 #pragma once
 
-#include "signal.h"
+#include "signals.h"
 
 #include <cmath>
 #include <unordered_map>

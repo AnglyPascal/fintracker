@@ -1,7 +1,7 @@
 #include "backtest.h"
 #include "indicators.h"
 #include "portfolio.h"
-#include "signal.h"
+#include "signals.h"
 
 Backtest::Backtest(const Metrics& m, size_t max_candles) : m{m} {
   auto& candles = m.ind_1h.candles;
@@ -53,7 +53,7 @@ std::pair<T, SignalStats> Backtest::get_stats(Func signal_fn) const {
   T r0 = {};
   for (int i = 0; i < (int)candles.size(); ++i) {
     auto r = signal_fn(m, i);
-    if (!r.exists() || r.source == Source::Stop)
+    if (!r.exists() || r.source() == Source::Stop)
       continue;
     r0 = r.type;
 

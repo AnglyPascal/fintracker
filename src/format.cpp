@@ -37,12 +37,12 @@ std::string to_str<FormatTarget::Telegram>(
     const std::pair<const Position*, double>& p) {
   auto [net_pos, pnl] = p;
   if (t.action == Action::BUY)
-    return std::format("+ Bought: {} {} @ {}", t.ticker, t.qty, t.px);
+    return std::format("+ Bought: {} {:.2f} @ {:.2f}", t.ticker, t.qty, t.px);
   else if (net_pos != nullptr)
-    return std::format("- Sold: {} {} @ {}", t.ticker, t.qty, t.px);
+    return std::format("- Sold: {} {:.2f} @ {:.2f}", t.ticker, t.qty, t.px);
   else
-    return std::format("{} Closed: {} {} @ {}, {:+}", pnl > 0 ? "+" : "-",
-                       t.ticker, t.qty, t.px, pnl);
+    return std::format("{} Closed: {} {:.2f} @ {:.2f}, {:+.2f}",
+                       pnl > 0 ? "+" : "-", t.ticker, t.qty, t.px, pnl);
 }
 
 template <>
@@ -98,36 +98,33 @@ std::string to_str(const Confirmation& h) {
 
 template <>
 std::string to_str(const Reason& r) {
-  auto it = reason_meta.find(r.type);
-  return it != reason_meta.end() ? it->second.str : "";
+  return r.str();
 }
 
 template <>
 std::string to_str(const Hint& h) {
-  auto it = hint_meta.find(h.type);
-  return it != hint_meta.end() ? it->second.str : "";
+  return h.str();
 }
 
 template <>
 std::string to_str(const Trend& t) {
-  auto it = trend_meta.find(t.type);
-  return it != trend_meta.end() ? it->second.str : "";
+  return t.str();
 }
 
 template <>
-std::string to_str(const SignalType& type) {
+std::string to_str(const Rating& type) {
   switch (type) {
-    case SignalType::Entry:
-      return "Buy";
-    case SignalType::Exit:
-      return "Sell";
-    case SignalType::Watchlist:
+    case Rating::Entry:
+      return "Entry";
+    case Rating::Exit:
+      return "Exit";
+    case Rating::Watchlist:
       return "Watch";
-    case SignalType::Caution:
+    case Rating::Caution:
       return "Watch cautiously";
-    case SignalType::HoldCautiously:
+    case Rating::HoldCautiously:
       return "Hold cautiously";
-    case SignalType::Mixed:
+    case Rating::Mixed:
       return "Mixed";
     default:
       return "None";
@@ -136,24 +133,24 @@ std::string to_str(const SignalType& type) {
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
-  if (!sig.has_signal() && !sig.has_hints())
+  if (!sig.has_reasons() && !sig.has_hints())
     return "";
 
   std::string result;
 
   // --- Signal line ---
-  if (sig.has_signal()) {
+  if (sig.has_reasons()) {
     auto type_str = to_str(sig.type);
 
     std::string entry_reason, exit_reason;
 
     for (auto& reason : sig.reasons) {
-      if (reason.cls == SignalClass::None)
+      if (reason.cls() == SignalClass::None)
         continue;
 
-      if (sig.type == SignalType::Entry && reason.cls == SignalClass::Entry)
+      if (sig.type == Rating::Entry && reason.cls() == SignalClass::Entry)
         entry_reason += std::format("\n   + {}", to_str(reason));
-      else if (sig.type == SignalType::Exit && reason.cls == SignalClass::Exit)
+      else if (sig.type == Rating::Exit && reason.cls() == SignalClass::Exit)
         exit_reason += std::format("\n   - {}", to_str(reason));
     }
 
@@ -167,10 +164,10 @@ std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
   std::string entry_str, exit_str;
 
   for (auto& hint : sig.hints) {
-    if (hint.cls == SignalClass::None)
+    if (hint.cls() == SignalClass::None)
       continue;
 
-    if (hint.cls == SignalClass::Entry)
+    if (hint.cls() == SignalClass::Entry)
       entry_str += std::format("\n   + {}", to_str(hint));
     else
       exit_str += std::format("\n   - {}", to_str(hint));
@@ -181,19 +178,19 @@ std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
   return result + "\n";
 }
 
-std::string Signal::emoji() const {
+std::string emoji(Rating type) {
   switch (type) {
-    case SignalType::Entry:
+    case Rating::Entry:
       return "[B]";
-    case SignalType::Exit:
+    case Rating::Exit:
       return "[S]";
-    case SignalType::Watchlist:
+    case Rating::Watchlist:
       return "[W]";
-    case SignalType::Caution:
+    case Rating::Caution:
       return "[C]";
-    case SignalType::HoldCautiously:
+    case Rating::HoldCautiously:
       return "[H]";
-    case SignalType::Mixed:
+    case Rating::Mixed:
       return "[M]";
     default:
       return "[-]";
@@ -234,7 +231,7 @@ std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
       "{}"                                      //
       "{}"                                      //
       "{}\n",                                   //
-      signal.emoji(), symbol, pos_line,         //
+      emoji(signal.type), symbol, pos_line,     //
       to_str<FormatTarget::Telegram>(metrics),  //
       stop_line,                                //
       to_str<FormatTarget::Telegram>(signal)    //
@@ -274,13 +271,13 @@ std::string to_str<FormatTarget::Telegram>(const Portfolio& portfolio) {
   std::string exit, caution, entry, watch;
   for (auto& [symbol, ticker] : portfolio.tickers) {
     auto& signal = ticker.signal;
-    if (signal.type == SignalType::Exit)
+    if (signal.type == Rating::Exit)
       exit += symbol + "  ";
-    else if (signal.type == SignalType::Entry)
+    else if (signal.type == Rating::Entry)
       entry += symbol + "  ";
-    else if (signal.type == SignalType::HoldCautiously)
+    else if (signal.type == Rating::HoldCautiously)
       caution += symbol + "  ";
-    else if (signal.type == SignalType::Watchlist)
+    else if (signal.type == Rating::Watchlist)
       watch += symbol + "  ";
   }
 
@@ -315,7 +312,7 @@ std::string to_str<FormatTarget::Alert>(const Signal& a, const Signal& b) {
   std::string output;
 
   if (a.type != b.type)
-    output += std::format("{} -> {}\n", a.emoji(), b.emoji());
+    output += std::format("{} -> {}\n", emoji(a.type), emoji(b.type));
 
   auto compare = []<typename T>(const std::vector<T>& old_r,
                                 const std::vector<T>& new_r, SignalClass cls,
@@ -325,10 +322,10 @@ std::string to_str<FormatTarget::Alert>(const Signal& a, const Signal& b) {
 
     std::vector<std::string> added, removed;
     for (auto& t : new_set)
-      if (t.cls == cls && t.severity >= Severity::High && !old_set.count(t))
+      if (t.cls() == cls && t.severity() >= Severity::High && !old_set.count(t))
         added.push_back(to_str(t));
     for (auto& t : old_set)
-      if (t.cls == cls && t.severity >= Severity::High && !new_set.count(t))
+      if (t.cls() == cls && t.severity() >= Severity::High && !new_set.count(t))
         removed.push_back(to_str(t));
 
     std::string str;

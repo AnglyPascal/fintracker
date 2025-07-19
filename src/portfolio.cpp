@@ -22,10 +22,10 @@ Ticker::Ticker(const std::string& symbol,
       priority{priority},
       last_polled{Clock::now()},
       metrics{std::move(candles), update_interval, position},
-      signal{metrics},
       long_term_trend{long_term_trend}  //
 {
   get_stats();
+  signal = gen_signal();
 }
 
 inline std::vector<SymbolInfo> read_symbols() {
@@ -153,7 +153,7 @@ void Portfolio::add_candle() {
           {
             auto _ = writer_lock();
             ticker.metrics.add(candle, positions.get_position(symbol));
-            ticker.signal = Signal{ticker.metrics};
+            ticker.signal = ticker.gen_signal();
           }
 
           write_plot_data(symbol);
@@ -188,7 +188,7 @@ void Portfolio::add_candle_sync() {
       {
         auto _ = writer_lock();
         ticker.metrics.add(candle, positions.get_position(symbol));
-        ticker.signal = Signal{ticker.metrics};
+        ticker.signal = ticker.gen_signal();
       }
       write_plot_data(symbol);
     }
@@ -211,7 +211,7 @@ void Portfolio::rollback() {
     for (auto& [symbol, ticker] : tickers) {
       auto candle = ticker.metrics.pop_back();
       rp.rollback(symbol, candle);
-      ticker.signal = Signal{ticker.metrics};
+      ticker.signal = ticker.gen_signal();
       write_plot_data(symbol);
     }
     intervals_passed--;
@@ -280,24 +280,26 @@ void Portfolio::run_replay() {
     return;
   }
 
-  RawMode _;
+  {
+    RawMode _;
 
-  while (rp.has_data()) {
-    char ch;
-    if (read(STDIN_FILENO, &ch, 1) == 1) {
-      std::cout << "\b \b" << std::flush;
+    while (rp.has_data()) {
+      char ch;
+      if (read(STDIN_FILENO, &ch, 1) == 1) {
+        std::cout << "\b \b" << std::flush;
 
-      if (ch == 'q')
-        break;
+        if (ch == 'q')
+          break;
 
-      if (ch == 'l')
-        add_candle();
+        if (ch == 'l')
+          add_candle();
 
-      if (ch == 'h')
-        rollback();
+        if (ch == 'h')
+          rollback();
+      }
     }
   }
 
-  std::puts("[exit]");
+  std::cout << "exit" << std::endl;
 }
 

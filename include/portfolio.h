@@ -7,7 +7,7 @@
 #include "indicators.h"
 #include "positions.h"
 #include "replay.h"
-#include "signal.h"
+#include "signals.h"
 #include "times.h"
 
 #include <map>
@@ -37,6 +37,7 @@ struct Ticker {
          const std::string& long_term_trend) noexcept;
 
   void write_plot_data() const;
+  Signal gen_signal() const;
 
  private:
   void get_stats();
