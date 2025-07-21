@@ -158,8 +158,11 @@ void Portfolio::add_candle() {
     spdlog::info("[add_candle] took {:.2f}ms", timer.diff_ms());
   }
 
+  std::cout << "plotting start" << std::endl;
   plot();
+  std::cout << "page start" << std::endl;
   write_page();
+  std::cout << "update done" << std::endl;
   spdlog::info("[update] at {}", std::format("{}", last_updated()).c_str());
 }
 
@@ -229,6 +232,10 @@ inline auto sleep(auto mins) {
   return std::this_thread::sleep_for(minutes(mins));
 }
 
+inline auto sleep(double mins) {
+  return std::this_thread::sleep_for(seconds((int)(mins * 60)));
+}
+
 void Portfolio::run() {
   if (rp.enabled)
     return run_replay();
@@ -254,9 +261,11 @@ void Portfolio::run() {
 void Portfolio::run_replay() {
   if (config.continuous_en) {
     while (rp.has_data()) {
+      std::cout << "adding data" << std::endl;
       add_candle();
-      sleep(1);
+      sleep(config.speed);
     }
+    std::cout << "done" << std::endl;
     return;
   }
 

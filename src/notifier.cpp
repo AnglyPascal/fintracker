@@ -20,6 +20,7 @@ enum class Commands {
   BUY,
   SELL,
   STATUS,
+  PING,
   TRADES,
   POSITIONS,
   PLOT,
@@ -31,6 +32,11 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
 
   std::string symbol;
   is >> symbol;
+
+  if constexpr (command == Commands::PING) {
+    tg.send(std::format("```json\nping: \"{}\"\nlast updated: \"{}\"```",  //
+                        now_ny_time(), portfolio.last_updated()));
+  }
 
   if constexpr (command == Commands::STATUS) {
     std::string str;
@@ -52,13 +58,13 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
       tg.send(to_str<FormatTarget::Telegram>(TEXT, str));
   }
 
-  else if constexpr (command == Commands::TRADES) {
+  if constexpr (command == Commands::TRADES) {
     auto fname = portfolio.config.replay_en ? "page/trades_replay.html"
                                             : "page/trades.html";
     tg.send_doc(fname, "trades.html", "");
   }
 
-  else if constexpr (command == Commands::POSITIONS) {
+  if constexpr (command == Commands::POSITIONS) {
     std::string str;
     {
       auto _ = portfolio.reader_lock();
@@ -68,7 +74,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
     tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
   }
 
-  else if constexpr (command == Commands::PLOT) {
+  if constexpr (command == Commands::PLOT) {
     auto fname = std::format("page/{}.html", symbol);
     if (wait_for_file(fname))
       tg.send_doc(fname, fname, "Charts for " + symbol);
@@ -139,6 +145,9 @@ inline void handle_command(const Portfolio& portfolio,
   if (command == "/status")
     return handle_command<Commands::STATUS>(portfolio, is);
 
+  if (command == "/ping")
+    return handle_command<Commands::PING>(portfolio, is);
+
   if (command == "/positions")
     return handle_command<Commands::POSITIONS>(portfolio, is);
 
@@ -179,7 +188,7 @@ void Notifier::iter(Notifier* notifier) {
   }
 }
 
-Notifier::Notifier(const Portfolio& portfolio) noexcept
+Notifier::Notifier(const Portfolio& portfolio)
     : portfolio{portfolio},
       tg{portfolio.tg},
       last_updated{portfolio.last_updated()}  //
@@ -194,6 +203,7 @@ Notifier::Notifier(const Portfolio& portfolio) noexcept
   td = std::thread{Notifier::iter, this};
 }
 
-Notifier::~Notifier() noexcept {
-  td.join();
+Notifier::~Notifier() {
+  if (td.joinable())
+    td.join();
 }

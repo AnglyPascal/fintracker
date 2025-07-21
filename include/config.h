@@ -7,7 +7,9 @@ struct Config {
   bool plot_en = true;
 
   bool replay_en = false;
+
   bool continuous_en = false;
+  double speed = 1.0;
 
   Config(int argc, char* argv[]);
 };

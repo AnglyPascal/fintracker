@@ -20,7 +20,7 @@ class Notifier {
   static void iter(Notifier* notifier);
 
  public:
-  Notifier(const Portfolio& portfolio) noexcept;
-  ~Notifier() noexcept;
+  Notifier(const Portfolio& portfolio);
+  ~Notifier();
 };
 
