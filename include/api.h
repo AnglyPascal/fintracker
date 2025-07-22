@@ -68,3 +68,4 @@ bool wait_for_file(const std::string& path,
 
 extern std::string plot_daemon_port;
 void notify_plot_daemon(const std::vector<std::string>& tickers);
+

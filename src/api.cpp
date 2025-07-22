@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 using nlohmann::json;
+namespace fs = std::filesystem;
 
 #ifndef TD_API_KEY_1
 #define TD_API_KEY_1 ""
@@ -355,8 +356,6 @@ bool wait_for_file(const std::string& path,
                    seconds freshness,
                    seconds timeout,
                    milliseconds poll_interval) {
-  namespace fs = std::filesystem;
-
   fs::path file_path(path);
   auto deadline = Clock::now() + timeout;
 
@@ -390,3 +389,4 @@ void notify_plot_daemon(const std::vector<std::string>& tickers) {
 }
 
 std::string plot_daemon_port = "5555";
+

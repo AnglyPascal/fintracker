@@ -8,10 +8,6 @@
 #include <fstream>
 #include <iostream>
 
-#ifndef POSITIONS_FILE
-#define POSITIONS_FILE ""
-#endif
-
 Position operator-(const Position& lhs, const Position& rhs) {
   auto diff_qty = lhs.qty - rhs.qty;
   auto diff_cost = lhs.total - rhs.total;
@@ -59,9 +55,9 @@ inline auto net_position(const std::vector<Trade>& trades)
 OpenPositions::OpenPositions() noexcept {
   std::system("python3 scripts/clean_trades.py");
 
-  std::ifstream file(POSITIONS_FILE);
+  std::ifstream file("private/trades.csv");
   if (!file.is_open()) {
-    spdlog::error("couldn't open postions file {}", POSITIONS_FILE);
+    spdlog::error("couldn't open postions file {}", "private/trades.csv");
     return;
   }
 

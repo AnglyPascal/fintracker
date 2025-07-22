@@ -123,5 +123,4 @@ endfunction()
 add_env_vars(${TARGET} 
              TD_API_KEY_1 TD_API_KEY_2 TD_API_KEY_3
              TG_TOKEN TG_CHAT_ID TG_USER
-             POSITIONS_FILE
              PATH HOME)

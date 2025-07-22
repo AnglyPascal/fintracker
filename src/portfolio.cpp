@@ -30,7 +30,7 @@ Ticker::Ticker(const std::string& symbol,
 
 inline std::vector<SymbolInfo> read_symbols() {
   std::vector<SymbolInfo> symbols;
-  std::ifstream file("data/tickers.csv");
+  std::ifstream file("private/tickers.csv");
   std::string line;
 
   std::getline(file, line);

@@ -28,13 +28,26 @@ void init_logging(const Config& config) {
   spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
 }
 
+void ensure_directories_exist(const std::vector<std::string>& dirs) {
+  for (const auto& dir : dirs) {
+    fs::path path(dir);
+    if (!fs::exists(path)) {
+      if (fs::create_directories(path))
+        std::cout << "Created: " << dir << '\n';
+      else
+        std::cerr << "Failed to create: " << dir << '\n';
+    }
+  }
+}
+
 int main(int argc, char* argv[]) {
+  ensure_directories_exist({"page", "page/src", "page/backup", "logs", "data"});
+
   Config config{argc, argv};
   init_logging(config);
 
   if (config.replay_en)
     plot_daemon_port = "5556";
-
 
   Portfolio portfolio{config};
   Notifier notifier{portfolio};

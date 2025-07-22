@@ -135,4 +135,4 @@ def normalize_all_trades(input_dir, output_file):
 
 # Entry point
 if __name__ == "__main__":
-    normalize_all_trades("./data/trades_exported", "./data/trades.csv")
+    normalize_all_trades("./private/trades_exported", "./private/trades.csv")
