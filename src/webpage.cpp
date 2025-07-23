@@ -61,7 +61,6 @@ void Portfolio::write_plot_data(const std::string& symbol) const {
   if (it == tickers.end())
     return;
 
-  auto _ = reader_lock();
   spdlog::trace("plotting {}", symbol.c_str());
 
   std::ofstream f(csv_fname(symbol, "trades"));

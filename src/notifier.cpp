@@ -162,23 +162,29 @@ void Notifier::iter(Notifier* notifier) {
 
   auto last_update_id = 0;
   while (true) {
-    std::string msg;
+    std::string alert, status;
     {
       auto _ = portfolio.reader_lock();
       if (notifier->last_updated != portfolio.last_updated()) {
         auto& prev_signals = notifier->prev_signals;
+
         auto diff = to_str<FormatTarget::Alert>(portfolio, prev_signals);
-        msg = to_str<FormatTarget::Telegram>(DIFF, diff);
+        alert = to_str<FormatTarget::Telegram>(DIFF, diff);
 
         prev_signals.clear();
         for (auto& [symbol, ticker] : portfolio.tickers)
           prev_signals.emplace(symbol, ticker.signal);
 
+        auto str = to_str<FormatTarget::Telegram>(portfolio);
+        status = to_str<FormatTarget::Telegram>(HASKELL, str);
+
         notifier->last_updated = portfolio.last_updated();
       }
     }
-    if (msg != "")
-      notifier->tg.send(msg);
+    if (alert != "") {
+      notifier->tg.send(alert);
+      notifier->tg.send(status);
+    }
 
     auto [valid, line, id] = notifier->tg.receive(last_update_id);
     if (valid)

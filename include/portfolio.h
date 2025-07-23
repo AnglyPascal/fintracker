@@ -73,6 +73,8 @@ class Portfolio {
   OpenPositions positions;
   Calendar calendar;
 
+  LocalTimePoint _last_updated;
+
   const minutes update_interval;
 
  public:

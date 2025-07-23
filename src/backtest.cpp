@@ -10,16 +10,19 @@ Backtest::Backtest(const Metrics& m, size_t max_candles) : m{m} {
 
   for (size_t i = 0; i < n; ++i) {
     double entry = candles[i].close;
-    double best = -std::numeric_limits<double>::infinity();
-    double worst = -std::numeric_limits<double>::infinity();
-    for (size_t j = i; j < std::min(n, i + max_candles + 1); ++j) {
-      double ret = (candles[j].close / entry) - 1.0;
-      double dd = (entry / candles[j].low) - 1.0;
-      // worst drop from entry to that bar’s low
-      best = std::max(best, ret);
-      worst = std::max(worst, dd);
+    double best = 0.0;
+    double worst = 0.0;
+
+    for (size_t j = i + 1; j <= std::min(n - 1, i + max_candles); ++j) {
+      double ret = (candles[j].close - entry) / entry;
+
+      if (ret > 0)
+        best = std::max(best, ret);
+      else
+        worst = std::max(worst, -ret);
     }
-    lookahead[i] = {best * 100, worst * 100};
+
+    lookahead[i] = {best * 100, worst * 100};  // In percentage
   }
 }
 
