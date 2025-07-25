@@ -17,7 +17,11 @@ struct SignalStats {
   double win_rate;  // % of signals with positive return
   double importance;
 
-  SignalStats(size_t count, double sum_ret, double sum_dd, size_t wins);
+  SignalStats(size_t count,
+              double sum_ret,
+              double sum_dd,
+              size_t wins,
+              bool entry) noexcept;
 };
 
 struct Metrics;

@@ -4,6 +4,7 @@
 #include "portfolio.h"
 
 #include <cpr/cpr.h>
+#include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
@@ -87,12 +88,16 @@ Replay::Replay(TD& td, const std::vector<SymbolInfo>& symbols, bool rp_enabled)
 
 std::vector<Candle> Replay::time_series(const std::string& symbol, int n_days) {
   auto it = prev_day_candles.find(symbol);
-  if (it == prev_day_candles.end())
+  if (it == prev_day_candles.end()) {
+    spdlog::warn("[replay] no time series for {}", symbol.c_str());
     return {};
+  }
 
   size_t output_size = n_days * 8 /* hours per day */ * (minutes(60) / M_15);
-  if (it->second.size() < output_size)
+  if (it->second.size() < output_size) {
+    spdlog::warn("[replay] no time series for {}", symbol.c_str());
     return {};
+  }
 
   auto vec = std::move(it->second);
   prev_day_candles.erase(symbol);
@@ -101,8 +106,10 @@ std::vector<Candle> Replay::time_series(const std::string& symbol, int n_days) {
 
 Candle Replay::real_time(const std::string& symbol) {
   auto it = curr_day_candles_rev.find(symbol);
-  if (it == curr_day_candles_rev.end() || it->second.empty())
+  if (it == curr_day_candles_rev.end() || it->second.empty()) {
+    spdlog::warn("[replay] no candle for {}", symbol.c_str());
     return {};
+  }
 
   auto candle = it->second.back();
   it->second.pop_back();

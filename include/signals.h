@@ -49,6 +49,7 @@ enum class HintType {
   Ema9ConvEma21,
   RsiConv50,
   MacdRising,
+  Pullback,
 
   Ema9DivergeEma21,
   RsiDropFromOverbought,

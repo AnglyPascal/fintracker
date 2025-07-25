@@ -181,10 +181,8 @@ void Notifier::iter(Notifier* notifier) {
         notifier->last_updated = portfolio.last_updated();
       }
     }
-    if (alert != "") {
-      notifier->tg.send(alert);
-      notifier->tg.send(status);
-    }
+    if (alert != "")
+      notifier->tg.send(status + '\n' + alert);
 
     auto [valid, line, id] = notifier->tg.receive(last_update_id);
     if (valid)

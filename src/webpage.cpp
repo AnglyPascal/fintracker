@@ -204,7 +204,8 @@ template <>
 std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
   if (sl.final_stop == 0.0)
     return "";
-  return std::format("sw={:.2f}, atr={:.2f}", sl.swing_low, sl.atr_stop);
+  return std::format("sw={:.2f}, atr={:.2f}, stop={:.2f}", sl.swing_low,
+                     sl.atr_stop, sl.final_stop);
 }
 
 template <>
@@ -277,9 +278,10 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
     auto pos_str = to_str<FormatTarget::HTML>(m.position, m.last_price());
     auto stop_loss_str =
-        m.has_position() ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
-                                       to_str<FormatTarget::HTML>(m.stop_loss))
-                         : "";
+        m.has_position()
+            ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
+                          to_str<FormatTarget::HTML>(m.stop_loss))
+            : "";
 
     auto event = p.calendar.next_event(symbol);
     auto event_str = std::format(index_event_template, symbol, to_str(event));

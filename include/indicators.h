@@ -93,7 +93,10 @@ struct ATR {
   ATR(const std::vector<Candle>& candles, int period = 14) noexcept;
 
   void add(const Candle& candle) noexcept;
-  void pop_back() noexcept { values.pop_back(); }  // FIXME: incorrect
+  void pop_back(double close) noexcept {
+    prev_close = close;
+    values.pop_back();
+  }
 };
 
 struct Indicators {

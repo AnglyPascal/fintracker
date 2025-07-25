@@ -25,8 +25,10 @@ LocalTimePoint datetime_to_local(std::string_view datetime,
                                  std::string_view fmt = "%F %T",
                                  std::string_view timezone = ny_tz);
 
-LocalTimePoint date_to_local(std::string_view datetime,
-                             std::string_view timezone = ny_tz);
+inline LocalTimePoint date_to_local(std::string_view datetime,
+                                    std::string_view timezone = ny_tz) {
+  return datetime_to_local(datetime, "%F", timezone);
+}
 
 SysTimePoint now_utc_time(std::string_view timezone = ny_tz);
 LocalTimePoint now_ny_time();

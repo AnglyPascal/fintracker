@@ -1,6 +1,7 @@
 #include "times.h"
 #include "format.h"
 
+#include <spdlog/spdlog.h>
 #include <iostream>
 
 using namespace std::chrono;
@@ -8,6 +9,11 @@ using namespace std::chrono;
 LocalTimePoint datetime_to_local(std::string_view datetime,
                                  std::string_view fmt,
                                  std::string_view timezone) {
+  if (datetime == "") {
+    spdlog::error("[time] empty datetime string");
+    return {};
+  }
+
   std::istringstream in{std::string(datetime)};
   in.exceptions(std::ios::failbit | std::ios::badbit);
 
@@ -24,11 +30,6 @@ LocalTimePoint datetime_to_local(std::string_view datetime,
   zoned_time ny_zt{db.locate_zone(std::string(ny_tz)), from_zt.get_sys_time()};
 
   return floor<seconds>(ny_zt.get_local_time());
-}
-
-LocalTimePoint date_to_local(std::string_view datetime,
-                             std::string_view timezone) {
-  return datetime_to_local(datetime, "%F", timezone);
 }
 
 LocalTimePoint now_ny_time() {

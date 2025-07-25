@@ -29,7 +29,8 @@ Backtest::Backtest(const Metrics& m, size_t max_candles) : m{m} {
 SignalStats::SignalStats(size_t count,
                          double sum_ret,
                          double sum_dd,
-                         size_t wins) {
+                         size_t wins,
+                         bool entry) noexcept {
   trigger_count = count;
   avg_return = count ? sum_ret / count : 0.0;
   avg_drawdown = count ? sum_dd / count : 0.0;
@@ -38,8 +39,15 @@ SignalStats::SignalStats(size_t count,
   constexpr double EPS = 1e-6;
   constexpr double kappa = 0.2;
 
-  double dd = std::max(avg_drawdown, EPS);
-  double raw = win_rate * (avg_return / dd) * std::sqrt(double(trigger_count));
+  double raw = 0.0;
+  if (entry) {
+    double dd = std::max(avg_drawdown, EPS);
+    raw = win_rate * (avg_return / dd) * std::sqrt(double(trigger_count));
+  } else {
+    double ret = std::max(avg_return, EPS);
+    raw = (1 - win_rate) * (avg_drawdown / ret) *
+          std::sqrt(double(trigger_count));
+  }
   importance = 1.0 - std::exp(-kappa * raw);
 }
 
@@ -54,22 +62,25 @@ std::pair<T, SignalStats> Backtest::get_stats(Func signal_fn) const {
   size_t wins = 0;
 
   T r0 = {};
-  for (int i = 0; i < (int)candles.size(); ++i) {
+  bool entry = true;
+  for (size_t i = 0; i < candles.size(); ++i) {
     auto r = signal_fn(m, i);
     if (!r.exists() || r.source() == Source::Stop)
       continue;
-    r0 = r.type;
 
-    ++count;
+    r0 = r.type;
+    entry = r.cls() == SignalClass::Entry;
+
+    count++;
     double future_ret = lookahead[i].max_return;
     double future_dd = lookahead[i].max_drawdown;
     sum_ret += future_ret;
     sum_dd += future_dd;
     if (future_ret > future_dd)
-      ++wins;
+      wins++;
   }
 
-  return {r0, {count, sum_ret, sum_dd, wins}};
+  return {r0, {count, sum_ret, sum_dd, wins, entry}};
 }
 
 template std::pair<ReasonType, SignalStats>  //

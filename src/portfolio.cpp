@@ -75,6 +75,14 @@ Portfolio::Portfolio(Config config) noexcept
     std::jthread([&, priority]() {
       try {
         auto candles = time_series(symbol);
+        if (candles.empty()) {
+          spdlog::error("[init] no candles fetched for {}", symbol.c_str());
+
+          sem.release();
+          done.count_down();
+          return;
+        }
+
         auto position = positions.get_position(symbol);
         auto [add, reason] = filter(candles, update_interval);
 
@@ -119,7 +127,7 @@ Portfolio::Portfolio(Config config) noexcept
 }
 
 void Portfolio::add_candle() {
-  spdlog::info("[add_candle] at {}", std::format("{}", now_ny_time()).c_str());
+  spdlog::info("[add] at {}", std::format("{}", now_ny_time()).c_str());
 
   std::counting_semaphore<max_concurrency> sem(
       std::thread::hardware_concurrency() / 2);
@@ -130,11 +138,19 @@ void Portfolio::add_candle() {
   for (auto& [symbol, ticker] : tickers) {
     sem.acquire();
     std::jthread([&]() {
-      spdlog::trace("[add_candle] start {}", symbol.c_str());
+      spdlog::trace("[add] start {}", symbol.c_str());
       try {
         Candle candle = real_time(symbol);
-        spdlog::trace("[add_candle] {}: {}", symbol.c_str(),
-                      to_str(candle).c_str());
+
+        if (candle.time() == LocalTimePoint{}) {
+          spdlog::error("[add] invalid candle {}: {}", symbol.c_str(),
+                        to_str(candle).c_str());
+          sem.release();
+          done.count_down();
+          return;
+        }
+
+        spdlog::trace("[add] {}: {}", symbol.c_str(), to_str(candle).c_str());
 
         {
           auto _ = writer_lock();
@@ -144,9 +160,9 @@ void Portfolio::add_candle() {
 
         write_plot_data(symbol);
 
-        spdlog::trace("[add_candle] end {}", symbol.c_str());
+        spdlog::trace("[add] end {}", symbol.c_str());
       } catch (const std::exception& ex) {
-        spdlog::warn("[add_candle] failed. {}: {}", symbol.c_str(), ex.what());
+        spdlog::warn("[add] failed. {}: {}", symbol.c_str(), ex.what());
       }
 
       sem.release();
@@ -155,7 +171,7 @@ void Portfolio::add_candle() {
   }
 
   done.wait();
-  spdlog::info("[add_candle] took {:.2f}ms", timer.diff_ms());
+  spdlog::info("[add] took {:.2f}ms", timer.diff_ms());
 
   if (!tickers.empty())
     _last_updated = tickers.begin()->second.metrics.last_updated();

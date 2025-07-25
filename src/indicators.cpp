@@ -163,27 +163,17 @@ inline double true_range(double prev_close, const Candle& c) {
 
 ATR::ATR(const std::vector<Candle>& candles, int period) noexcept
     : values(candles.size()), period(period) {
-  if (candles.size() < static_cast<size_t>(period + 1))
-    return;
-
-  std::vector<double> tr(period);
+  double total_tr = 0;
   for (int i = 1; i <= period; ++i) {
-    double prev_close = candles[i - 1].close;
-    tr[i - 1] = true_range(prev_close, candles[i]);
+    total_tr += true_range(candles[i - 1].close, candles[i]);
+    values[i] = total_tr / i;
   }
-
-  double atr = std::accumulate(tr.begin(), tr.end(), 0.0) / period;
-  values[period] = atr;
-
-  // Fill first `period` entries as NaN or 0.0 (undefined ATR)
-  for (int i = 0; i < period; ++i)
-    values[i] = std::numeric_limits<double>::quiet_NaN();
+  values[0] = 0;
 
   for (size_t i = period + 1; i < candles.size(); ++i) {
     double prev_atr = values[i - 1];
     double tr = true_range(candles[i - 1].close, candles[i]);
-    atr = (prev_atr * (period - 1) + tr) / period;
-    values[i] = atr;
+    values[i] = (prev_atr * (period - 1) + tr) / period;
   }
 
   prev_close = candles.back().close;
@@ -225,13 +215,14 @@ void Indicators::add(const Candle& candle) noexcept {
 
 void Indicators::pop_back() noexcept {
   candles.pop_back();
+  auto close = candles.back().close;
 
   ema9.pop_back();
   ema21.pop_back();
   ema50.pop_back();
   rsi.pop_back();
   macd.pop_back();
-  atr.pop_back();
+  atr.pop_back(close);
 
   trends = Trends{*this};
 }
@@ -391,21 +382,24 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
   auto& candles = ind.candles;
   auto& ema21 = ind.ema21.values;
 
-  double price = candles.back().price();
-  double atr = ind.atr.values.back();
-  double entry_price = pos->px;
-  double gain = price - entry_price;
+  auto price = candles.back().price();
+  auto atr = ind.atr.values.back();
+  auto entry_price = pos->px;
+  auto gain = price - entry_price;
 
   is_trailing = (gain > atr);  // trailing kicks in after ~1R move
 
+  auto hard_stop = pos->max_price_seen * (1.0 - 0.02);
+
   // Initial Stop
   if (!is_trailing) {
-    constexpr size_t N = 10;
+    constexpr size_t N = 30;
     auto n = std::min(N, candles.size());
 
     swing_low = std::numeric_limits<double>::max();
     for (size_t i = candles.size() - n; i < candles.size(); ++i)
       swing_low = std::min(swing_low, candles[i].low);
+    swing_low *= 0.998;
 
     auto buffer = 0.015 * price;
     ema_stop = ema21.back() - buffer;
@@ -413,7 +407,7 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
     auto best = std::min(swing_low, ema_stop) * 0.999;
     atr_stop = entry_price - 2.0 * atr;
 
-    final_stop = std::max(best, atr_stop);
+    final_stop = std::min(std::max(best, atr_stop), hard_stop);
     stop_pct = (entry_price - final_stop) / entry_price;
   }
 
@@ -421,18 +415,22 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
   else {
     auto max_price = pos->max_price_seen;
 
-    atr_stop = max_price - 1.5 * atr;
+    atr_stop = max_price - 2.0 * atr;
 
-    constexpr size_t N = 8;
+    constexpr size_t N = 30;
     auto n = std::min(N, candles.size());
 
     swing_low = std::numeric_limits<double>::max();
     for (size_t i = candles.size() - n; i < candles.size(); ++i)
       swing_low = std::min(swing_low, candles[i].low);
+    swing_low *= 0.998;
 
-    swing_low *= 0.998;  // Slack below recent lows
-
-    final_stop = std::max(swing_low, atr_stop);
+    final_stop = std::min(std::max(swing_low, atr_stop), hard_stop);
     stop_pct = (price - final_stop) / price;
   }
+
+  spdlog::info(
+      std::format("price={:.2f} entry={:.2f} atr={:.2f} atr_stop={:.2f}\n",
+                  price, entry_price, atr, atr_stop)
+          .c_str());
 }

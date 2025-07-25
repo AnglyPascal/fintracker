@@ -14,7 +14,7 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
     {ReasonType::RsiCross50,  //
      {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤯50"}},
     {ReasonType::PullbackBounce,  //
-     {Severity::Urgent, Source::Price, SignalClass::Entry, "pullback"}},
+     {Severity::Urgent, Source::Price, SignalClass::Entry, "bounce"}},
     {ReasonType::MacdHistogramCross,  //
      {Severity::Medium, Source::MACD, SignalClass::Entry, "macd⤯"}},
     // Exit:
@@ -38,6 +38,8 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
      {Severity::Low, Source::RSI, SignalClass::Entry, "rsi↗50"}},
     {HintType::MacdRising,  //
      {Severity::Medium, Source::MACD, SignalClass::Entry, "macd↗"}},
+    {HintType::Pullback,  //
+     {Severity::Medium, Source::Price, SignalClass::Entry, "pullback"}},
     // Exit
     {HintType::Ema9DivergeEma21,  //
      {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↘21"}},
@@ -274,6 +276,12 @@ inline Hint macd_histogram_rising_hint(const Metrics& m, int idx) {
   return HintType::None;
 }
 
+inline Hint price_pullback_hint(const Metrics& m, int idx) {
+  if (m.price(idx - 1) > m.ema21(idx - 1) && m.price(idx) < m.ema21(idx))
+    return HintType::Pullback;
+  return HintType::None;
+}
+
 // Exit Hints
 
 inline Hint ema_diverging_hint(const Metrics& m, int idx) {
@@ -317,12 +325,11 @@ inline Hint ema_flattens_hint(const Metrics& m, int idx) {
 inline Hint stop_proximity_hint(const Metrics& m, int) {
   auto price = m.last_price();
   auto dist = price - m.stop_loss.final_stop;
-  auto dist_pct = dist / price;
 
   if (dist < 0)
     return HintType::StopInATR;
 
-  if (dist_pct < 0.02)
+  if (dist < m.atr(-1) * 0.75)
     return HintType::StopProximity;
 
   if (dist < 1.0 * m.stop_loss.atr_stop - m.stop_loss.final_stop)
@@ -336,6 +343,7 @@ inline constexpr hint_f hint_funcs[] = {
     ema_converging_hint,
     rsi_approaching_50_hint,
     macd_histogram_rising_hint,
+    price_pullback_hint,
     // Exit
     ema_diverging_hint,
     rsi_falling_from_overbought_hint,
@@ -511,7 +519,7 @@ inline Rating gen_rating(double entry_w,
   bool exit_hints_block_watchlist =
       std::any_of(hints.begin(), hints.end(), [](auto& h) {
         return h.cls() == SignalClass::Exit &&
-               (h.type == HintType::StopProximity ||
+               (h.type == HintType::StopInATR ||
                 h.severity() == Severity::Urgent);
       });
 
