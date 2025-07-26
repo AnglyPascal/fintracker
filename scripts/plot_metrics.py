@@ -243,7 +243,7 @@ def plot(symbol: str) -> None:
                     y=fdf["value"],
                     name=f"{lbl} fit {i}",
                     line=ls(NORD["white"], dash="dash"),
-                    visible=(i == 0),
+                    visible=True if i == 0 else "legendonly",
                 ),
                 row=r_idx,
                 col=1,

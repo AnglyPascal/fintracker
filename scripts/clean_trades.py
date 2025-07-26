@@ -30,6 +30,7 @@ def process_file(filepath):
         df.rename(
             columns={
                 "No. of shares": "Qty",
+                "Quantity": "Qty",
                 "Price / share": "Price",
                 "Total": "Total",
             },
