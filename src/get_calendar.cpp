@@ -54,11 +54,12 @@ std::vector<Event> fetch_nasdaq_events(const std::string& event_type,
                   "EPS estimate: " + item.value("epsForecast", "")});
       }
     } else if (event_type == "dividends") {
-      auto dividends = data["rows"];
+      auto dividends = data["calendar"]["rows"];
       for (auto& item : dividends) {
         events.push_back(
             Event{"Dividends", item.value("symbol", ""), date,
-                  "Dividend rate: " + item.value("dividend_Rate", "")});
+                  "Dividend rate: " +
+                      std::format("{:.2f}", item.value("dividend_Rate", 0.0))});
       }
     } else if (event_type == "splits") {
       auto splits = data["rows"];
