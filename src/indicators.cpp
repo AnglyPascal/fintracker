@@ -317,7 +317,8 @@ auto interval_start(auto end) {
   return end;
 }
 
-void Metrics::add(const Candle& candle, const Position* position) noexcept {
+
+bool Metrics::add(const Candle& candle, const Position* position) noexcept {
   candles.push_back(candle);
 
   auto add_to_ind = [&](auto& ind) {
@@ -327,8 +328,7 @@ void Metrics::add(const Candle& candle, const Position* position) noexcept {
     if (end - start != 1)
       ind.pop_back();
 
-    auto new_candle = combine(start, end);
-    ind.add(new_candle);
+    ind.add(combine(start, end));
   };
 
   add_to_ind(ind_1h);
@@ -339,6 +339,8 @@ void Metrics::add(const Candle& candle, const Position* position) noexcept {
         std::max(position->max_price_seen, candle.price());
 
   stop_loss = StopLoss{ind_1h, position};
+
+  return last_candle_in_hour(candle.time());
 }
 
 Candle Metrics::pop_back() noexcept {

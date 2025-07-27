@@ -45,3 +45,6 @@ struct Timer {
         .count();
   }
 };
+
+bool first_candle_in_hour(LocalTimePoint tp);
+bool last_candle_in_hour(LocalTimePoint tp);

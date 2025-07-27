@@ -25,7 +25,10 @@ Ticker::Ticker(const std::string& symbol,
       long_term_trend{long_term_trend}  //
 {
   get_stats();
-  signal = gen_signal();
+  signal = gen_signal(-1);
+  for (int i = -1 - (int)SignalMemory::MEMORY_LENGTH; i < -1; i++)
+    memory.add(gen_signal(i));
+  spdlog::info("[memory] {}: mem score = {}", symbol.c_str(), memory.score());
 }
 
 inline std::vector<SymbolInfo> read_symbols() {
@@ -155,7 +158,13 @@ void Portfolio::add_candle() {
         {
           auto _ = writer_lock();
           ticker.metrics.add(candle, positions.get_position(symbol));
+
+          if (first_candle_in_hour(candle.time()))
+            ticker.memory.add(ticker.signal);
+
           ticker.signal = ticker.gen_signal();
+          spdlog::info("[memory] {}: mem score = {}", symbol.c_str(),
+                       ticker.memory.score());
         }
 
         write_plot_data(symbol);
@@ -188,6 +197,7 @@ void Portfolio::add_candle_sync() {
     {
       auto _ = writer_lock();
       ticker.metrics.add(candle, positions.get_position(symbol));
+      ticker.memory.add(ticker.signal);
       ticker.signal = ticker.gen_signal();
     }
     write_plot_data(symbol);
@@ -211,6 +221,7 @@ void Portfolio::rollback() {
     for (auto& [symbol, ticker] : tickers) {
       auto candle = ticker.metrics.pop_back();
       rp.rollback(symbol, candle);
+      ticker.memory.remove();
       ticker.signal = ticker.gen_signal();
       write_plot_data(symbol);
     }
@@ -313,4 +324,3 @@ void Portfolio::run_replay() {
 
   std::cout << "exit" << std::endl;
 }
-

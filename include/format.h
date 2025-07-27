@@ -53,8 +53,6 @@ enum class FormatTarget {
   Alert,
   Console,
   HTML,
-  SignalEntry,
-  SignalExit,
 };
 
 template <FormatTarget target, typename T>

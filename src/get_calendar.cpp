@@ -97,31 +97,54 @@ inline std::vector<SymbolInfo> read_symbols() {
   return symbols;
 }
 
+constexpr std::string_view html_template = R"(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{
+      background-color: #17171c;
+      color: white;
+      font-family: monospace;
+    }}
+    table {{
+      border-collapse: collapse;
+      width: 100%;
+    }}
+    th, td {{
+      border: 1px solid #ccc;
+      padding: 6px;
+      text-align: left;
+    }}
+    th {{
+      background-color: #2a2a31;
+    }}
+  </style>
+</head>
+<body>
+  <h2>Upcoming Events</h2>
+  <table>
+    <tr><th>Date</th><th>Symbol</th><th>Type</th><th>Info</th></tr>
+    {}
+  </table>
+</body>
+</html>
+)";
+
 std::string to_html(const std::vector<Event>& input_events) {
   std::vector<Event> events = input_events;
   std::sort(events.begin(), events.end(),
             [](const Event& a, const Event& b) { return a.date < b.date; });
 
-  std::ostringstream html;
-  html << "<!DOCTYPE html><html><head><meta charset='utf-8'>"
-       << "<style>"
-       << "table { border-collapse: collapse; width: 100%; }"
-       << "th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }"
-       << "th { background-color: #f2f2f2; }"
-       << "</style></head><body>"
-       << "<h2>Upcoming Events</h2>"
-       << "<table><tr><th>Date</th><th>Symbol</th><th>Type</th><th>Info</th></"
-          "tr>";
-
+  std::string rows;
   for (const auto& ev : events) {
-    std::string row =
+    rows +=
         std::format("<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
                     ev.date, ev.symbol, ev.type, ev.info);
-    html << row;
   }
 
-  html << "</table></body></html>";
-  return html.str();
+  return std::format(html_template, rows);
 }
 
 int main() {

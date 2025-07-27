@@ -1,14 +1,3 @@
-function toggleColumn(colIndex) {
-  const th = document.querySelector(`th:nth-child(${colIndex})`);
-  const tds = document.querySelectorAll(`td:nth-child(${colIndex})`);
-
-  const isCollapsed = th.classList.toggle("collapsed");
-  tds.forEach(td => {
-    if (isCollapsed) td.classList.add("collapsed");
-    else td.classList.remove("collapsed");
-  });
-}
-
 function toggleSignalDetails(row, detailRowId) {
   const detailRow = document.getElementById(detailRowId);
   if (!detailRow) return;
@@ -26,7 +15,7 @@ function toggleSignal(button) {
     row.style.display = isActive ? '' : 'none';
 
     // Hide detail row if it's visible
-    const detailRow = 
+    const detailRow =
       document.getElementById(`${row.id.replace('row-', '')}-details`);
     if (detailRow && !isActive) detailRow.style.display = 'none';
   });

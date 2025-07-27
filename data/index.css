@@ -5,6 +5,7 @@
   --row-gap: 0.4em;
 
   --color-bg: #17171c;
+  --color-alt-bg: #23232a;
   --color-fg: #eceff4;
   --color-border: #4c566a;
   --color-header: #3b4252;
@@ -123,16 +124,6 @@ div.eventful {
   justify-content: space-between;
 }
 
-.toggle-btn::after {
-  content: "▼";
-  font-size: 0.9em;
-  color: var(--color-border);
-}
-
-th.collapsed .toggle-btn::after {
-  content: "▶";
-}
-
 .signal-details {
   padding-top: 1em;
   padding-left: 1em;
@@ -182,6 +173,30 @@ th.collapsed .toggle-btn::after {
   color: var(--color-link);
 }
 
+table.signal {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.signal td {
+  border: 1px solid #ccc;
+  width: 50%;
+  padding: 8px;
+  text-align: left;
+  border: none;
+  border-right: 1px solid var(--color-border);
+}
+
+.signal td:last-child {
+  border-right: none;
+}
+
+.curr_signal {
+  border: 1px solid var(--color-border) !important;
+}
+
 /* Mobile Support */
 @media (max-width: 768px) {
   body {
@@ -192,6 +207,11 @@ th.collapsed .toggle-btn::after {
     display: block;
     width: 100%;
     padding-right: 1em;
+  }
+
+  td.curr_signal,
+  td.old_signal {
+    justify-content: left;
   }
 
   thead {
@@ -233,8 +253,17 @@ th.collapsed .toggle-btn::after {
     color: var(--color-fg);
   }
   
-  .signal-details {
-    padding: 20px; 
+  .signal td {
+    border: 1px solid var(--color-border);
+    width: 100%;
+    padding: 8px;
+    text-align: left;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .signal td:last-child {
+    border-bottom: none;
   }
 
   tr.signal-entry,

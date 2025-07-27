@@ -54,18 +54,24 @@ inline constexpr std::string_view index_row_template = R"(
   </tr>
 )";
 
+inline constexpr std::string_view index_signal_td_template = R"(
+  <td class="{}">
+    {}
+  </td>
+)";
+
 inline constexpr std::string_view index_signal_template = R"(
   <tr id="{}-details" 
       class="signal-details-row" 
       style="display:none">
-    <td colspan="4">
-      <div class="signal-details">
-        {}
-      </div>
-    </td>
-    <td colspan="4">
-      <div class="signal-details">
-        {}
+    <td colspan="8">
+      <div>
+        <table class="signal">
+          <tr class="signal-details-tr">
+            {}
+            {}
+          </tr>
+        </table>
       </div>
     </td>
   </tr>

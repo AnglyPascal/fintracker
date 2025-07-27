@@ -322,14 +322,14 @@ inline Hint ema_flattens_hint(const Metrics& m, int idx) {
   return HintType::None;
 }
 
-inline Hint stop_proximity_hint(const Metrics& m, int) {
+inline Hint stop_proximity_hint(const Metrics& m, int idx) {
   auto price = m.last_price();
   auto dist = price - m.stop_loss.final_stop;
 
   if (dist < 0)
     return HintType::StopInATR;
 
-  if (dist < m.atr(-1) * 0.75)
+  if (dist < m.atr(idx) * 0.75)
     return HintType::StopProximity;
 
   if (dist < 1.0 * m.stop_loss.atr_stop - m.stop_loss.final_stop)
@@ -500,9 +500,10 @@ inline constexpr double WATCHLIST_THRESHOLD = ENTRY_THRESHOLD;  // for symmetry
 
 inline Rating gen_rating(double entry_w,
                          double exit_w,
+                         double /* past_score */,
                          bool has_position,
-                         const std::vector<Hint>& hints,
-                         bool has_reason) {
+                         bool has_reason,
+                         auto& hints) {
   // 1. Strong Entry
   if (entry_w >= ENTRY_THRESHOLD && exit_w <= WATCHLIST_THRESHOLD && has_reason)
     return Rating::Entry;
@@ -556,19 +557,24 @@ inline constexpr double weight(double importance, double severity) {
   return importance * severity;
 }
 
-inline double signal_score(double entry_w, double exit_w, bool has_position) {
+inline double signal_score(double entry_w,
+                           double exit_w,
+                           double past_score,
+                           bool has_position) {
   double raw = has_position ? entry_w - 1.5 * exit_w : 1.2 * entry_w - exit_w;
-  return std::tanh(raw / 3.0);  // squashes to [-1,1]
+  double curr_score = std::tanh((raw) / 3.0);  // squashes to [-1,1]
+  constexpr double alpha = 0.7;
+  return curr_score * 0.7 + past_score * (1 - alpha);
 }
 
-Signal Ticker::gen_signal() const {
+Signal Ticker::gen_signal(int idx) const {
   Signal s;
   double entry_w = 0.0, exit_w = 0.0;
   auto& m = metrics;
 
   // Hard signals
   for (auto f : reason_funcs) {
-    auto r = f(m, -1);
+    auto r = f(m, idx);
     if (r.type != ReasonType::None && r.cls() != SignalClass::None) {
       auto importance = 0.0;
       if (auto it = reason_stats.find(r.type); it != reason_stats.end())
@@ -590,7 +596,7 @@ Signal Ticker::gen_signal() const {
 
   // Hints
   for (auto f : hint_funcs) {
-    auto h = f(m, -1);
+    auto h = f(m, idx);
     if (h.type != HintType::None && h.cls() != SignalClass::None) {
       if (h.severity() < Severity::High)
         continue;
@@ -629,9 +635,10 @@ Signal Ticker::gen_signal() const {
   sort(s.reasons);
   sort(s.hints);
 
-  s.type =
-      gen_rating(entry_w, exit_w, m.has_position(), s.hints, s.has_reasons());
-  s.score = signal_score(entry_w, exit_w, m.has_position());
+  auto past_score = memory.score();
+  s.type = gen_rating(entry_w, exit_w, past_score, m.has_position(),
+                      s.has_reasons(), s.hints);
+  s.score = signal_score(entry_w, exit_w, past_score, m.has_position());
 
   if (s.type != Rating::Entry)
     s.confirmations.clear();
@@ -643,3 +650,15 @@ Signal Ticker::gen_signal() const {
   return s;
 }
 
+double SignalMemory::score() const {
+  double scr = 0.0;
+  double weight = 0.0;
+
+  double decay = 0.5;
+  for (auto& sig : past) {
+    scr = scr * decay + sig.score;
+    weight = weight * decay + decay;
+  }
+
+  return weight > 0.0 ? scr / weight : 0.0;
+}

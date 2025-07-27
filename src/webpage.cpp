@@ -136,42 +136,38 @@ std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
 
 inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
   constexpr std::string_view div = R"(
-  <div><b>{}</b>
+  <li><b>{}</b>
     <ul>
       {}
     </ul>
-  </div>
+  </li>
   )";
 
   std::string body = "";
   for (auto& r : lst)
     if (r.cls() == cls) {
-      auto colored = [cls](auto gain, auto loss, auto win, auto imp) {
+      auto colored = [cls](auto gain, auto loss, auto win) {
         constexpr std::string_view red =
-            "<span style='color: #bf616a;'>{:.2f}</span>";
+            "<span style='color: var(--color-red);'>{:.2f}</span>";
         constexpr std::string_view green =
-            "<span style='color: #a3be8c;'>{:.2f}</span>";
-        constexpr std::string_view blue =
-            "<span style='color: #5e81ac;'>{:.2f}</span>";
+            "<span style='color: var(--color-green);'>{:.2f}</span>";
 
         auto g_str = std::format(green, gain);
         auto l_str = std::format(red, loss);
-        auto w_str = std::format("<b>{:.2f}</b>", win);
-        auto i_str = std::format(blue, imp);
 
         if (cls == SignalClass::Entry)
-          return std::format("<b>{}</b> / {}, {}, {}", g_str, l_str, w_str,
-                             i_str);
+          return std::format("<b>{}</b> / {}, <b>{:.2f}</b>", g_str, l_str,
+                             win);
         else
-          return std::format("{} / <b>{}</b>, {}, {}", g_str, l_str, w_str,
-                             i_str);
+          return std::format("{} / <b>{}</b>, <b>{:.2f}</b>", g_str, l_str,
+                             1 - win);
       };
 
       std::string stat_str = "";
       auto it = stats.find(r.type);
       if (it != stats.end()) {
-        auto [_, ret, dd, w, imp] = it->second;
-        stat_str = ": " + colored(ret, dd, w, imp);
+        auto [_, ret, dd, w, _] = it->second;
+        stat_str = ": " + colored(ret, dd, w);
       }
       body += std::format("<li>{}{}</li>", to_str(r), stat_str);
     }
@@ -183,21 +179,17 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
 }
 
 template <>
-std::string to_str<FormatTarget::SignalExit>(const Signal& s,
-                                             const Ticker& ticker) {
-  return reason_list("Exit Reasons", s.reasons, SignalClass::Exit,
-                     ticker.reason_stats) +
-         reason_list("Exit Hints", s.hints, SignalClass::Exit,
-                     ticker.hint_stats);
-}
-
-template <>
-std::string to_str<FormatTarget::SignalEntry>(const Signal& s,
-                                              const Ticker& ticker) {
-  return reason_list("Entry Reasons", s.reasons, SignalClass::Entry,
-                     ticker.reason_stats) +
-         reason_list("Entry Hints", s.hints, SignalClass::Entry,
-                     ticker.hint_stats);
+std::string to_str<FormatTarget::HTML>(const Signal& s, const Ticker& ticker) {
+  auto a = reason_list("Entry Reasons", s.reasons, SignalClass::Entry,  //
+                       ticker.reason_stats);
+  auto b = reason_list("Entry Hints", s.hints, SignalClass::Entry,  //
+                       ticker.hint_stats);
+  auto c = reason_list("Exit Reasons", s.reasons, SignalClass::Exit,  //
+                       ticker.reason_stats);
+  auto d = reason_list("Exit Hints", s.hints, SignalClass::Exit,  //
+                       ticker.hint_stats);
+  auto e = a + b + c + d;
+  return std::format("<div><ul>{}</ul></div>", e);
 }
 
 template <>
@@ -278,10 +270,9 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
     auto pos_str = to_str<FormatTarget::HTML>(m.position, m.last_price());
     auto stop_loss_str =
-        m.has_position()
-            ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
-                          to_str<FormatTarget::HTML>(m.stop_loss))
-            : "";
+        m.has_position() ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
+                                       to_str<FormatTarget::HTML>(m.stop_loss))
+                         : "";
 
     auto event = p.calendar.next_event(symbol);
     auto event_str = std::format(index_event_template, symbol, to_str(event));
@@ -297,10 +288,24 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
         pos_str, stop_loss_str                //
     );
 
-    body += std::format(index_signal_template,  //
-                        symbol,                 //
-                        to_str<FormatTarget::SignalEntry>(sig, ticker),
-                        to_str<FormatTarget::SignalExit>(sig, ticker));
+    auto sig_str =
+        std::format(index_signal_td_template,  //
+                    "curr_signal", to_str<FormatTarget::HTML>(sig, ticker));
+
+    std::string mem_str = "";
+    int n = 1;
+    auto& past_sigs = ticker.memory.past;
+    for (auto it = past_sigs.rbegin(); it != past_sigs.rend(); it++) {
+      auto s =
+          std::format(index_signal_td_template,  //
+                      "old_signal", to_str<FormatTarget::HTML>(*it, ticker));
+
+      mem_str += s;
+      if (n++ == 3)
+        break;
+    }
+
+    body += std::format(index_signal_template, symbol, sig_str, mem_str);
   }
 
   auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated());

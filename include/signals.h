@@ -2,6 +2,7 @@
 
 #include "times.h"
 
+#include <deque>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -151,3 +152,19 @@ struct Signal {
   bool is_interesting() const;
 };
 
+struct SignalMemory {
+  std::deque<Signal> past;
+  static constexpr size_t MEMORY_LENGTH = 8;
+
+  void add(const Signal& sig) {
+    past.push_back(sig);
+    if (past.size() > MEMORY_LENGTH)
+      past.pop_front();
+  }
+
+  void remove() {
+    past.pop_back();
+  }
+
+  double score() const;
+};

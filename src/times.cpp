@@ -111,3 +111,15 @@ std::pair<bool, minutes> market_status() {
   // Market already closed today
   return {false, minutes{-1}};
 }
+
+bool last_candle_in_hour(LocalTimePoint tp) {
+  auto start_of_day = floor<days>(now_ny_time()) + hours{9} + minutes{30};
+  auto diff = floor<minutes>(tp - start_of_day);
+  return diff % hours{1} == minutes{45};
+}
+
+bool first_candle_in_hour(LocalTimePoint tp) {
+  auto start_of_day = floor<days>(now_ny_time()) + hours{9} + minutes{30};
+  auto diff = floor<minutes>(tp - start_of_day);
+  return diff % hours{1} == minutes{0};
+}

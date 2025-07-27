@@ -23,7 +23,10 @@ struct Ticker {
   TimePoint last_polled;
 
   Metrics metrics;
-  Signal signal = {};
+
+  Signal signal;
+  SignalMemory memory;
+
   std::string long_term_trend;
 
   std::unordered_map<ReasonType, SignalStats> reason_stats;
@@ -37,7 +40,7 @@ struct Ticker {
          const std::string& long_term_trend) noexcept;
 
   void write_plot_data() const;
-  Signal gen_signal() const;
+  Signal gen_signal(int idx = -1) const;
 
  private:
   void get_stats();
