@@ -26,11 +26,12 @@ struct Ticker {
 
   Signal signal;
   SignalMemory memory;
+  Forecast forecast;
 
   std::string long_term_trend;
 
-  std::unordered_map<ReasonType, SignalStats> reason_stats;
-  std::unordered_map<HintType, SignalStats> hint_stats;
+  std::map<ReasonType, SignalStats> reason_stats;
+  std::map<HintType, SignalStats> hint_stats;
 
   Ticker(const std::string& symbol,
          int priority,
@@ -41,6 +42,7 @@ struct Ticker {
 
   void write_plot_data() const;
   Signal gen_signal(int idx = -1) const;
+  Forecast gen_forecast() const;
 
  private:
   void get_stats();

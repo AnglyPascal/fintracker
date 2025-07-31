@@ -54,8 +54,11 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
       auto fname = portfolio.config.replay_en ? "page/index_replay.html"
                                               : "page/index.html";
       tg.send_doc(fname, "portfolio.html", "");
-    } else
-      tg.send(to_str<FormatTarget::Telegram>(TEXT, str));
+    } else {
+      tg.send(to_str<FormatTarget::Telegram>(ELIXIR, str));
+      auto fname = std::format("{}.html", symbol);
+      tg.send_doc("page/" + fname, fname, "");
+    }
   }
 
   if constexpr (command == Commands::TRADES) {

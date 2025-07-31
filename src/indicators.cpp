@@ -317,7 +317,6 @@ auto interval_start(auto end) {
   return end;
 }
 
-
 bool Metrics::add(const Candle& candle, const Position* position) noexcept {
   candles.push_back(candle);
 
@@ -431,8 +430,6 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
     stop_pct = (price - final_stop) / price;
   }
 
-  spdlog::info(
-      std::format("price={:.2f} entry={:.2f} atr={:.2f} atr_stop={:.2f}\n",
-                  price, entry_price, atr, atr_stop)
-          .c_str());
+  spdlog::trace("[stop] price={:.2f} entry={:.2f} atr={:.2f} atr_stop={:.2f}\n",
+                price, entry_price, atr, atr_stop);
 }

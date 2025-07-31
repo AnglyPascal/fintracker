@@ -25,10 +25,19 @@ Ticker::Ticker(const std::string& symbol,
       long_term_trend{long_term_trend}  //
 {
   get_stats();
-  signal = gen_signal(-1);
+
+  signal = gen_signal();
+  forecast = gen_forecast();
+
   for (int i = -1 - (int)SignalMemory::MEMORY_LENGTH; i < -1; i++)
     memory.add(gen_signal(i));
-  spdlog::info("[memory] {}: mem score = {}", symbol.c_str(), memory.score());
+
+  spdlog::trace("[memory] {}: mem score = {:.2f}", symbol.c_str(),
+                memory.score());
+}
+
+Forecast Ticker::gen_forecast() const {
+  return Forecast(signal, reason_stats, hint_stats);
 }
 
 inline std::vector<SymbolInfo> read_symbols() {
@@ -163,8 +172,10 @@ void Portfolio::add_candle() {
             ticker.memory.add(ticker.signal);
 
           ticker.signal = ticker.gen_signal();
-          spdlog::info("[memory] {}: mem score = {}", symbol.c_str(),
-                       ticker.memory.score());
+          ticker.forecast = ticker.gen_forecast();
+
+          spdlog::trace("[memory] {}: mem score = {:.2f}", symbol.c_str(),
+                        ticker.memory.score());
         }
 
         write_plot_data(symbol);
@@ -197,8 +208,12 @@ void Portfolio::add_candle_sync() {
     {
       auto _ = writer_lock();
       ticker.metrics.add(candle, positions.get_position(symbol));
-      ticker.memory.add(ticker.signal);
+
+      if (first_candle_in_hour(candle.time()))
+        ticker.memory.add(ticker.signal);
+
       ticker.signal = ticker.gen_signal();
+      ticker.forecast = ticker.gen_forecast();
     }
     write_plot_data(symbol);
   }
@@ -221,8 +236,13 @@ void Portfolio::rollback() {
     for (auto& [symbol, ticker] : tickers) {
       auto candle = ticker.metrics.pop_back();
       rp.rollback(symbol, candle);
-      ticker.memory.remove();
+
+      if (first_candle_in_hour(candle.time()))
+        ticker.memory.remove();
+
       ticker.signal = ticker.gen_signal();
+      ticker.forecast = ticker.gen_forecast();
+
       write_plot_data(symbol);
     }
   }

@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from typing import List, Tuple
 import plotly.io as pio
+from pathlib import Path
+from bs4 import BeautifulSoup
 import plotly_themes
 
 import zmq
@@ -253,6 +255,7 @@ def plot(symbol: str) -> None:
     fig.update_layout(
         height=900,
         width=1500,
+        autosize=False,
         showlegend=True,
         title_text=f"Technical Indicators for {symbol}",
         margin=dict(t=80, b=40),
@@ -278,7 +281,49 @@ def plot(symbol: str) -> None:
     set_ylim(data["macd"], 4)
 
     # Save as HTML
-    fig.write_html(f"page/{symbol}.html")
+    fig.write_html(f"page/{symbol}_plot.html")
+
+
+def merge_standalone_htmls(symbol: str):
+    details_path = Path(f"page/{symbol}_details.html")
+    plot_path = Path(f"page/{symbol}_plot.html")
+    output_path = Path(f"page/{symbol}.html")
+
+    details_html = details_path.read_text()
+    plot_html = plot_path.read_text()
+
+    # Parse both
+    details_soup = BeautifulSoup(details_html, "html.parser")
+    plot_soup = BeautifulSoup(plot_html, "html.parser")
+
+    # Append all <script> and <div> from plotly <body> into details <body>
+    details_body = details_soup.body
+    plot_body = plot_soup.body
+
+    if details_body is None or plot_body is None:
+        return
+
+    plot_div = plot_body.find("div", recursive=False)
+
+    plot_div['class'] = plot_div.get('class', []) + ['plotly-container']
+
+    # for tag in plot_body.find_all(recursive=False):
+    details_body.append(plot_div)
+
+    # Add any required <script> or <style> from plotly <head>
+    plot_head = plot_soup.head
+    details_head = details_soup.head
+
+    if plot_head is None or details_head is None:
+        return
+
+    for tag in plot_head.find_all(["script", "style"], recursive=False):
+        details_head.append(tag)
+
+    # Write final HTML
+    output_path.write_text(str(details_soup))
+
+    # output_path.write_text(details_html + plot_html)
 
 
 def main(port):
@@ -293,6 +338,7 @@ def main(port):
         if isinstance(tickers, list) and all(isinstance(t, str) for t in tickers):
             for ticker in tickers:
                 plot(str(ticker))
+                merge_standalone_htmls(str(ticker))
         else:
             print("No tickers received")
 

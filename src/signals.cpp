@@ -53,29 +53,27 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
      {Severity::High, Source::Stop, SignalClass::Exit, "stop⨯"}},
     {HintType::StopInATR,  //
      {Severity::High, Source::Stop, SignalClass::Exit, "stop!"}},
-};
 
-inline const std::unordered_map<TrendType, Meta> trend_meta = {
-    {TrendType::None,  //
-     {Severity::Low, Source::None, SignalClass::None, ""}},
+    // Trends:
+
     // Entry
-    {TrendType::PriceUp,  //
-     {Severity::Medium, Source::EMA, SignalClass::Entry, "price↗"}},
-    {TrendType::Ema21Up,  //
-     {Severity::Medium, Source::RSI, SignalClass::Entry, "ema21↗"}},
-    {TrendType::RsiUp,  //
-     {Severity::Medium, Source::MACD, SignalClass::Entry, "rsi↗"}},
-    {TrendType::RsiUpStrongly,  //
-     {Severity::Medium, Source::EMA, SignalClass::Exit, "rsi⇗"}},
+    {HintType::PriceUp,  //
+     {Severity::Medium, Source::Price, SignalClass::Entry, "price↗"}},
+    {HintType::Ema21Up,  //
+     {Severity::Medium, Source::EMA, SignalClass::Entry, "ema21↗"}},
+    {HintType::RsiUp,  //
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi↗"}},
+    {HintType::RsiUpStrongly,  //
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⇗"}},
     // Exit
-    {TrendType::PriceDown,  //
-     {Severity::Medium, Source::EMA, SignalClass::Exit, "price↘"}},
-    {TrendType::Ema21Down,  //
-     {Severity::Medium, Source::RSI, SignalClass::Exit, "ema21↘"}},
-    {TrendType::RsiDown,  //
-     {Severity::Medium, Source::MACD, SignalClass::Exit, "price↘"}},
-    {TrendType::RsiDownStrongly,  //
-     {Severity::Medium, Source::EMA, SignalClass::Exit, "rsi⇘"}},
+    {HintType::PriceDown,  //
+     {Severity::Medium, Source::Price, SignalClass::Exit, "price↘"}},
+    {HintType::Ema21Down,  //
+     {Severity::Medium, Source::EMA, SignalClass::Exit, "ema21↘"}},
+    {HintType::RsiDown,  //
+     {Severity::Medium, Source::RSI, SignalClass::Exit, "price↘"}},
+    {HintType::RsiDownStrongly,  //
+     {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi⇘"}},
 };
 
 template <>
@@ -89,13 +87,6 @@ template <>
 SignalType<HintType, HintType::None>::SignalType(HintType type) : type{type} {
   auto it = hint_meta.find(type);
   meta = it == hint_meta.end() ? nullptr : &it->second;
-}
-
-template <>
-SignalType<TrendType, TrendType::None>::SignalType(TrendType type)
-    : type{type} {
-  auto it = trend_meta.find(type);
-  meta = it == trend_meta.end() ? nullptr : &it->second;
 }
 
 // Filters
@@ -338,66 +329,55 @@ inline Hint stop_proximity_hint(const Metrics& m, int idx) {
   return HintType::None;
 }
 
+// Trends
+
+inline Hint price_trending(const Metrics& m, int idx) {
+  auto best = m.price_trend(idx);
+
+  if (best.slope() > 0.2 && best.r2 > 0.8)
+    return HintType::PriceUp;
+  if (best.slope() < -0.2 && best.r2 > 0.8)
+    return HintType::PriceDown;
+  return HintType::None;
+}
+
+inline Hint ema21_trending(const Metrics& m, int idx) {
+  auto best = m.ema21_trend(idx);
+  if (best.slope() > 0.15 && best.r2 > 0.8)
+    return HintType::Ema21Up;
+  if (best.slope() < -0.15 && best.r2 > 0.8)
+    return HintType::Ema21Down;
+  return HintType::None;
+}
+
+inline Hint rsi_trending(const Metrics& m, int idx) {
+  auto best = m.rsi_trend(idx);
+  if (best.slope() > 0.3 && best.r2 > 0.85)
+    return HintType::RsiUpStrongly;
+  if (best.slope() > 0.15 && best.r2 > 0.8)
+    return HintType::RsiUp;
+  if (best.slope() < -0.3 && best.r2 > 0.85)
+    return HintType::RsiDownStrongly;
+  if (best.slope() < -0.15 && best.r2 > 0.8)
+    return HintType::RsiDown;
+  return HintType::None;
+}
+
 inline constexpr hint_f hint_funcs[] = {
     // Entry
     ema_converging_hint,
     rsi_approaching_50_hint,
     macd_histogram_rising_hint,
     price_pullback_hint,
+
     // Exit
     ema_diverging_hint,
     rsi_falling_from_overbought_hint,
     macd_histogram_peaking_hint,
     ema_flattens_hint,
     stop_proximity_hint,
-};
 
-// Trends
-
-inline Trend price_trending(const Metrics& m) {
-  auto& top_trends = m.ind_1h.trends.price.top_trends;
-  if (top_trends.empty())
-    return TrendType::None;
-
-  auto& best = top_trends[0];
-  if (best.slope() > 0.2 && best.r2 > 0.8)
-    return TrendType::PriceUp;
-  if (best.slope() < -0.2 && best.r2 > 0.8)
-    return TrendType::PriceDown;
-  return TrendType::None;
-}
-
-inline Trend ema21_trending(const Metrics& m) {
-  auto& top_trends = m.ind_1h.trends.ema21.top_trends;
-  if (top_trends.empty())
-    return TrendType::None;
-
-  auto& best = top_trends[0];
-  if (best.slope() > 0.15 && best.r2 > 0.8)
-    return TrendType::Ema21Up;
-  if (best.slope() < -0.15 && best.r2 > 0.8)
-    return TrendType::Ema21Down;
-  return TrendType::None;
-}
-
-inline Trend rsi_trending(const Metrics& m) {
-  auto& top_trends = m.ind_1h.trends.rsi.top_trends;
-  if (top_trends.empty())
-    return TrendType::None;
-
-  auto& best = top_trends[0];
-  if (best.slope() > 0.3 && best.r2 > 0.85)
-    return TrendType::RsiUpStrongly;
-  if (best.slope() > 0.15 && best.r2 > 0.8)
-    return TrendType::RsiUp;
-  if (best.slope() < -0.3 && best.r2 > 0.85)
-    return TrendType::RsiDownStrongly;
-  if (best.slope() < -0.15 && best.r2 > 0.8)
-    return TrendType::RsiDown;
-  return TrendType::None;
-}
-
-inline constexpr trend_f trend_funcs[] = {
+    // Trends
     price_trending,
     ema21_trending,
     rsi_trending,
@@ -557,6 +537,9 @@ inline constexpr double weight(double importance, double severity) {
   return importance * severity;
 }
 
+template <typename T>
+std::string to_str(const T& t);
+
 inline double signal_score(double entry_w,
                            double exit_w,
                            double past_score,
@@ -576,6 +559,8 @@ Signal Ticker::gen_signal(int idx) const {
   for (auto f : reason_funcs) {
     auto r = f(m, idx);
     if (r.type != ReasonType::None && r.cls() != SignalClass::None) {
+      s.reasons.emplace_back(r);
+
       auto importance = 0.0;
       if (auto it = reason_stats.find(r.type); it != reason_stats.end())
         importance = it->second.importance;
@@ -589,8 +574,6 @@ Signal Ticker::gen_signal(int idx) const {
         exit_w += w;
       else
         entry_w += w;
-
-      s.reasons.emplace_back(std::move(r));
     }
   }
 
@@ -598,6 +581,7 @@ Signal Ticker::gen_signal(int idx) const {
   for (auto f : hint_funcs) {
     auto h = f(m, idx);
     if (h.type != HintType::None && h.cls() != SignalClass::None) {
+      s.hints.emplace_back(h);
       if (h.severity() < Severity::High)
         continue;
 
@@ -615,16 +599,8 @@ Signal Ticker::gen_signal(int idx) const {
         exit_w += w;
       else
         entry_w += w;
-
-      s.hints.emplace_back(std::move(h));
     }
   }
-
-  // Trends
-  for (auto f : trend_funcs)
-    if (auto t = f(m); t.type != TrendType::None) {
-      s.trends.emplace_back(std::move(t));
-    }
 
   auto sort = [](auto& v) {
     std::sort(v.begin(), v.end(), [](auto& lhs, auto& rhs) {
@@ -661,4 +637,62 @@ double SignalMemory::score() const {
   }
 
   return weight > 0.0 ? scr / weight : 0.0;
+}
+
+Forecast::Forecast(
+    const Signal& sig,
+    const std::map<ReasonType, SignalStats>& reason_stats,
+    const std::map<HintType, SignalStats>& hint_stats) {
+  double ret_sum = 0.0, dd_sum = 0.0;
+  double ret_weight = 0.0, dd_weight = 0.0;
+
+  auto process = [&](auto& obj, auto& stats_map) {
+    auto it = stats_map.find(obj.type);
+    if (it == stats_map.end())
+      return;
+
+    const SignalStats& stats = it->second;
+    const bool is_entry = obj.cls() == SignalClass::Entry;
+    const double imp = stats.importance;
+
+    // Forecast return
+    if (is_entry) {
+      // Use importance as-is
+      ret_sum += stats.avg_return * imp;
+      ret_weight += imp;
+    } else {
+      // High importance = bad exit -> suppress expected return
+      // So weight by 1/importance or similar
+      if (imp > 0) {
+        double w = 1.0 / imp;
+        ret_sum += stats.avg_return * w;
+        ret_weight += w;
+      }
+    }
+
+    // Forecast drawdown
+    if (is_entry) {
+      // Low drawdown is good -> low importance -> suppress contribution
+      // So only mildly weight these
+      dd_sum += stats.avg_drawdown * (imp * 0.5);  // or just skip them entirely
+      dd_weight += imp * 0.5;
+    } else {
+      // High drawdown = high importance -> weight directly
+      dd_sum += stats.avg_drawdown * imp;
+      dd_weight += imp;
+    }
+  };
+
+  for (const auto& r : sig.reasons)
+    process(r, reason_stats);
+  for (const auto& h : sig.hints)
+    process(h, hint_stats);
+
+  if (ret_weight > 0.0)
+    expected_return = ret_sum / ret_weight;
+  if (dd_weight > 0.0)
+    expected_drawdown = dd_sum / dd_weight;
+
+  confidence =
+      std::max(ret_weight, dd_weight);  // Or average both if you prefer
 }

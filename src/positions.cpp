@@ -87,13 +87,13 @@ OpenPositions::OpenPositions() noexcept {
     auto [pos, pnl] = net_position(trades);
     if (pos.qty > std::numeric_limits<double>::epsilon() * 8) {
       positions.try_emplace(ticker, pos);
-      spdlog::info("Position {}: {}", ticker.c_str(), to_str(pos).c_str());
+      spdlog::info("[pos] {}: {}", ticker.c_str(), to_str(pos).c_str());
     } else {
       total_pnl += pnl;
-      spdlog::info("PnL {}: {:+.2f}", ticker.c_str(), pnl);
+      spdlog::info("[pnl] {}: {:+.2f}", ticker.c_str(), pnl);
     }
   }
-  spdlog::info("Total PnL: {:+.2f}", total_pnl);
+  spdlog::info("[pnl] Total: {:+.2f}", total_pnl);
 }
 
 double OpenPositions::add_trade(const Trade& trade) {

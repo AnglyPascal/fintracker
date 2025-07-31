@@ -60,6 +60,14 @@ inline constexpr std::string_view index_signal_td_template = R"(
   </td>
 )";
 
+inline constexpr std::string_view index_signal_entry_template = R"(
+<div class="signal-list">
+  <ul>
+    {}
+  </ul>
+</div>
+)";
+
 inline constexpr std::string_view index_signal_template = R"(
   <tr id="{}-details" 
       class="signal-details-row" 
@@ -98,3 +106,4 @@ inline constexpr std::string_view trades_json_dict = R"(
 {}
 ],
 )";
+

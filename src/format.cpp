@@ -63,30 +63,6 @@ std::string to_str(const Position& pos) {
 }
 
 template <>
-std::string to_str(const EMA& ema) {
-  return ema.values.empty() ? "--" : std::format("{:.2f}", ema.values.back());
-}
-
-template <>
-std::string to_str(const RSI& rsi) {
-  return rsi.values.empty() ? "--" : std::format("{:.2f}", rsi.values.back());
-}
-
-template <>
-std::string to_str<FormatTarget::Telegram>(const Metrics& metrics) {
-  auto& ind = metrics.ind_1h;
-
-  auto ema_str = std::format("{}/{}", to_str(ind.ema9), to_str(ind.ema21));
-  auto rsi_str = to_str(ind.rsi);
-  auto [high, pb] = metrics.pullback();
-  auto pb_str = std::format("{:.2f} ({:.2f}%)", high, pb);
-
-  return std::format(
-      "   Px: {:.2f} | EMA 9/21: {}\n   RSI: {} | Pullback: {}\n",
-      metrics.last_price(), ema_str, rsi_str, pb_str);
-}
-
-template <>
 std::string to_str(const std::string& str) {
   return str;
 }
@@ -104,11 +80,6 @@ std::string to_str(const Reason& r) {
 template <>
 std::string to_str(const Hint& h) {
   return h.str();
-}
-
-template <>
-std::string to_str(const Trend& t) {
-  return t.str();
 }
 
 template <>
@@ -136,46 +107,29 @@ std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
   if (!sig.has_reasons() && !sig.has_hints())
     return "";
 
-  std::string result;
-
-  // --- Signal line ---
-  if (sig.has_reasons()) {
-    auto type_str = to_str(sig.type);
-
-    std::string entry_reason, exit_reason;
-
-    for (auto& reason : sig.reasons) {
-      if (reason.cls() == SignalClass::None)
+  auto list = [](auto& lst) {
+    std::string entry, exit;
+    for (auto& l : lst) {
+      if (l.cls() == SignalClass::None)
         continue;
 
-      if (sig.type == Rating::Entry && reason.cls() == SignalClass::Entry)
-        entry_reason += std::format("\n   + {}", to_str(reason));
-      else if (sig.type == Rating::Exit && reason.cls() == SignalClass::Exit)
-        exit_reason += std::format("\n   - {}", to_str(reason));
+      if (l.cls() == SignalClass::Entry)
+        entry += std::format("  + {}\n", to_str(l));
+      else
+        exit += std::format("  - {}\n", to_str(l));
     }
+    return entry + exit;
+  };
 
-    result +=
-        std::format("   Signal: {}\n{}{}", type_str, entry_reason, exit_reason);
-  } else {
-    result += "   Hints: ";
-  }
+  auto reason_str = list(sig.reasons);
+  if (reason_str != "")
+    reason_str = "# Reasons:\n" + reason_str + "\n";
 
-  // --- Hints ---
-  std::string entry_str, exit_str;
+  auto hint_str = list(sig.hints);
+  if (hint_str != "")
+    hint_str = "# Hints:\n" + hint_str + "\n";
 
-  for (auto& hint : sig.hints) {
-    if (hint.cls() == SignalClass::None)
-      continue;
-
-    if (hint.cls() == SignalClass::Entry)
-      entry_str += std::format("\n   + {}", to_str(hint));
-    else
-      exit_str += std::format("\n   - {}", to_str(hint));
-  }
-
-  result += entry_str + exit_str;
-
-  return result + "\n";
+  return std::format("{}{}", reason_str, hint_str);
 }
 
 std::string emoji(Rating type) {
@@ -198,19 +152,26 @@ std::string emoji(Rating type) {
 }
 
 template <>
-std::string to_str<FormatTarget::Telegram>(const StopLoss& sl) {
-  if (sl.final_stop == 0.0)
-    return "";
-  return std::format("   Stop: {:.2f}", sl.final_stop);
-}
-
-template <>
 std::string to_str<FormatTarget::Telegram>(const Position* const& pos,
                                            const double& price) {
   if (pos == nullptr || pos->qty == 0)
     return "";
-  return std::format(" | {}, {:+.2f} ({:+.2f}%)", to_str(*pos), pos->pnl(price),
+  return std::format("# {}, {:+.2f} ({:+.2f}%)", to_str(*pos), pos->pnl(price),
                      pos->pct(price));
+}
+
+template <>
+std::string to_str<FormatTarget::Telegram>(const Metrics& m) {
+  auto stop_line = m.has_position()
+                       ? std::format("Stop: {:.2f}\n", m.stop_loss.final_stop)
+                       : "";
+  auto [high, pb] = m.pullback();
+
+  return std::format(
+      "Px: {:.2f} | EMA9/EMA21: {:.2f}/{:.2f}\n"
+      "RSI: {:.2f} | Recent high: {:.2f} ({:+.2f}%)\n"
+      "{}\n",
+      m.price(-1), m.ema9(-1), m.ema21(-1), m.rsi(-1), high, pb, stop_line);
 }
 
 template <>
@@ -221,19 +182,13 @@ std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
 
   auto pos_line =
       to_str<FormatTarget::Telegram>(metrics.position, metrics.last_price());
-  auto stop_line =
-      metrics.has_position()
-          ? to_str<FormatTarget::Telegram>(metrics.stop_loss) + "\n"
-          : "";
 
   return std::format(
-      "{} {}{}\n"                               //
-      "{}"                                      //
+      "{} \"{}\" {}\n\n"                        //
       "{}"                                      //
       "{}\n",                                   //
       emoji(signal.type), symbol, pos_line,     //
       to_str<FormatTarget::Telegram>(metrics),  //
-      stop_line,                                //
       to_str<FormatTarget::Telegram>(signal)    //
   );
 }

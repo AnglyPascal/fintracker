@@ -3,8 +3,8 @@
 #include "times.h"
 
 #include <deque>
+#include <map>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
@@ -58,10 +58,6 @@ enum class HintType {
   Ema9Flattening,
   StopProximity,
   StopInATR,
-};
-
-enum class TrendType {
-  None,
 
   PriceUp,
   Ema21Up,
@@ -97,7 +93,6 @@ struct SignalType {
 
 using Reason = SignalType<ReasonType, ReasonType::None>;
 using Hint = SignalType<HintType, HintType::None>;
-using Trend = SignalType<TrendType, TrendType::None>;
 
 enum class Confidence {
   StrongUptrend,
@@ -133,7 +128,6 @@ std::pair<bool, std::string> filter(const std::vector<Candle>& candles,
 
 using signal_f = Reason (*)(const Metrics&, int idx);
 using hint_f = Hint (*)(const Metrics&, int idx);
-using trend_f = Trend (*)(const Metrics&);
 using conf_f = Confirmation (*)(const Metrics&);
 
 struct Signal {
@@ -142,7 +136,6 @@ struct Signal {
 
   std::vector<Reason> reasons;
   std::vector<Hint> hints;
-  std::vector<Trend> trends;
   std::vector<Confirmation> confirmations;
 
   bool has_rating() const { return type != Rating::None; }
@@ -162,9 +155,21 @@ struct SignalMemory {
       past.pop_front();
   }
 
-  void remove() {
-    past.pop_back();
-  }
+  void remove() { past.pop_back(); }
 
   double score() const;
 };
+
+struct SignalStats;
+
+struct Forecast {
+  double expected_return = 0.0;
+  double expected_drawdown = 0.0;
+  double confidence = 0.0;
+
+  Forecast() = default;
+  Forecast(const Signal& sig,
+           const std::map<ReasonType, SignalStats>& reason_stats,
+           const std::map<HintType, SignalStats>& hint_stats);
+};
+

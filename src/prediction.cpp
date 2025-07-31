@@ -5,7 +5,8 @@
 #include <iostream>
 #include <numeric>
 
-LinearRegression::LinearRegression(const std::vector<Point>& vals) noexcept {
+template <template <typename...> class Container>
+LinearRegression::LinearRegression(const Container<Point>& vals) noexcept {
   auto n = vals.size();
   if (n < 2)
     return;
@@ -40,29 +41,27 @@ bool TrendLine::operator<(const TrendLine& other) const {
   return r2 > other.r2;  // higher R² is better
 }
 
-TrendLines::TrendLines(const std::vector<double>& series,
-                       int min_period,
-                       int max_period,
-                       int top_n) noexcept  //
+template <template <typename...> class Container, typename T, typename Func>
+TrendLines::TrendLines(const Container<T>& series,
+                       size_t min_period,
+                       size_t max_period,
+                       size_t top_n,
+                       int last_idx,
+                       Func f) noexcept  //
 {
   std::vector<TrendLine> candidates;
-  int len = static_cast<int>(series.size());
+  auto len = last_idx < 0 ? series.size() + last_idx + 1 : last_idx + 1;
 
-  std::vector<Point> window;
-  window.reserve(max_period);
+  max_period = std::min(len, max_period);
 
-  for (int p = min_period; p <= max_period; ++p) {
-    if (len < p)
-      continue;
+  std::deque<Point> window;
+  for (size_t i = len - max_period; i < len; i++)
+    window.emplace_back((double)i, f(series[i]));
 
-    window.clear();
-    for (size_t i = series.size() - p; i < series.size(); i++)
-      window.emplace_back((double)i, series[i]);
-
-    LinearRegression lr(window);
-    double r2 = r_squared(window, lr);
-
-    candidates.push_back({p, r2, lr});
+  for (size_t p = max_period; p >= min_period; p--, window.pop_front()) {
+    LinearRegression lr{window};
+    auto r2 = r_squared(window, lr);
+    candidates.emplace_back((int)p, r2, lr);
   }
 
   std::sort(candidates.begin(), candidates.end());
@@ -94,7 +93,8 @@ std::string TrendLines::to_str() const {
   return oss.str();
 }
 
-double TrendLines::r_squared(const std::vector<Point>& points,
+template <template <typename...> class Container>
+double TrendLines::r_squared(const Container<Point>& points,
                              const LinearRegression& lr) {
   int n = points.size();
   if (n < 2)
@@ -116,16 +116,25 @@ double TrendLines::r_squared(const std::vector<Point>& points,
   return (ss_tot == 0.0) ? 0.0 : (1.0 - ss_res / ss_tot);
 }
 
-Trends::Trends(const Indicators& ind) noexcept {
-  std::vector<double> prices;
-  for (const auto& c : ind.candles)
-    prices.push_back(c.price());
+TrendLines Trends::price_trends(const Indicators& ind, int last_idx) noexcept {
+  return TrendLines(ind.candles, 10, 60, 3, last_idx,
+                    [](const Candle& cdl) { return cdl.close; });
+}
 
-  price = TrendLines(prices, 10, 60, 3);
-  ema21 = TrendLines(ind.ema21.values, 15, 75, 3);
-  rsi = TrendLines(ind.rsi.values, 5, 30, 3);
+TrendLines Trends::rsi_trends(const Indicators& ind, int last_idx) noexcept {
+  return TrendLines(ind.rsi.values, 5, 30, 3, last_idx);
+}
 
-  macd = TrendLines(ind.macd.macd_line, 10, 60, 3);
-  histogram = TrendLines(ind.macd.histogram, 5, 30, 3);
+TrendLines Trends::ema21_trends(const Indicators& ind, int last_idx) noexcept {
+  return TrendLines(ind.ema21.values, 15, 75, 3, last_idx);
+}
+
+Trends::Trends(const Indicators& ind, int last_idx) noexcept {
+  price = price_trends(ind, last_idx);
+  ema21 = ema21_trends(ind, last_idx);
+  rsi = rsi_trends(ind, last_idx);
+
+  macd = TrendLines(ind.macd.macd_line, 10, 60, 3, last_idx);
+  histogram = TrendLines(ind.macd.histogram, 5, 30, 3, last_idx);
 }
 

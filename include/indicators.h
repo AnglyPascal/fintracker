@@ -187,5 +187,35 @@ struct Metrics {
     return ind_1h.macd.signal_ema.values[sanitize(idx)];
   }
   double hist(int idx) const { return macd(idx) - signal(idx); }
+
+  TrendLine price_trend(int idx) const {
+    if (idx == -1) {
+      auto& top_trends = ind_1h.trends.price.top_trends;
+      return top_trends.empty() ? TrendLine{} : top_trends[0];
+    }
+
+    auto top_trends = Trends::price_trends(ind_1h, idx).top_trends;
+    return top_trends.empty() ? TrendLine{} : top_trends[0];
+  }
+
+  TrendLine rsi_trend(int idx) const {
+    if (idx == -1) {
+      auto& top_trends = ind_1h.trends.rsi.top_trends;
+      return top_trends.empty() ? TrendLine{} : top_trends[0];
+    }
+
+    auto top_trends = Trends::rsi_trends(ind_1h, idx).top_trends;
+    return top_trends.empty() ? TrendLine{} : top_trends[0];
+  }
+
+  TrendLine ema21_trend(int idx) const {
+    if (idx == -1) {
+      auto& top_trends = ind_1h.trends.ema21.top_trends;
+      return top_trends.empty() ? TrendLine{} : top_trends[0];
+    }
+
+    auto top_trends = Trends::ema21_trends(ind_1h, idx).top_trends;
+    return top_trends.empty() ? TrendLine{} : top_trends[0];
+  }
 };
 

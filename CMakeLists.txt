@@ -85,9 +85,9 @@ target_link_libraries(${TARGET}
 )
 
 set(EMBED_SCRIPT scripts/embed_str.py)
-set(INPUT_CSS data/index.css data/trades.css)
-set(INPUT_JS data/index.js data/trades.js)
-set(INPUT_HTML data/index.html data/trades.html)
+set(INPUT_CSS data/index.css data/trades.css data/ticker.css)
+set(INPUT_JS data/index.js data/trades.js data/ticker.js)
+set(INPUT_HTML data/index.html data/trades.html data/ticker.html)
 set(OUTPUT_HEADER include/_html_template.h)
 
 add_custom_command(

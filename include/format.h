@@ -46,6 +46,7 @@ inline constexpr std::string BRIGHT_WHITE_BG = "\033[107m";
 inline constexpr std::string HASKELL = "haskell";
 inline constexpr std::string DIFF = "diff";
 inline constexpr std::string TEXT = "text";
+inline constexpr std::string ELIXIR = "elixir";
 
 enum class FormatTarget {
   None,

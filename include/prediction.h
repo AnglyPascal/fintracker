@@ -14,7 +14,9 @@ struct LinearRegression {
   double intercept = 0.0;
 
   LinearRegression() noexcept = default;
-  LinearRegression(const std::vector<Point>& vals) noexcept;
+
+  template <template <typename...> class Container>
+  LinearRegression(const Container<Point>& vals) noexcept;
 
   double predict(double x) const { return slope * x + intercept; }
   std::string to_str() const;
@@ -37,15 +39,22 @@ class TrendLines {
   std::vector<TrendLine> top_trends;
 
   TrendLines() noexcept = default;
-  TrendLines(const std::vector<double>& series,
-             int min_period = 10,
-             int max_period = 60,
-             int top_n = 3) noexcept;
+
+  template <template <typename...> class Container,
+            typename T,
+            typename Func = decltype([](const T& t) -> double { return t; })>
+  TrendLines(const Container<T>& series,
+             size_t min_period = 10,
+             size_t max_period = 60,
+             size_t top_n = 3,
+             int last_idx = -1,
+             Func f = {}) noexcept;
 
   std::string to_str() const;
 
  private:
-  static double r_squared(const std::vector<Point>& y_vals,
+  template <template <typename...> class Container>
+  static double r_squared(const Container<Point>& y_vals,
                           const LinearRegression& lr);
 };
 
@@ -56,7 +65,14 @@ struct Trends {
   TrendLines price, ema21, rsi, macd, histogram;
 
   Trends() noexcept = default;
-  Trends(const Indicators& ind) noexcept;
+  Trends(const Indicators& ind, int last_idx = -1) noexcept;
+
+  static TrendLines price_trends(const Indicators& ind,
+                                 int last_idx = -1) noexcept;
+  static TrendLines rsi_trends(const Indicators& ind,
+                               int last_idx = -1) noexcept;
+  static TrendLines ema21_trends(const Indicators& ind,
+                               int last_idx = -1) noexcept;
 };
 
 enum class ForecastType {
