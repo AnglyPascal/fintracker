@@ -6,6 +6,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include <sys/wait.h>
+#include <csignal>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -195,6 +198,57 @@ void Notifier::iter(Notifier* notifier) {
   }
 }
 
+pid_t tunnel_pid = -1;  // To track the child process
+
+inline std::string get_tunnel_url() {
+  int pipefd[2];
+  if (pipe(pipefd) == -1) {
+    spdlog::error("[tunnel] pipe creation failed");
+    return "";
+  }
+
+  tunnel_pid = fork();
+  if (tunnel_pid == -1) {
+    spdlog::error("[tunnel] fork failed");
+    return "";
+  }
+
+  if (tunnel_pid == 0) {
+    // Child process
+    close(pipefd[0]);                // Close read end
+    dup2(pipefd[1], STDOUT_FILENO);  // Redirect stdout to pipe
+    close(pipefd[1]);
+
+    execlp("python3", "python3", "scripts/start_tunnel.py", nullptr);
+    _exit(1);  // If exec fails
+  }
+
+  // Parent process
+  close(pipefd[1]);  // Close write end
+  std::array<char, 256> buffer;
+  std::string result;
+
+  ssize_t len = read(pipefd[0], buffer.data(), buffer.size());
+  if (len > 0) {
+    result.assign(buffer.data(), len);
+    result.erase(result.find_last_not_of("\r\n") + 1);
+    spdlog::info("[tunnel] tunnel url: {}", result.c_str());
+  } else {
+    spdlog::error("[tunnel] no output received tunnel script.");
+  }
+  close(pipefd[0]);
+
+  return result;
+}
+
+inline void cleanup() {
+  if (tunnel_pid <= 0)
+    return;
+  spdlog::info("[tunnel] kill tunnel pid {}", tunnel_pid);
+  kill(tunnel_pid, SIGTERM);
+  waitpid(tunnel_pid, nullptr, 0);
+}
+
 Notifier::Notifier(const Portfolio& portfolio)
     : portfolio{portfolio},
       tg{portfolio.tg},
@@ -207,10 +261,24 @@ Notifier::Notifier(const Portfolio& portfolio)
   auto msg = to_str<FormatTarget::Telegram>(HASKELL, str);
   tg.send(msg);
 
+  signal(SIGINT, [](int) {
+    cleanup();
+    exit(0);
+  });
+  signal(SIGTERM, [](int) {
+    cleanup();
+    exit(0);
+  });
+
+  auto tunnel_url = get_tunnel_url();
+  auto msg_id = tg.send(tunnel_url);
+  tg.pin_message(msg_id);
+
   td = std::thread{Notifier::iter, this};
 }
 
 Notifier::~Notifier() {
   if (td.joinable())
     td.join();
+  cleanup();
 }
