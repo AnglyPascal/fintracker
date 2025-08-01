@@ -46,8 +46,9 @@ class OpenPositions {
   double total_pnl = 0;
 
  public:
-  OpenPositions() noexcept;
+  OpenPositions();
   double add_trade(const Trade& trade);
+  void update_trades();
 
   void send_updates(const Trades& trades, const Positions& old_positions) const;
   void send_current_positions(const std::string& ticker) const;

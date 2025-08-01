@@ -1,13 +1,13 @@
 :root {
-  --font-size: 13px;
+  --font-size: 16px;
   --padding-cell: 0.25em 0.4em;
   --padding-mobile: 0.2em 0.3em;
   --row-gap: 0.4em;
 
   --color-bg: #17171c;
   --color-fg: #eceff4;
-  --color-border: #4c566a;
-  --color-header: #3b4252;
+  --color-border: #3b4252;
+  --color-header: #2e3440;
   --color-hover: #434c5e;
 
   --color-buy: #cadabd;
@@ -72,7 +72,6 @@ input[type="date"], button {
   padding: 1px 2px;
   margin-bottom: 10px;
   margin-top: 5px;
-  font-size: 12px;
   background: var(--color-white);
   border: none;
 }
@@ -112,7 +111,6 @@ button:hover {
   user-select: none;
   display: flex;
   align-items: center;
-  font-size: 12px;
 }
 
 .custom-checkbox input {
@@ -160,20 +158,114 @@ button:hover {
   transform: rotate(45deg);
 }
 
-.buy-row {
-  color: var(--color-green); 
+.buy-cell {
+  color: var(--color-buy); 
 }
 
-.sell-row {
-  color: var(--color-red); 
+.sell-cell {
+  color: var(--color-sell); 
+}
+
+.remark-cell {
+  width: 40%;
+  padding: 3px;
 }
 
 
-input[type="text"] {
+textarea.remark-input {
   width: 100%;
+  resize: none;
+  overflow: hidden;
+  border: none;
+  font: inherit;
+  vertical-align: middle;
   background-color: var(--color-bg);
   color: var(--color-fg);
-  border: none;
   box-sizing: border-box;
-  outline: none;
+}
+
+.rating-cell {
+  white-space: nowrap;
+  padding: 0 4px;
+  text-align: center;
+  width: 10%;
+  max-width: 60px;
+  font-size: 0.9em;
+}
+
+.rating-number {
+  cursor: pointer;
+  margin: 0 1px;
+  color: var(--color-header);
+  user-select: none;
+}
+
+.rating-number.selected {
+  color: var(--color-yellow); 
+  font-weight: bold;
+}
+
+.rating-buttons button {
+  margin: 2px;
+  padding: 6px 10px;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.rating-buttons button.active {
+  background-color: var(--color-blue);
+  color: var(--color-bg);
+  border-color: var(--color-blue);
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+    margin: 0.3em;
+  }
+
+  .filters {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    margin-bottom: 1em;
+  }
+
+  input[type="date"], button {
+    font-size: 14px;
+    padding: 4px 6px;
+  }
+
+  .remark-cell {
+    width: 30% !important;
+  }
+
+  .rating-cell {
+    width: 10% !important;
+    font-size: 0.8em;
+  }
+
+  .rating-buttons button {
+    padding: 4px 8px;
+    font-size: 14px;
+  }
+
+  th, td {
+    font-size: 11px;
+    padding: var(--padding-mobile);
+  }
+
+  table {
+    font-size: 11px;
+  }
+
+  h1 {
+    font-size: 1.2em;
+  }
 }

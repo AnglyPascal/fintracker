@@ -52,14 +52,14 @@ inline auto net_position(const std::vector<Trade>& trades)
   return {Position{qty, px, total, 0.0}, pnl};
 }
 
-OpenPositions::OpenPositions() noexcept {
-  std::system("python3 scripts/clean_trades.py");
-
+inline Trades read_trades() {
   std::ifstream file("private/trades.csv");
   if (!file.is_open()) {
     spdlog::error("couldn't open postions file {}", "private/trades.csv");
-    return;
+    return {};
   }
+
+  Trades trades;
 
   std::string line;
   getline(file, line);  // skip header
@@ -80,13 +80,21 @@ OpenPositions::OpenPositions() noexcept {
     auto px = std::stod(price_str);
     auto total = std::stod(total_str);
 
-    trades_by_ticker[ticker].emplace_back(date, ticker, action, qty, px, total);
+    trades[ticker].emplace_back(date, ticker, action, qty, px, total);
   }
+
+  return trades;
+}
+
+void OpenPositions::update_trades() {
+  std::system("python3 scripts/clean_trades.py");
+  trades_by_ticker = read_trades();
+  positions.clear();
 
   for (auto& [ticker, trades] : trades_by_ticker) {
     auto [pos, pnl] = net_position(trades);
     if (pos.qty > std::numeric_limits<double>::epsilon() * 8) {
-      positions.try_emplace(ticker, pos);
+      positions[ticker] = pos;
       spdlog::info("[pos] {}: {}", ticker.c_str(), to_str(pos).c_str());
     } else {
       total_pnl += pnl;
@@ -94,6 +102,10 @@ OpenPositions::OpenPositions() noexcept {
     }
   }
   spdlog::info("[pnl] Total: {:+.2f}", total_pnl);
+}
+
+OpenPositions::OpenPositions() {
+  update_trades();
 }
 
 double OpenPositions::add_trade(const Trade& trade) {

@@ -85,6 +85,7 @@ class Portfolio {
  public:
   Portfolio(Config config) noexcept;
   void run();
+  void update_trades();
 
   std::pair<const Position*, double> add_trade(const Trade& trade) const;
 

@@ -64,11 +64,10 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
     }
   }
 
-  // if constexpr (command == Commands::TRADES) {
-  //   auto fname = portfolio.config.replay_en ? "page/trades_replay.html"
-  //                                           : "page/trades.html";
-  //   tg.send_doc(fname, "trades.html", "");
-  // }
+  if constexpr (command == Commands::TRADES) {
+    auto& mut_portfolio = const_cast<Portfolio&>(portfolio);
+    mut_portfolio.update_trades();
+  }
 
   if constexpr (command == Commands::POSITIONS) {
     std::string str;

@@ -30,7 +30,8 @@ async function loadTrades() {
         qty: r.Qty,
         px: r.Price,
         total: r.Total,
-        remark: r.Remark || ''
+        remark: r.Remark || '',
+        rating: r.Rating ? parseInt(r.Rating, 10) : 0
     }));
 
     tradesByTicker = {};
@@ -51,7 +52,8 @@ async function saveTrades() {
             Qty: t.qty,
             Price: t.px,
             Total: t.total,
-            Remark: t.remark || ''
+            Remark: t.remark || '',
+            Rating: Number.isInteger(t.rating) ? t.rating : 0
         }));
         const csv = stringify(records, {
             header: true,
@@ -62,10 +64,8 @@ async function saveTrades() {
                 'Qty',
                 'Price',
                 'Total',
-                {
-                    key: 'Remark',
-                    quoted: true
-                }
+                {key: 'Remark', quoted: true},
+                'Rating'
             ]
         });
         await fs.writeFile(CSV_PATH, csv, 'utf8');
@@ -84,6 +84,16 @@ app.put('/api/update-remark', async (req, res) => {
     if (!trade) return res.status(404).json({error: 'Trade not found'});
 
     trade.remark = remark;
+    await saveTrades();
+    res.json({success: true});
+});
+
+app.put('/api/update-rating', async (req, res) => {
+    const {id, rating} = req.body;
+    const trade = trades.find(t => t.id === id);
+    if (!trade) return res.status(404).json({error: 'Trade not found'});
+
+    trade.rating = rating;
     await saveTrades();
     res.json({success: true});
 });

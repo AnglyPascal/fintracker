@@ -125,35 +125,39 @@ def get_modified_csv_files(input_dir: str) -> List[str]:
 
 
 def merge_trades_to_csv(csv_path: str, new_df: pd.DataFrame):
-    required_columns = ['Time', 'Ticker', 'Action', 'Qty', 'Price', 'Total']
+    required_columns = ["Time", "Ticker", "Action", "Qty", "Price", "Total"]
 
     try:
-        existing_df = pd.read_csv(csv_path, parse_dates=['Time'])
+        existing_df = pd.read_csv(csv_path, parse_dates=["Time"])
     except FileNotFoundError:
-        new_df['Remark'] = ""
-        new_df['Time'] = pd.to_datetime(new_df['Time'])  # ensure datetime dtype
+        new_df["Remark"] = ""
+        new_df["Rating"] = 0
+        new_df["Time"] = pd.to_datetime(new_df["Time"])  # ensure datetime dtype
         new_df.to_csv(csv_path, index=False, quoting=csv.QUOTE_NONNUMERIC)
         return
 
     # Ensure both are datetime for merge compatibility
-    new_df['Time'] = pd.to_datetime(new_df['Time'])
-    existing_df['Time'] = pd.to_datetime(existing_df['Time'])
+    new_df["Time"] = pd.to_datetime(new_df["Time"])
+    existing_df["Time"] = pd.to_datetime(existing_df["Time"])
 
-    if not all(col in existing_df.columns for col in required_columns + ['Remark']):
+    check = all(
+        col in existing_df.columns for col in required_columns + ["Remark", "Rating"]
+    )
+    if not check:
         print(existing_df.columns)
         raise ValueError("CSV is missing required columns")
 
-    # Drop 'Remark' from existing for comparison
     existing_core = existing_df[required_columns].drop_duplicates()
     new_core = new_df[required_columns]
 
     # Anti-join: keep only rows in new_core not in existing_core
-    merged = new_core.merge(existing_core, how='left', indicator=True)
-    unique_new_core = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
+    merged = new_core.merge(existing_core, how="left", indicator=True)
+    unique_new_core = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
 
     # Recover full new rows from new_df
-    unique_new_df = new_df.merge(unique_new_core, on=required_columns, how='inner')
-    unique_new_df['Remark'] = ""
+    unique_new_df = new_df.merge(unique_new_core, on=required_columns, how="inner")
+    unique_new_df["Remark"] = ""
+    unique_new_df["Rating"] = 0
 
     combined_df = pd.concat([existing_df, unique_new_df], ignore_index=True)
     combined_df.to_csv(csv_path, index=False)

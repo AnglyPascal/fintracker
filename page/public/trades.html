@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Trades Viewer</title>
     <link rel="stylesheet" href="css/trades.css">
   </head>
@@ -22,6 +23,16 @@
         to
         <input type="date" id="to-date">
       </div>
+
+      <div id="rating-filter" class="rating-buttons">
+        <div><strong>Rating:</strong></div>
+        <button data-rating="0">All</button>
+        <button data-rating="1">≤ 1</button>
+        <button data-rating="2">≤ 2</button>
+        <button data-rating="3">≤ 3</button>
+        <button data-rating="4">≤ 4</button>
+        <button data-rating="5">≤ 5</button>
+      </div>
     </div>
 
     <table id="trades-table">
@@ -34,6 +45,7 @@
           <th>Price</th>
           <th>Total</th>
           <th>Remark</th>
+          <th>Rating</th>
         </tr>
       </thead>
       <tbody></tbody>

@@ -311,6 +311,14 @@ void Portfolio::run() {
     sleep(1);
 }
 
+void Portfolio::update_trades() {
+  auto _ = writer_lock();
+
+  positions.update_trades();
+  for (auto& [symbol, ticker] : tickers)
+    ticker.metrics.position = positions.get_position(symbol);
+}
+
 void Portfolio::run_replay() {
   if (config.continuous_en) {
     while (rp.has_data()) {
