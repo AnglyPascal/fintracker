@@ -70,14 +70,18 @@ enum class HintType {
   RsiDownStrongly,
 };
 
-template <typename T, T none>
+template <typename T, T _none>
 struct SignalType {
-  T type;
+  using underlying_type = T;
+  static constexpr T none = _none;
+
+  T type = none;
 
  private:
-  const Meta* meta;
+  const Meta* meta = nullptr;
 
  public:
+  SignalType() = default;
   SignalType(T type);
 
   bool exists() const { return type != none; }

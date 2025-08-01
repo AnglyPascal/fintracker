@@ -1,0 +1,179 @@
+:root {
+  --font-size: 13px;
+  --padding-cell: 0.25em 0.4em;
+  --padding-mobile: 0.2em 0.3em;
+  --row-gap: 0.4em;
+
+  --color-bg: #17171c;
+  --color-fg: #eceff4;
+  --color-border: #4c566a;
+  --color-header: #3b4252;
+  --color-hover: #434c5e;
+
+  --color-buy: #cadabd;
+  --color-sell: #d5979d;
+
+  --color-black: #2e3440;
+  --color-white: #eceff4;
+  --color-green: #a3be8c;
+  --color-red: #bf616a;
+  --color-yellow: #ebcb8b;
+  --color-blue: #8fbcbb;
+
+  --color-link: #8fbcbb;
+}
+
+body {
+  font-family: "Share Tech Mono", monospace;
+  font-size: var(--font-size);
+  margin: 0.5em;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid var(--color-border);
+  padding: var(--padding-cell);
+  text-align: left;
+  overflow: hidden;
+  word-break: break-word;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+th {
+  background-color: var(--color-header);
+  cursor: pointer;
+  user-select: none;
+}
+
+th .col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.filters { 
+  display: flex; 
+  gap: 40px; margin-bottom: 20px; 
+}
+
+.filter-group { 
+  display: flex; 
+  flex-direction: column; 
+  margin-bottom: 1em;
+}
+
+input[type="date"], button {
+  padding: 1px 2px;
+  margin-bottom: 10px;
+  margin-top: 5px;
+  font-size: 12px;
+  background: var(--color-white);
+  border: none;
+}
+
+button {
+  background: var(--color-blue);
+  color: var(--color-bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--color-blue);
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1em;
+  flex-wrap: wrap; 
+  max-height: 300px; 
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 10px;
+  flex-direction: column; 
+  margin-right: 10px;
+}
+
+.custom-checkbox {
+  margin-right: 5px;
+  position: relative;
+  padding-left: 25px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+}
+
+.custom-checkbox input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.custom-checkbox .checkmark {
+  position: absolute;
+  left: 0;
+  height: 16px;
+  width: 16px;
+  background-color: var(--color-white);
+  border-radius: 4px;
+}
+
+.custom-checkbox:hover input ~ .checkmark {
+  background-color: var(--color-white);
+}
+
+.custom-checkbox input:checked ~ .checkmark {
+  background-color: var(--color-blue);
+}
+
+.custom-checkbox .checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.custom-checkbox input:checked ~ .checkmark:after {
+  display: block;
+}
+
+.custom-checkbox .checkmark:after {
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.buy-row {
+  color: var(--color-green); 
+}
+
+.sell-row {
+  color: var(--color-red); 
+}
+
+
+input[type="text"] {
+  width: 100%;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  border: none;
+  box-sizing: border-box;
+  outline: none;
+}

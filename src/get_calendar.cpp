@@ -171,7 +171,7 @@ int main() {
   }
 
   {
-    std::ofstream f("page/calendar.html");
+    std::ofstream f("page/public/calendar.html");
     f << to_html(filtered_events);
     f.close();
   }

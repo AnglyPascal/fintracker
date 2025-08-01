@@ -78,10 +78,6 @@ def find_cross_points(
 
 
 def plot(symbol: str) -> None:
-    """
-    Generate a Plotly HTML chart for the given symbol.
-    Reads CSVs from page/src/{symbol}_*.csv and writes page/{symbol}.html.
-    """
     trades = load_df(symbol, "trades")
     buys = trades[trades["action"] == "BUY"]
     sells = trades[trades["action"] == "SELL"]
@@ -281,13 +277,13 @@ def plot(symbol: str) -> None:
     set_ylim(data["macd"], 4)
 
     # Save as HTML
-    fig.write_html(f"page/{symbol}_plot.html")
+    fig.write_html(f"page/public/{symbol}_plot.html")
 
 
 def merge_standalone_htmls(symbol: str):
-    details_path = Path(f"page/{symbol}_details.html")
-    plot_path = Path(f"page/{symbol}_plot.html")
-    output_path = Path(f"page/{symbol}.html")
+    details_path = Path(f"page/public/{symbol}_details.html")
+    plot_path = Path(f"page/public/{symbol}_plot.html")
+    output_path = Path(f"page/public/{symbol}.html")
 
     details_html = details_path.read_text()
     plot_html = plot_path.read_text()

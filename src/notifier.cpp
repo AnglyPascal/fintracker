@@ -54,21 +54,21 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
 
     if (symbol == "") {
       tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
-      auto fname = portfolio.config.replay_en ? "page/index_replay.html"
-                                              : "page/index.html";
+      auto fname = portfolio.config.replay_en ? "page/public/index_replay.html"
+                                              : "page/public/index.html";
       tg.send_doc(fname, "portfolio.html", "");
     } else {
       tg.send(to_str<FormatTarget::Telegram>(ELIXIR, str));
       auto fname = std::format("{}.html", symbol);
-      tg.send_doc("page/" + fname, fname, "");
+      tg.send_doc("page/public/" + fname, fname, "");
     }
   }
 
-  if constexpr (command == Commands::TRADES) {
-    auto fname = portfolio.config.replay_en ? "page/trades_replay.html"
-                                            : "page/trades.html";
-    tg.send_doc(fname, "trades.html", "");
-  }
+  // if constexpr (command == Commands::TRADES) {
+  //   auto fname = portfolio.config.replay_en ? "page/trades_replay.html"
+  //                                           : "page/trades.html";
+  //   tg.send_doc(fname, "trades.html", "");
+  // }
 
   if constexpr (command == Commands::POSITIONS) {
     std::string str;
@@ -81,7 +81,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
   }
 
   if constexpr (command == Commands::PLOT) {
-    auto fname = std::format("page/{}.html", symbol);
+    auto fname = std::format("page/public/{}.html", symbol);
     if (wait_for_file(fname))
       tg.send_doc(fname, fname, "Charts for " + symbol);
   }

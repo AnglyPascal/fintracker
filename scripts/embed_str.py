@@ -8,17 +8,10 @@ def sanitize(path):
 
 
 def combine(var_name):
-    css_path = Path(f"data/{var_name}.css")
-    js_path = Path(f"data/{var_name}.js")
     html_path = Path(f"data/{var_name}.html")
 
-    # Read and transform the content
-    css = sanitize(css_path)
-    js = sanitize(js_path)
     html = sanitize(html_path)
-
-    for find, replace in [("CSS", css), ("JS", js), ("PLACEHOLDER", "{}")]:
-        html = html.replace(find, replace)
+    html = html.replace("PLACEHOLDER", "{}")
 
     return html
 
@@ -30,10 +23,6 @@ output = f"""
 
 inline constexpr std::string_view index_template = R"(
 {combine("index")}
-)";
-
-inline constexpr std::string_view trades_template = R"(
-{combine("trades")}
 )";
 
 inline constexpr std::string_view ticker_template = R"(

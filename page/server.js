@@ -1,0 +1,93 @@
+import express from 'express';
+import fs from 'fs/promises';
+import {parse} from 'csv-parse/sync';
+import {stringify} from 'csv-stringify/sync';
+
+const app = express();
+const PORT = 8000;
+const CSV_PATH = '../private/trades.csv';
+
+app.use(express.json());
+app.use(express.static('public'));
+app.use("/css", express.static("css"));
+app.use("/js", express.static("js"));
+
+let trades = [];
+let tradesByTicker = {};
+
+async function loadTrades() {
+    const csvText = await fs.readFile(CSV_PATH, 'utf8');
+    const records = parse(csvText, {
+        columns: true,
+        skip_empty_lines: true
+    });
+
+    trades = records.map((r, idx) => ({
+        id: idx.toString(),
+        date: r.Time,
+        ticker: r.Ticker,
+        action: r.Action,
+        qty: r.Qty,
+        px: r.Price,
+        total: r.Total,
+        remark: r.Remark || ''
+    }));
+
+    tradesByTicker = {};
+    for (const trade of trades) {
+        if (!tradesByTicker[trade.ticker]) {
+            tradesByTicker[trade.ticker] = [];
+        }
+        tradesByTicker[trade.ticker].push(trade);
+    }
+}
+
+async function saveTrades() {
+    try {
+        const records = trades.map(t => ({
+            Time: t.date,
+            Ticker: t.ticker,
+            Action: t.action,
+            Qty: t.qty,
+            Price: t.px,
+            Total: t.total,
+            Remark: t.remark || ''
+        }));
+        const csv = stringify(records, {
+            header: true,
+            columns: [
+                'Time',
+                'Ticker',
+                'Action',
+                'Qty',
+                'Price',
+                'Total',
+                {
+                    key: 'Remark',
+                    quoted: true
+                }
+            ]
+        });
+        await fs.writeFile(CSV_PATH, csv, 'utf8');
+    } catch (err) {
+    }
+}
+
+app.get('/api/trades', async (_, res) => {
+    await loadTrades();
+    res.json(tradesByTicker);
+});
+
+app.put('/api/update-remark', async (req, res) => {
+    const {id, remark} = req.body;
+    const trade = trades.find(t => t.id === id);
+    if (!trade) return res.status(404).json({error: 'Trade not found'});
+
+    trade.remark = remark;
+    await saveTrades();
+    res.json({success: true});
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`);
+});

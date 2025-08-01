@@ -333,22 +333,6 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Trades& all_trades) {
-  std::string str = "";
-  for (auto& [ticker, trades] : all_trades) {
-    std::string lst = "";
-    for (auto& [date, symbol, action, qty, px, total] : trades) {
-      lst +=
-          std::format(trades_json_item, date, symbol,
-                      action == Action::BUY ? "BUY" : "SELL", qty, px, total);
-    }
-    str += std::format(trades_json_dict, ticker, lst);
-  }
-
-  return std::format(trades_template, str);
-}
-
-template <>
 std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
   auto& sig = ticker.signal;
   auto& m = ticker.metrics;
@@ -366,55 +350,38 @@ std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
   // Current signal rendering
   std::string curr_signal_html = sig_str(sig);
 
-  constexpr std::string_view red =
-      "<span style='color: var(--color-red);'>{:.2f}</span>";
-  constexpr std::string_view green =
-      "<span style='color: var(--color-green);'>{:.2f}</span>";
+  auto stats_html = []<typename S>(auto& stats, S) {
+    constexpr std::string_view red =
+        "<span style='color: var(--color-red);'>{:.2f}</span>";
+    constexpr std::string_view green =
+        "<span style='color: var(--color-green);'>{:.2f}</span>";
 
-  // Reason stats list
-  std::string reason_stats_html;
-  for (const auto& [rtype, stat] : ticker.reason_stats) {
-    if (rtype == ReasonType::None)
-      continue;
-    auto [_, ret, dd, winrate, _] = stat;
+    std::string html;
+    for (const auto& [rtype, stat] : stats) {
+      if (rtype == S::none)
+        continue;
+      auto [_, ret, dd, winrate, _] = stat;
 
-    Reason r{rtype};
-    auto ret_str = std::format(green, ret);
-    auto dd_str = std::format(red, dd);
+      S r{rtype};
+      auto ret_str = std::format(green, ret);
+      auto dd_str = std::format(red, dd);
 
-    if (r.cls() == SignalClass::Entry)
-      ret_str = std::format("<b>{}</b>", ret_str);
-    else
-      dd_str = std::format("<b>{}</b>", dd_str);
+      if (r.cls() == SignalClass::Entry)
+        ret_str = std::format("<b>{}</b>", ret_str);
+      else {
+        winrate = 1 - winrate;
+        dd_str = std::format("<b>{}</b>", dd_str);
+      }
 
-    reason_stats_html +=
-        std::format("<li class=\"{}\">{}: {} / {}, <b>{:.2f}</b></li>",
-                    r.cls() == SignalClass::Entry ? "entry" : "exit", to_str(r),
-                    ret_str, dd_str, winrate);
-  }
+      html += std::format("<li class=\"{}\">{}: {} / {}, <b>{:.2f}</b></li>",
+                          r.cls() == SignalClass::Entry ? "entry" : "exit",
+                          to_str(r), ret_str, dd_str, winrate);
+    }
+    return html;
+  };
 
-  // Hint stats list
-  std::string hint_stats_html;
-  for (const auto& [htype, stat] : ticker.hint_stats) {
-    if (htype == HintType::None)
-      continue;
-    auto [_, ret, dd, winrate, _] = stat;
-
-    Hint h{htype};
-
-    auto ret_str = std::format(green, ret);
-    auto dd_str = std::format(red, dd);
-
-    if (h.cls() == SignalClass::Entry)
-      ret_str = std::format("<b>{}</b>", ret_str);
-    else
-      dd_str = std::format("<b>{}</b>", dd_str);
-
-    hint_stats_html +=
-        std::format("<li class=\"{}\">{}: {} / {}, <b>{:.2f}</b></li>",
-                    h.cls() == SignalClass::Entry ? "entry" : "exit", to_str(h),
-                    ret_str, dd_str, winrate);
-  }
+  auto reason_stats_html = stats_html(ticker.reason_stats, Reason{});
+  auto hint_stats_html = stats_html(ticker.hint_stats, Hint{});
 
   // Recent signals memory
   std::string mem_row, mem_html;
@@ -437,20 +404,19 @@ std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
     <div><b>Stop Loss:</b> {}</div>
     <div><b>Forecast:</b> {}</div>
   )",
-      to_str<FormatTarget::HTML>(m.position, m.last_price()),  // {2}
-      to_str<FormatTarget::HTML>(m.stop_loss),                 // {3}
-      to_str<FormatTarget::HTML>(forecast)                     // {4}
+      to_str<FormatTarget::HTML>(m.position, m.last_price()),  //
+      to_str<FormatTarget::HTML>(m.stop_loss),                 //
+      to_str<FormatTarget::HTML>(forecast)                     //
   );
 
-  // Final HTML rendering
   return std::format(ticker_template,
-                     ticker.symbol,  // {0}
-                     ticker.symbol,  // {0}
-                     body,
-                     curr_signal_html,   // {5}
-                     reason_stats_html,  // {8}
-                     hint_stats_html,    // {9}
-                     mem_html            // {10}
+                     ticker.symbol,      //
+                     ticker.symbol,      //
+                     body,               //
+                     curr_signal_html,   //
+                     reason_stats_html,  //
+                     hint_stats_html,    //
+                     mem_html            //
   );
 }
 
@@ -459,15 +425,13 @@ void Portfolio::write_page() const {
     Timer timer;
     auto _ = reader_lock();
 
-    auto index_fname =
-        config.replay_en ? "page/index_replay.html" : "page/index.html";
-    auto trades_fname =
-        config.replay_en ? "page/trades_replay.html" : "page/trades.html";
+    auto index_fname = config.replay_en ? "page/public/index_replay.html"
+                                        : "page/public/index.html";
 
     namespace fs = std::filesystem;
-    if (!config.replay_en && fs::exists("page/index.html"))
+    if (!config.replay_en && fs::exists("page/public/index.html"))
       fs::copy_file(
-          "page/index.html",
+          "page/public/index.html",
           std::format("page/backup/index_{:%F_%T}.html", now_ny_time()),
           fs::copy_options::overwrite_existing);
 
@@ -476,15 +440,11 @@ void Portfolio::write_page() const {
     index.flush();
     index.close();
 
-    std::ofstream trades(trades_fname);
-    trades << to_str<FormatTarget::HTML>(get_trades());
-    trades.flush();
-    trades.close();
-
     spdlog::info("[page] written in {:.2f}ms", timer.diff_ms());
 
     for (auto& [symbol, ticker] : tickers) {
-      std::ofstream ticker_file(std::format("page/{}_details.html", symbol));
+      std::ofstream ticker_file(
+          std::format("page/public/{}_details.html", symbol));
       ticker_file << to_str<FormatTarget::HTML>(ticker);
       ticker_file.flush();
       ticker_file.flush();
