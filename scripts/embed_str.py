@@ -28,6 +28,10 @@ inline constexpr std::string_view index_template = R"(
 inline constexpr std::string_view ticker_template = R"(
 {combine("ticker")}
 )";
+
+inline constexpr std::string_view indicators_template = R"(
+{combine("indicators")}
+)";
 """
 
 output_path = Path("include/_html_template.h")

@@ -1,10 +1,14 @@
 #pragma once
 
+#include "backtest.h"
+#include "positions.h"
 #include "prediction.h"
+#include "signals.h"
 #include "times.h"
 
 #include <cassert>
 #include <deque>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -99,26 +103,8 @@ struct ATR {
   }
 };
 
-struct Indicators {
-  std::vector<Candle> candles;
-  const minutes interval;
-
-  EMA ema9, ema21, ema50;
-  RSI rsi;
-  MACD macd;
-  ATR atr;
-
-  Trends trends;
-
-  Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
-
-  void add(const Candle& candle) noexcept;
-  void pop_back() noexcept;
-
-  void plot(const std::string& sym) const;
-};
-
 struct Position;
+struct Indicators;
 
 struct StopLoss {
   double swing_low = 0.0;
@@ -137,17 +123,110 @@ struct Pullback {
   double pb;
 };
 
-std::vector<Candle> downsample(const std::vector<Candle>& candles,
-                               minutes source,
-                               minutes target);
+struct Indicators {
+  std::vector<Candle> candles;
+  const minutes interval;
+
+  EMA _ema9, _ema21, _ema50;
+  RSI _rsi;
+  MACD _macd;
+  ATR _atr;
+
+  Trends trends;
+
+  StopLoss stop_loss;
+  const Position* position;
+
+  Signal signal;
+  SignalMemory memory;
+
+  void get_stats();
+  std::map<ReasonType, SignalStats> reason_stats;
+  std::map<HintType, SignalStats> hint_stats;
+
+  friend struct Metrics;
+
+ public:
+  Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
+
+  void add(const Candle& candle, bool new_candle) noexcept;
+  void pop_back(bool pop_memory) noexcept;
+
+  void plot(const std::string& sym, const std::string& time) const;
+
+  void update_position(const Position* pos) noexcept;
+  bool has_position() const {
+    return position != nullptr && position->qty != 0;
+  }
+
+  Signal gen_signal(int idx) const;
+  Forecast gen_forecast(int idx) const;
+
+  size_t sanitize(int idx) const {
+    return idx < 0 ? candles.size() + idx : idx;
+  }
+
+  double price(int idx) const { return candles[sanitize(idx)].price(); }
+
+  double ema9(int idx) const { return _ema9.values[sanitize(idx)]; }
+  double ema21(int idx) const { return _ema21.values[sanitize(idx)]; }
+  double ema50(int idx) const { return _ema50.values[sanitize(idx)]; }
+
+  double atr(int idx) const { return _atr.values[sanitize(idx)]; }
+  double rsi(int idx) const { return _rsi.values[sanitize(idx)]; }
+
+  double macd(int idx) const { return _macd.macd_line[sanitize(idx)]; }
+  double macd_signal(int idx) const {
+    return _macd.signal_ema.values[sanitize(idx)];
+  }
+  double hist(int idx) const { return macd(idx) - macd_signal(idx); }
+
+  TrendLine price_trend(int idx) const {
+    if (idx == -1) {
+      auto& top_trends = trends.price.top_trends;
+      return top_trends.empty() ? TrendLine{} : top_trends[0];
+    }
+
+    auto top_trends = Trends::price_trends(*this, idx).top_trends;
+    return top_trends.empty() ? TrendLine{} : top_trends[0];
+  }
+
+  TrendLine rsi_trend(int idx) const {
+    if (idx == -1) {
+      auto& top_trends = trends.rsi.top_trends;
+      return top_trends.empty() ? TrendLine{} : top_trends[0];
+    }
+
+    auto top_trends = Trends::rsi_trends(*this, idx).top_trends;
+    return top_trends.empty() ? TrendLine{} : top_trends[0];
+  }
+
+  TrendLine ema21_trend(int idx) const {
+    if (idx == -1) {
+      auto& top_trends = trends.ema21.top_trends;
+      return top_trends.empty() ? TrendLine{} : top_trends[0];
+    }
+
+    auto top_trends = Trends::ema21_trends(*this, idx).top_trends;
+    return top_trends.empty() ? TrendLine{} : top_trends[0];
+  }
+
+  Pullback pullback(size_t lookback = 360) const {
+    if (candles.size() < lookback)
+      lookback = candles.size();
+
+    double high = 0.0;
+    for (size_t i = candles.size() - lookback; i < candles.size(); ++i)
+      high = std::max(high, candles[i].high);
+
+    return {high, (high - price(-1)) / high * 100.0};
+  }
+};
 
 struct Metrics {
   std::vector<Candle> candles;
   const minutes interval;
-
-  Indicators ind_1h;
-  StopLoss stop_loss;
-  const Position* position;
+  Indicators ind_1h, ind_4h, ind_1d;
 
  public:
   Metrics(std::vector<Candle>&& candles,
@@ -162,60 +241,12 @@ struct Metrics {
     return datetime_to_local(candles.back().datetime);
   }
 
-  Pullback pullback(size_t lookback = 360) const;
+  const Position* position() const { return ind_1h.position; }
+  void update_position(const Position* pos) noexcept;
   bool has_position() const;
 
   void plot(const std::string& sym) const;
 
- private:
-  size_t sanitize(int idx) const {
-    return idx < 0 ? ind_1h.candles.size() + idx : idx;
-  }
-
- public:
-  double price(int idx) const { return ind_1h.candles[sanitize(idx)].price(); }
-
-  double ema9(int idx) const { return ind_1h.ema9.values[sanitize(idx)]; }
-  double ema21(int idx) const { return ind_1h.ema21.values[sanitize(idx)]; }
-  double ema50(int idx) const { return ind_1h.ema50.values[sanitize(idx)]; }
-
-  double atr(int idx) const { return ind_1h.atr.values[sanitize(idx)]; }
-  double rsi(int idx) const { return ind_1h.rsi.values[sanitize(idx)]; }
-
-  double macd(int idx) const { return ind_1h.macd.macd_line[sanitize(idx)]; }
-  double signal(int idx) const {
-    return ind_1h.macd.signal_ema.values[sanitize(idx)];
-  }
-  double hist(int idx) const { return macd(idx) - signal(idx); }
-
-  TrendLine price_trend(int idx) const {
-    if (idx == -1) {
-      auto& top_trends = ind_1h.trends.price.top_trends;
-      return top_trends.empty() ? TrendLine{} : top_trends[0];
-    }
-
-    auto top_trends = Trends::price_trends(ind_1h, idx).top_trends;
-    return top_trends.empty() ? TrendLine{} : top_trends[0];
-  }
-
-  TrendLine rsi_trend(int idx) const {
-    if (idx == -1) {
-      auto& top_trends = ind_1h.trends.rsi.top_trends;
-      return top_trends.empty() ? TrendLine{} : top_trends[0];
-    }
-
-    auto top_trends = Trends::rsi_trends(ind_1h, idx).top_trends;
-    return top_trends.empty() ? TrendLine{} : top_trends[0];
-  }
-
-  TrendLine ema21_trend(int idx) const {
-    if (idx == -1) {
-      auto& top_trends = ind_1h.trends.ema21.top_trends;
-      return top_trends.empty() ? TrendLine{} : top_trends[0];
-    }
-
-    auto top_trends = Trends::ema21_trends(ind_1h, idx).top_trends;
-    return top_trends.empty() ? TrendLine{} : top_trends[0];
-  }
+  Signal get_signal(minutes interval, int idx) const;
 };
 

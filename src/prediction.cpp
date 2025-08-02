@@ -122,11 +122,11 @@ TrendLines Trends::price_trends(const Indicators& ind, int last_idx) noexcept {
 }
 
 TrendLines Trends::rsi_trends(const Indicators& ind, int last_idx) noexcept {
-  return TrendLines(ind.rsi.values, 5, 30, 3, last_idx);
+  return TrendLines(ind._rsi.values, 5, 30, 3, last_idx);
 }
 
 TrendLines Trends::ema21_trends(const Indicators& ind, int last_idx) noexcept {
-  return TrendLines(ind.ema21.values, 15, 75, 3, last_idx);
+  return TrendLines(ind._ema21.values, 15, 75, 3, last_idx);
 }
 
 Trends::Trends(const Indicators& ind, int last_idx) noexcept {
@@ -134,7 +134,7 @@ Trends::Trends(const Indicators& ind, int last_idx) noexcept {
   ema21 = ema21_trends(ind, last_idx);
   rsi = rsi_trends(ind, last_idx);
 
-  macd = TrendLines(ind.macd.macd_line, 10, 60, 3, last_idx);
-  histogram = TrendLines(ind.macd.histogram, 5, 30, 3, last_idx);
+  macd = TrendLines(ind._macd.macd_line, 10, 60, 3, last_idx);
+  histogram = TrendLines(ind._macd.histogram, 5, 30, 3, last_idx);
 }
 

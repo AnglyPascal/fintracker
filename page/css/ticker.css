@@ -146,3 +146,35 @@ li.exit::before {
   left: 0;
   color: var(--color-red);
 }
+
+.button-container {
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 4px 8px;
+    margin-right: 10px;
+    border: 2px solid var(--color-border);
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+button.active {
+    background-color: var(--color-fg);
+    color: var(--color-bg);
+}
+
+button:hover {
+    opacity: 0.6;
+}
+
+.break {
+    margin: 2em;
+}
+
+#plotly {
+    margin-top:2em;
+}

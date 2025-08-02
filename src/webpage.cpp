@@ -11,12 +11,13 @@
 #include <thread>
 
 inline constexpr std::string csv_fname(const std::string& symbol,
+                                       const std::string& time,
                                        const std::string& fn) {
-  return std::format("page/src/{}_{}.csv", symbol, fn);
+  return std::format("page/src/{}{}_{}.csv", symbol, time, fn);
 }
 
-void Indicators::plot(const std::string& sym) const {
-  std::ofstream f(csv_fname(sym, "data"));
+void Indicators::plot(const std::string& sym, const std::string& time) const {
+  std::ofstream f(csv_fname(sym, time, "data"));
   f << "datetime,open,close,high,low,volume,ema9,ema21,rsi,macd,signal\n";
 
   for (size_t i = 0; i < candles.size(); i++)
@@ -24,15 +25,15 @@ void Indicators::plot(const std::string& sym) const {
         "{},{:.2f},{:.2f},{:.2f},{:.2f},{},"
         "{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n",
         candles[i].datetime, candles[i].open, candles[i].close, candles[i].high,
-        candles[i].low, candles[i].volume, ema9.values[i], ema21.values[i],
-        rsi.values[i], macd.macd_line[i], macd.signal_ema.values[i]);
+        candles[i].low, candles[i].volume, _ema9.values[i], _ema21.values[i],
+        _rsi.values[i], _macd.macd_line[i], _macd.signal_ema.values[i]);
 
   f.flush();
   f.close();
 
-  auto trends_to_csv = [this, &sym](auto& top_trends, auto& name) {
+  auto trends_to_csv = [this, &sym, &time](auto& top_trends, auto& name) {
     for (size_t i = 0; i < top_trends.size(); i++) {
-      std::ofstream f(csv_fname(sym, std::format("{}_fit_{}", name, i)));
+      std::ofstream f(csv_fname(sym, time, std::format("{}_fit_{}", name, i)));
       f << "datetime,value\n";
 
       auto& top_trend = top_trends[i];
@@ -50,7 +51,9 @@ void Indicators::plot(const std::string& sym) const {
 }
 
 void Metrics::plot(const std::string& sym) const {
-  ind_1h.plot(sym);
+  ind_1h.plot(sym, "_1h");
+  ind_4h.plot(sym, "_4h");
+  ind_1d.plot(sym, "_1d");
 }
 
 void Portfolio::write_plot_data(const std::string& symbol) const {
@@ -63,7 +66,7 @@ void Portfolio::write_plot_data(const std::string& symbol) const {
 
   spdlog::trace("plotting {}", symbol.c_str());
 
-  std::ofstream f(csv_fname(symbol, "trades"));
+  std::ofstream f(csv_fname(symbol, "", "trades"));
   f << "datetime,name,action,qty,price,total\n";
 
   auto& all_trades = get_trades();
@@ -104,34 +107,45 @@ std::string to_str<FormatTarget::HTML>(const Reason& r) {
   return to_str(r);
 }
 
+inline constexpr std::string index_row_class(Rating type) {
+  switch (type) {
+    case Rating::Entry:
+      return "signal-entry";
+    case Rating::Exit:
+      return "signal-exit";
+    case Rating::Watchlist:
+      return "signal-watchlist";
+    case Rating::Caution:
+      return "signal-caution";
+    case Rating::HoldCautiously:
+      return "signal-holdcautiously";
+    case Rating::Mixed:
+      return "signal-mixed";
+    case Rating::Skip:
+      return "signal-skip";
+    default:
+      return "signal-none";
+  }
+}
+
 template <>
 std::string to_str<FormatTarget::HTML>(const Signal& s) {
+  auto sig_str = to_str(s.type);
+  auto scr_str = std::format("{:+}", (int)std::round(s.score * 10));
+  return std::format(index_signal_div_template, index_row_class(s.type),
+                     sig_str, scr_str);
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
   auto& conf = s.confirmations;
   auto sig_str = s.type != Rating::Entry
                      ? to_str(s.type)
                      : std::format("{}: ({})", to_str(s.type),
                                    join(conf.begin(), conf.end()));
   auto scr_str = std::format("{:+}", (int)std::round(s.score * 10));
-  return std::format("<div>{}</div> <div>{}</div>", sig_str, scr_str);
-}
-
-template <>
-std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
-  std::string interesting;
-  auto add = [&interesting, src](auto& iter) {
-    for (auto& a : iter) {
-      if (a.source() != src)
-        continue;
-      if (a.severity() >= Severity::High) {
-        interesting += " " + to_str<FormatTarget::HTML>(a);
-      }
-    }
-  };
-
-  add(s.reasons);
-  add(s.hints);
-
-  return interesting;
+  return std::format(index_signal_div_template, index_row_class(s.type),
+                     sig_str, scr_str);
 }
 
 template <>
@@ -193,17 +207,62 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Signal& s, const Ticker& ticker) {
+std::string to_str<FormatTarget::HTML>(const Signal& s, const Indicators& ind) {
   auto a = reason_list("▲", s.reasons, SignalClass::Entry,  //
-                       ticker.reason_stats);
+                       ind.reason_stats);
   auto b = reason_list("△", s.hints, SignalClass::Entry,  //
-                       ticker.hint_stats);
+                       ind.hint_stats);
   auto c = reason_list("▼", s.reasons, SignalClass::Exit,  //
-                       ticker.reason_stats);
+                       ind.reason_stats);
   auto d = reason_list("▽", s.hints, SignalClass::Exit,  //
-                       ticker.hint_stats);
+                       ind.hint_stats);
   auto e = a + b + c + d;
   return std::format(index_signal_entry_template, e);
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
+                                       const Ticker& ticker) {
+  auto& ind_1h = ticker.metrics.ind_1h;
+  auto& sig_1h = ind_1h.signal;
+
+  auto& ind_4h = ticker.metrics.ind_4h;
+  auto& sig_4h = ind_4h.signal;
+
+  auto& ind_1d = ticker.metrics.ind_1d;
+  auto& sig_1d = ind_1d.signal;
+
+  auto trends =
+      std::format("{} {}", s.filters.trend_4h.str, s.filters.trend_1d.str);
+
+  return std::format(index_combined_sig_template,                 //
+                     to_str<FormatTarget::HTML>(s.forecast),      //
+                     trends,                                      //
+                     to_str<FormatTarget::HTML>(sig_1h),          //
+                     to_str<FormatTarget::HTML>(sig_1h, ind_1h),  //
+                     to_str<FormatTarget::HTML>(sig_4h),          //
+                     to_str<FormatTarget::HTML>(sig_4h, ind_4h),  //
+                     to_str<FormatTarget::HTML>(sig_1d),          //
+                     to_str<FormatTarget::HTML>(sig_1d, ind_1d));
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
+  std::string interesting;
+  auto add = [&interesting, src](auto& iter) {
+    for (auto& a : iter) {
+      if (a.source() != src)
+        continue;
+      if (a.severity() >= Severity::High) {
+        interesting += " " + to_str<FormatTarget::HTML>(a);
+      }
+    }
+  };
+
+  add(s.reasons);
+  add(s.hints);
+
+  return interesting;
 }
 
 template <>
@@ -235,27 +294,8 @@ inline bool hide(auto& m, auto& type) {
   if (m.has_position())
     return false;
   return (type == Rating::Caution || type == Rating::Mixed ||
-          type == Rating::None);
+          type == Rating::None || type == Rating::Skip);
 };
-
-inline constexpr std::string index_row_class(Rating type) {
-  switch (type) {
-    case Rating::Entry:
-      return "signal-entry";
-    case Rating::Exit:
-      return "signal-exit";
-    case Rating::Watchlist:
-      return "signal-watchlist";
-    case Rating::Caution:
-      return "signal-caution";
-    case Rating::HoldCautiously:
-      return "signal-holdcautiously";
-    case Rating::Mixed:
-      return "signal-mixed";
-    default:
-      return "signal-none";
-  }
-}
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
@@ -278,20 +318,26 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
     auto& ticker = *t;
 
     auto& m = ticker.metrics;
+    auto& ind_1h = m.ind_1h;
+
     auto& sig = ticker.signal;
+    auto& sig_1h = ind_1h.signal;
 
     auto row_class = index_row_class(sig.type);
 
-    auto pos_str = to_str<FormatTarget::HTML>(m.position, m.last_price());
+    auto pos_str = to_str<FormatTarget::HTML>(m.position(), m.last_price());
     auto stop_loss_str =
-        m.has_position() ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
-                                       to_str<FormatTarget::HTML>(m.stop_loss))
-                         : "";
+        m.has_position()
+            ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
+                          to_str<FormatTarget::HTML>(ind_1h.stop_loss))
+            : "";
 
     auto event = p.calendar.next_event(symbol);
     auto event_str = std::format(index_event_template, symbol, to_str(event));
 
-    auto str = [&](auto src) { return to_str<FormatTarget::HTML>(sig, src); };
+    auto str = [&](auto src) {
+      return to_str<FormatTarget::HTML>(sig_1h, src);
+    };
     body += std::format(
         index_row_template,  //
         row_class, symbol, hide(m, sig.type) ? "display:none;" : "", symbol,
@@ -302,27 +348,23 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
         pos_str, stop_loss_str                //
     );
 
-    auto forecast_str = std::format(
-        "<div>{}</div>\n", to_str<FormatTarget::HTML>(ticker.forecast));
-
-    auto sig_str = std::format(
-        index_signal_td_template,  //
-        "curr_signal", forecast_str + to_str<FormatTarget::HTML>(sig, ticker));
-
     std::string mem_str = "";
     int n = 1;
-    auto& past_sigs = ticker.memory.past;
+    auto& past_sigs = ind_1h.memory.past;
     for (auto it = past_sigs.rbegin(); it != past_sigs.rend(); it++) {
       auto s =
           std::format(index_signal_td_template,  //
-                      "old_signal", to_str<FormatTarget::HTML>(*it, ticker));
+                      "old_signal", to_str<FormatTarget::HTML>(*it, ind_1h));
 
       mem_str += s;
-      if (n++ == 3)
+      if (n++ == 4)
         break;
     }
 
-    body += std::format(index_signal_template, symbol, sig_str, mem_str);
+    body += std::format(index_signal_template,                    //
+                        symbol,                                   //
+                        to_str<FormatTarget::HTML>(sig, ticker),  //
+                        mem_str);
   }
 
   auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated());
@@ -333,22 +375,18 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
-  auto& sig = ticker.signal;
-  auto& m = ticker.metrics;
-  auto& forecast = ticker.forecast;
+std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
+  auto& sig = ind.signal;
 
-  constexpr std::string_view signal_template =
-      "<div class=\"signal {}\">{}</div>\n{}";
+  constexpr std::string_view signal_template = "{}\n{}";
 
-  auto sig_str = [&ticker, signal_template](const Signal& s) {
-    return std::format(signal_template, index_row_class(s.type),
-                       to_str<FormatTarget::HTML>(s),
-                       to_str<FormatTarget::HTML>(s, ticker));
+  auto sig_str = [&](auto& s, auto& ind) {
+    return std::format(signal_template, to_str<FormatTarget::HTML>(s),
+                       to_str<FormatTarget::HTML>(s, ind));
   };
 
   // Current signal rendering
-  std::string curr_signal_html = sig_str(sig);
+  std::string curr_signal_html = sig_str(sig, ind);
 
   auto stats_html = []<typename S>(auto& stats, S) {
     constexpr std::string_view red =
@@ -380,16 +418,17 @@ std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
     return html;
   };
 
-  auto reason_stats_html = stats_html(ticker.reason_stats, Reason{});
-  auto hint_stats_html = stats_html(ticker.hint_stats, Hint{});
+  auto reason_stats_html = stats_html(ind.reason_stats, Reason{});
+  auto hint_stats_html = stats_html(ind.hint_stats, Hint{});
 
   // Recent signals memory
   std::string mem_row, mem_html;
-  auto& past = ticker.memory.past;
+  auto& past = ind.memory.past;
   int i = 0;
   for (auto it = past.rbegin(); it != past.rend(); ++it) {
     i++;
-    auto mem_sig = std::format("<td class=\"signal-td\">{}</td>", sig_str(*it));
+    auto mem_sig =
+        std::format("<td class=\"signal-td\">{}</td>", sig_str(*it, ind));
     mem_row += mem_sig;
 
     if (i % 4 == 0) {
@@ -398,25 +437,35 @@ std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
     }
   }
 
+  return std::format(indicators_template,
+                     curr_signal_html,   //
+                     reason_stats_html,  //
+                     hint_stats_html,    //
+                     mem_html            //
+  );
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
+  auto& m = ticker.metrics;
+  auto& forecast = ticker.signal.forecast;
+
   auto body = std::format(
       R"(
     <div><b>Position:</b> {}</div>
     <div><b>Stop Loss:</b> {}</div>
     <div><b>Forecast:</b> {}</div>
   )",
-      to_str<FormatTarget::HTML>(m.position, m.last_price()),  //
-      to_str<FormatTarget::HTML>(m.stop_loss),                 //
-      to_str<FormatTarget::HTML>(forecast)                     //
+      to_str<FormatTarget::HTML>(m.ind_1h.position, m.last_price()),  //
+      to_str<FormatTarget::HTML>(m.ind_1h.stop_loss),                 //
+      to_str<FormatTarget::HTML>(forecast)                            //
   );
 
+  auto& sym = ticker.symbol;
   return std::format(ticker_template,
-                     ticker.symbol,      //
-                     ticker.symbol,      //
-                     body,               //
-                     curr_signal_html,   //
-                     reason_stats_html,  //
-                     hint_stats_html,    //
-                     mem_html            //
+                     sym,       //
+                     sym,       //
+                     body, sym  //
   );
 }
 
@@ -443,11 +492,21 @@ void Portfolio::write_page() const {
     spdlog::info("[page] written in {:.2f}ms", timer.diff_ms());
 
     for (auto& [symbol, ticker] : tickers) {
-      std::ofstream ticker_file(
-          std::format("page/public/{}_details.html", symbol));
+      std::ofstream ticker_file(std::format("page/public/{}.html", symbol));
       ticker_file << to_str<FormatTarget::HTML>(ticker);
       ticker_file.flush();
       ticker_file.flush();
+
+      auto print_ind = [&](auto& ind, auto& time) {
+        std::ofstream f(std::format("page/public/{}_{}.html", symbol, time));
+        f << to_str<FormatTarget::HTML>(ind);
+        f.flush();
+        f.flush();
+      };
+
+      print_ind(ticker.metrics.ind_1h, "1h");
+      print_ind(ticker.metrics.ind_4h, "4h");
+      print_ind(ticker.metrics.ind_1d, "1d");
     }
   }).detach();
 }

@@ -191,40 +191,59 @@ void ATR::add(const Candle& candle) noexcept {
 Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
     : candles{std::move(candles)},
       interval{interval},
-      ema9{this->candles, 9},
-      ema21{this->candles, 21},
-      ema50{this->candles, 50},
-      rsi{this->candles},
-      macd{this->candles},
-      atr{this->candles},
+      _ema9{this->candles, 9},
+      _ema21{this->candles, 21},
+      _ema50{this->candles, 50},
+      _rsi{this->candles},
+      _macd{this->candles},
+      _atr{this->candles},
       trends{*this}  //
-{}
-
-void Indicators::add(const Candle& candle) noexcept {
-  candles.push_back(candle);
-
-  ema9.add(candle);
-  ema21.add(candle);
-  ema50.add(candle);
-  rsi.add(candle);
-  macd.add(candle);
-  atr.add(candle);
-
-  trends = Trends{*this};
+{
+  get_stats();
+  signal = gen_signal(-1);
+  for (int i = -1 - (int)SignalMemory::MEMORY_LENGTH; i < -1; i++)
+    memory.add(gen_signal(i));
 }
 
-void Indicators::pop_back() noexcept {
+void Indicators::add(const Candle& candle, bool new_candle) noexcept {
+  candles.push_back(candle);
+
+  _ema9.add(candle);
+  _ema21.add(candle);
+  _ema50.add(candle);
+  _rsi.add(candle);
+  _macd.add(candle);
+  _atr.add(candle);
+
+  trends = Trends{*this};
+
+  if (new_candle)
+    memory.add(signal);
+  signal = gen_signal(-1);
+}
+
+void Indicators::update_position(const Position* pos) noexcept {
+  position = pos;
+  stop_loss = StopLoss{*this, position};
+  signal = gen_signal(-1);
+}
+
+void Indicators::pop_back(bool pop_memory) noexcept {
   candles.pop_back();
   auto close = candles.back().close;
 
-  ema9.pop_back();
-  ema21.pop_back();
-  ema50.pop_back();
-  rsi.pop_back();
-  macd.pop_back();
-  atr.pop_back(close);
+  _ema9.pop_back();
+  _ema21.pop_back();
+  _ema50.pop_back();
+  _rsi.pop_back();
+  _macd.pop_back();
+  _atr.pop_back(close);
 
   trends = Trends{*this};
+
+  if (pop_memory)
+    memory.remove();
+  signal = gen_signal(-1);
 }
 
 inline Candle combine(auto start, auto end) {
@@ -246,11 +265,9 @@ inline Candle combine(auto start, auto end) {
   return out;
 }
 
-std::vector<Candle> downsample(const std::vector<Candle>& candles,
-                               minutes source,
-                               minutes target) {
+inline auto downsample(auto& candles, minutes source, minutes target) {
   if (candles.empty())
-    return {};
+    return std::vector<Candle>{};
 
   assert(target.count() % source.count() == 0);
 
@@ -295,22 +312,31 @@ Metrics::Metrics(std::vector<Candle>&& candles,
     : candles{std::move(candles)},
       interval{interval},
       ind_1h{downsample(this->candles, interval, H_1), H_1},  //
-      stop_loss{ind_1h, position},                            //
-      position{position}                                      //
+      ind_4h{downsample(this->candles, interval, H_4), H_4},  //
+      ind_1d{downsample(this->candles, interval, D_1), D_1}   //
 {
+  update_position(position);
   if (has_position())
     position->max_price_seen = std::max(position->max_price_seen, last_price());
 }
 
-bool Metrics::has_position() const {
-  return position != nullptr && position->qty != 0;
+void Metrics::update_position(const Position* pos) noexcept {
+  ind_1h.update_position(pos);
+  ind_4h.update_position(pos);
+  ind_1d.update_position(pos);
 }
 
-auto interval_start(auto end) {
-  auto start_of_day = floor<days>(now_ny_time()) + hours{9} + minutes{30};
-  auto now = (end - 1)->time();
-  auto diff = floor<hours>(now - start_of_day);
-  auto start_of_interval = start_of_day + diff;
+bool Metrics::has_position() const {
+  return ind_1h.position != nullptr && ind_1h.position->qty != 0;
+}
+
+inline auto interval_start(minutes interval, auto end) {
+  auto last_time = (end - 1)->time();
+  auto start_of_day = floor<days>(last_time) + hours{9} + minutes{30};
+
+  auto time_of_day = floor<minutes>(last_time - start_of_day);
+  auto floor = time_of_day - time_of_day % interval;
+  auto start_of_interval = start_of_day + floor;
 
   while (start_of_interval <= (end - 1)->time())
     end--;
@@ -322,24 +348,25 @@ bool Metrics::add(const Candle& candle, const Position* position) noexcept {
 
   auto add_to_ind = [&](auto& ind) {
     auto end = candles.end();
-    auto start = interval_start(end);
+    auto start = interval_start(ind.interval, end);
+    bool new_candle = first_candle_in_interval(ind.interval, candle.time());
 
-    if (end - start != 1)
-      ind.pop_back();
+    if (!new_candle)
+      ind.pop_back(false);
 
-    ind.add(combine(start, end));
+    ind.add(combine(start, end), new_candle);
   };
 
   add_to_ind(ind_1h);
+  add_to_ind(ind_4h);
+  add_to_ind(ind_1d);
 
-  this->position = position;
+  update_position(position);
   if (position != nullptr)
     position->max_price_seen =
         std::max(position->max_price_seen, candle.price());
 
-  stop_loss = StopLoss{ind_1h, position};
-
-  return last_candle_in_hour(candle.time());
+  return last_candle_in_interval(H_1, candle.time());
 }
 
 Candle Metrics::pop_back() noexcept {
@@ -347,33 +374,25 @@ Candle Metrics::pop_back() noexcept {
   candles.pop_back();
 
   auto pop_from_ind = [&](auto& ind) {
-    ind.pop_back();
+    bool pop_memory = first_candle_in_interval(ind.interval, candle.time());
+    ind.pop_back(pop_memory);
 
     auto end = candles.end();
-    auto start = interval_start(end);
+    auto start = interval_start(ind.interval, end);
 
     if (end - start == 0)
       return;
 
-    auto new_candle = combine(start, end);
-    ind.add(new_candle);
+    ind.add(combine(start, end), false);
   };
 
   pop_from_ind(ind_1h);
-  stop_loss = StopLoss{ind_1h, position};
+  pop_from_ind(ind_4h);
+  pop_from_ind(ind_1d);
+
+  update_position(ind_1h.position);
 
   return candle;
-}
-
-Pullback Metrics::pullback(size_t lookback) const {
-  if (candles.size() < lookback)
-    lookback = candles.size();
-
-  double high = 0.0;
-  for (size_t i = candles.size() - lookback; i < candles.size(); ++i)
-    high = std::max(high, candles[i].high);
-
-  return {high, (high - last_price()) / high * 100.0};
 }
 
 StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
@@ -381,10 +400,9 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
     return;
 
   auto& candles = ind.candles;
-  auto& ema21 = ind.ema21.values;
 
-  auto price = candles.back().price();
-  auto atr = ind.atr.values.back();
+  auto price = ind.price(-1);
+  auto atr = ind.atr(-1);
   auto entry_price = pos->px;
   auto gain = price - entry_price;
 
@@ -403,7 +421,7 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
     swing_low *= 0.998;
 
     auto buffer = 0.015 * price;
-    ema_stop = ema21.back() - buffer;
+    ema_stop = ind.ema21(-1) - buffer;
 
     auto best = std::min(swing_low, ema_stop) * 0.999;
     atr_stop = entry_price - 2.0 * atr;
@@ -432,4 +450,8 @@ StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
 
   spdlog::trace("[stop] price={:.2f} entry={:.2f} atr={:.2f} atr_stop={:.2f}\n",
                 price, entry_price, atr, atr_stop);
+}
+
+Forecast Indicators::gen_forecast(int) const {
+  return Forecast(signal, reason_stats, hint_stats);  // FIXME
 }

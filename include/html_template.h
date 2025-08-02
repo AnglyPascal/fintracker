@@ -35,11 +35,11 @@ inline constexpr std::string_view index_event_template = R"(
 )";
 
 inline constexpr std::string_view index_row_template = R"(
-  <tr class="{}" 
+  <tr class="info-row {}" 
       id="row-{}" 
       style="{}"
       onclick="toggleSignalDetails(this, '{}-details') ">
-    <td data-label="Signal"><div class="eventful">{}</div></td>
+    <td data-label="Signal">{}</td>
     <td data-label="Symbol">
       <div class="eventful">
         <a href="{}.html" target="_blank"><b>{}</b></a>{}
@@ -68,42 +68,32 @@ inline constexpr std::string_view index_signal_entry_template = R"(
 </div>
 )";
 
+inline constexpr std::string_view index_signal_div_template = R"(
+  <div class="signal {}">
+    <div class="signal-text">{}</div> 
+    <div class="signal-score">{}</div>
+  </div>
+)";
+
+inline constexpr std::string_view index_combined_sig_template = R"(
+  <td class="overview"><div>{}</div><div>{}</div></td>
+  <td class="curr_signal signal-1h">{}{}</td>
+  <td class="signal-4h">{}{}</td>
+  <td class="signal-1d">{}{}</td>
+)";
+
 inline constexpr std::string_view index_signal_template = R"(
   <tr id="{}-details" 
       class="signal-details-row" 
       style="display:none">
-    <td colspan="8">
-      <div>
+    <td colspan="8" class="signal-table">
+      <div class="signal-table">
         <table class="signal">
-          <tr class="signal-details-tr">
-            {}
-            {}
-          </tr>
+          <tr class="combined-signal-tr">{}</tr>
+          <tr class="signal-memory-tr">{}</tr>
         </table>
       </div>
     </td>
   </tr>
-)";
-
-inline constexpr std::string_view trades_row_template = R"(
-  <tr class="{}">
-    <td data-label="Time">{}</td>
-    <td data-label="Symbol"><a href="{}.html">{}</a></td>
-    <td data-label="Action">{}</td>
-    <td data-label="Quantity">{:.2f}</td>
-    <td data-label="Price">{:.2f}</td>
-    <td data-label="Total">{:.2f}</td>
-  </tr>
-)";
-
-inline constexpr std::string_view trades_json_item = R"(
-  {{ "date": "{}", "ticker": "{}", "action": "{}", 
-    "qty": {:.2f}, "px": {:.2f}, "total": {:.2f} }},
-)";
-
-inline constexpr std::string_view trades_json_dict = R"(
-"{}": [
-{}
-],
 )";
 

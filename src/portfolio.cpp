@@ -16,28 +16,13 @@ Ticker::Ticker(const std::string& symbol,
                int priority,
                std::vector<Candle>&& candles,
                minutes update_interval,
-               const Position* position,
-               const std::string& long_term_trend) noexcept
+               const Position* position) noexcept
     : symbol{symbol},
       priority{priority},
       last_polled{Clock::now()},
-      metrics{std::move(candles), update_interval, position},
-      long_term_trend{long_term_trend}  //
+      metrics{std::move(candles), update_interval, position}  //
 {
-  get_stats();
-
-  signal = gen_signal();
-  forecast = gen_forecast();
-
-  for (int i = -1 - (int)SignalMemory::MEMORY_LENGTH; i < -1; i++)
-    memory.add(gen_signal(i));
-
-  spdlog::trace("[memory] {}: mem score = {:.2f}", symbol.c_str(),
-                memory.score());
-}
-
-Forecast Ticker::gen_forecast() const {
-  return Forecast(signal, reason_stats, hint_stats);
+  signal = gen_signal(-1);
 }
 
 inline std::vector<SymbolInfo> read_symbols() {
@@ -96,23 +81,17 @@ Portfolio::Portfolio(Config config) noexcept
         }
 
         auto position = positions.get_position(symbol);
-        auto [add, reason] = filter(candles, update_interval);
+        // FIXME
+        // auto [add, reason] = filter(candles, update_interval);
 
-        if (position == nullptr && !add) {
-          spdlog::info("[skip] {}: {}", symbol.c_str(), reason.c_str());
-        } else {
-          spdlog::debug("[add] {}: {}", symbol.c_str(), reason.c_str());
-
-          Ticker ticker(symbol, priority, std::move(candles), update_interval,
-                        position, reason);
-
-          {
-            auto _ = writer_lock();
-            tickers.emplace(symbol, std::move(ticker));
-          }
-
-          write_plot_data(symbol);
+        Ticker ticker(symbol, priority, std::move(candles), update_interval,
+                      position);
+        {
+          auto _ = writer_lock();
+          tickers.emplace(symbol, std::move(ticker));
         }
+
+        write_plot_data(symbol);
       } catch (const std::exception& ex) {
         spdlog::error("[init] error {}: {}", symbol.c_str(), ex.what());
       }
@@ -167,15 +146,7 @@ void Portfolio::add_candle() {
         {
           auto _ = writer_lock();
           ticker.metrics.add(candle, positions.get_position(symbol));
-
-          if (first_candle_in_hour(candle.time()))
-            ticker.memory.add(ticker.signal);
-
           ticker.signal = ticker.gen_signal();
-          ticker.forecast = ticker.gen_forecast();
-
-          spdlog::trace("[memory] {}: mem score = {:.2f}", symbol.c_str(),
-                        ticker.memory.score());
         }
 
         write_plot_data(symbol);
@@ -208,12 +179,7 @@ void Portfolio::add_candle_sync() {
     {
       auto _ = writer_lock();
       ticker.metrics.add(candle, positions.get_position(symbol));
-
-      if (first_candle_in_hour(candle.time()))
-        ticker.memory.add(ticker.signal);
-
       ticker.signal = ticker.gen_signal();
-      ticker.forecast = ticker.gen_forecast();
     }
     write_plot_data(symbol);
   }
@@ -236,13 +202,7 @@ void Portfolio::rollback() {
     for (auto& [symbol, ticker] : tickers) {
       auto candle = ticker.metrics.pop_back();
       rp.rollback(symbol, candle);
-
-      if (first_candle_in_hour(candle.time()))
-        ticker.memory.remove();
-
       ticker.signal = ticker.gen_signal();
-      ticker.forecast = ticker.gen_forecast();
-
       write_plot_data(symbol);
     }
   }
@@ -267,7 +227,8 @@ std::pair<const Position*, double> Portfolio::add_trade(
     pnl = portfolio->positions.add_trade(trade);
 
     auto& metrics = portfolio->tickers.at(trade.ticker).metrics;
-    pos = metrics.position = positions.get_position(trade.ticker);
+    pos = positions.get_position(trade.ticker);
+    metrics.update_position(pos);
 
     if (!tickers.empty())
       portfolio->_last_updated = tickers.begin()->second.metrics.last_updated();
@@ -316,7 +277,7 @@ void Portfolio::update_trades() {
 
   positions.update_trades();
   for (auto& [symbol, ticker] : tickers)
-    ticker.metrics.position = positions.get_position(symbol);
+    ticker.metrics.update_position(positions.get_position(symbol));
 }
 
 void Portfolio::run_replay() {

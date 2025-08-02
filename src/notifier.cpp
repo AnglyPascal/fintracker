@@ -178,7 +178,7 @@ void Notifier::iter(Notifier* notifier) {
 
         prev_signals.clear();
         for (auto& [symbol, ticker] : portfolio.tickers)
-          prev_signals.emplace(symbol, ticker.signal);
+          prev_signals.emplace(symbol, ticker.metrics.ind_1h.signal);
 
         auto str = to_str<FormatTarget::Telegram>(portfolio);
         status = to_str<FormatTarget::Telegram>(HASKELL, str);
@@ -254,7 +254,7 @@ Notifier::Notifier(const Portfolio& portfolio)
       last_updated{portfolio.last_updated()}  //
 {
   for (auto& [symbol, ticker] : portfolio.tickers)
-    prev_signals.emplace(symbol, ticker.signal);
+    prev_signals.emplace(symbol, ticker.metrics.ind_1h.signal);
 
   auto str = to_str<FormatTarget::Telegram>(portfolio);
   auto msg = to_str<FormatTarget::Telegram>(HASKELL, str);

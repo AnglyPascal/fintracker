@@ -1,7 +1,5 @@
 #pragma once
 
-#include "indicators.h"
-
 #include <cstdint>
 #include <string>
 #include <unordered_map>

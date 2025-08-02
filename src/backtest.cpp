@@ -3,8 +3,8 @@
 #include "portfolio.h"
 #include "signals.h"
 
-Backtest::Backtest(const Metrics& m, size_t max_candles) : m{m} {
-  auto& candles = m.ind_1h.candles;
+Backtest::Backtest(const Indicators& _ind, size_t max_candles) : ind{_ind} {
+  auto& candles = ind.candles;
   size_t n = candles.size();
   lookahead.reserve(n);
 
@@ -54,7 +54,7 @@ SignalStats::SignalStats(size_t count,
 // unified handle for signal_f or hint_f
 template <typename T, typename Func>
 std::pair<T, SignalStats> Backtest::get_stats(Func signal_fn) const {
-  auto& candles = m.ind_1h.candles;
+  auto& candles = ind.candles;
 
   size_t count = 0;
   double sum_ret = 0.0;
@@ -64,7 +64,7 @@ std::pair<T, SignalStats> Backtest::get_stats(Func signal_fn) const {
   T r0 = {};
   bool entry = true;
   for (size_t i = 0; i < candles.size(); ++i) {
-    auto r = signal_fn(m, i);
+    auto r = signal_fn(ind, i);
     if (!r.exists() || r.source() == Source::Stop)
       continue;
 

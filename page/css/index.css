@@ -1,33 +1,41 @@
+/* ======================
+   CSS VARIABLES & THEME
+   ====================== */
 :root {
+  /* Typography & Spacing */
   --font-size: 13px;
   --padding-cell: 0.25em 0.4em;
   --padding-mobile: 0.2em 0.3em;
   --row-gap: 0.4em;
 
+  /* Color Palette */
   --color-bg: #17171c;
   --color-alt-bg: #23232a;
   --color-fg: #eceff4;
   --color-border: #4c566a;
   --color-header: #3b4252;
   --color-hover: #434c5e;
+  --color-link: #8fbcbb;
 
+  /* Trading Colors */
   --color-buy: #cadabd;
   --color-sell: #d5979d;
+  --color-green: #a3be8c;
+  --color-red: #bf616a;
+  --color-yellow: #ebcb8b;
+  --color-black: #2e3440;
 
+  /* Signal Colors */
   --color-signal-entry-bg: #a3be8c;
   --color-signal-exit-bg: #bf616a;
   --color-signal-watchlist-bg: #88c0d0;
   --color-signal-caution-bg: #ebcb8b;
   --color-signal-mixed-bg: #d8dee9;
-
-  --color-black: #2e3440;
-  --color-green: #a3be8c;
-  --color-red: #bf616a;
-  --color-yellow: #ebcb8b;
-
-  --color-link: #8fbcbb;
 }
 
+/* ======================
+   BASE STYLES
+   ====================== */
 body {
   font-family: "Share Tech Mono", monospace;
   font-size: var(--font-size);
@@ -36,6 +44,61 @@ body {
   color: var(--color-fg);
 }
 
+/* ======================
+   LAYOUT COMPONENTS
+   ====================== */
+.subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  margin-bottom: 1em;
+}
+
+.update-block {
+  font-family: monospace;
+  padding: 0.3em;
+  border: 0.2px solid var(--color-border);
+  border-radius: 3px;
+}
+
+.update-block a {
+  text-decoration: underline;
+  color: var(--color-link);
+}
+
+.eventful {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ======================
+   FILTER BUTTONS
+   ====================== */
+#signal-filters button {
+  font-family: monospace;
+  margin-right: 0.3em;
+  padding: 0.3em 0.6em;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-header);
+  color: var(--color-fg);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#signal-filters button:hover {
+  background-color: var(--color-bg);
+}
+
+#signal-filters button.active {
+  background-color: var(--color-fg);
+  color: var(--color-bg);
+  border-color: var(--color-fg);
+}
+
+/* ======================
+   TABLE STYLES
+   ====================== */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -62,11 +125,7 @@ th .col-header {
   align-items: center;
 }
 
-.collapsed .label,
-td.collapsed::before {
-  display: none;
-}
-
+/* Collapsed column styles */
 th.collapsed,
 td.collapsed {
   width: 13px;
@@ -79,38 +138,9 @@ td.collapsed {
   white-space: nowrap;
 }
 
-tr.buy { background-color: var(--color-buy); }
-tr.sell { background-color: var(--color-sell); }
-
-tr.signal-entry { background-color: var(--color-signal-entry-bg); }
-tr.signal-exit { background-color: var(--color-signal-exit-bg); }
-tr.signal-watchlist{ background-color: var(--color-signal-watchlist-bg); }
-tr.signal-caution,
-tr.signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
-tr.signal-mixed    { background-color: var(--color-signal-mixed-bg); }
-
-tr.buy,
-tr.sell,
-tr.signal-entry,
-tr.signal-exit,
-tr.signal-watchlist,
-tr.signal-caution,
-tr.signal-holdcautiously,
-tr.signal-mixed {
-  color: #000 !important;
-}
-
-tr.buy a,
-tr.sell a,
-tr.signal-entry a,
-tr.signal-exit a,
-tr.signal-watchlist a,
-tr.signal-caution a,
-tr.signal-holdcautiously a,
-tr.signal-none a,
-tr.signal-mixed a {
-  color: inherit !important;
-  text-decoration: none;
+.collapsed .label,
+td.collapsed::before {
+  display: none;
 }
 
 td .inner-div {
@@ -119,69 +149,57 @@ td .inner-div {
   overflow-wrap: break-word;
 }
 
-div.eventful {
-  display: flex;
-  justify-content: space-between;
+/* ======================
+   SIGNAL & TRADING COLORS
+   ====================== */
+/* Trading signal backgrounds */
+.buy { background-color: var(--color-buy); }
+.sell { background-color: var(--color-sell); }
+
+.signal-entry { background-color: var(--color-signal-entry-bg); }
+.signal-exit { background-color: var(--color-signal-exit-bg); }
+.signal-watchlist { background-color: var(--color-signal-watchlist-bg); }
+.signal-caution,
+.signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
+.signal-mixed { background-color: var(--color-signal-mixed-bg); }
+
+/* Force dark text on colored backgrounds */
+.buy,
+.sell,
+.signal-entry,
+.signal-exit,
+.signal-watchlist,
+.signal-caution,
+.signal-holdcautiously,
+.signal-mixed {
+  color: #000 !important;
 }
 
-.signal-details {
-  padding-top: 1em;
-  padding-left: 1em;
-  margin-top: 0;
-  font-size: 0.92em;
-  background-color: var(--color-bg);
-  color: var(--color-fg);
+/* Link colors inherit from parent for colored backgrounds */
+.buy a,
+.sell a,
+.signal-entry a,
+.signal-exit a,
+.signal-watchlist a,
+.signal-caution a,
+.signal-holdcautiously a,
+.signal-none a,
+.signal-skip a,
+.signal-mixed a {
+  color: inherit !important;
+  text-decoration: none;
 }
 
-#signal-filters button {
-  font-family: monospace;
-  font-size: 0.85em;
-  margin-right: 0.3em;
-  padding: 0.3em 0.6em;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background-color: var(--color-header);
-  color: var(--color-fg);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-#signal-filters button:hover {
-  background-color: var(--color-bg);
-}
-#signal-filters button.active {
-  background-color: var(--color-fg);
-  color: var(--color-bg);
-  border-color: var(--color-fg);
-}
-
-.subtitle {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1em;
-  margin-bottom: 1em;
-}
-
-.update-block {
-  font-family: monospace;
-  font-size: 13px;
-  padding: 0.3em;
-  border: 0.2px solid var(--color-border);
-  border-radius: 3px;
-}
-.update-block a {
-  text-decoration: underline;
-  color: var(--color-link);
-}
-
+/* ======================
+   SIGNAL DETAILS TABLE
+   ====================== */
 table.signal {
   table-layout: fixed;
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
 }
 
 .signal td {
-  border: 1px solid #ccc;
   width: 50%;
   padding: 8px;
   text-align: left;
@@ -193,10 +211,62 @@ table.signal {
   border-right: none;
 }
 
-.curr_signal {
-  border: 1px solid var(--color-border) !important;
+.signal td:first-child {
+  border-left: none !important;
 }
 
+/* Signal timing columns */
+.curr_signal,
+.signal-1h,
+.signal-4h,
+.signal-1d,
+.old_signal {
+  padding-top: 0px !important;
+  vertical-align: top !important;
+}
+
+.old_signal {
+  border-left: 1px solid var(--color-border) !important;
+}
+
+/* Signal row styling */
+.combined-signal-tr {
+  border-bottom: 2px solid var(--color-border) !important;
+}
+
+.combined-signal-tr td {
+  padding: 5px;
+  margin: 0em;
+  vertical-align: top !important;
+}
+
+.combined-signal-tr div.signal {
+  padding: 5px;
+  margin: 0em;
+  border-bottom: 1px solid var(--color-border) !important;
+}
+
+.signal-details-row {
+  border-top: 2px solid var(--color-border) !important;
+}
+
+.signal-memory-tr td {
+  padding: 5px;
+  margin: 0em;
+}
+
+/* Signal component styling */
+div.signal {
+  display: flex; 
+  justify-content: space-between;
+  padding: 3px;
+}
+
+td.signal-table {
+  padding: 5px;
+}
+
+/* Signal list indentation */
 .signal-list ul {
   padding-left: 1.5em;
 }
@@ -209,27 +279,26 @@ table.signal {
   margin-bottom: 0.5em; 
 }
 
-/* Mobile Support */
+/* ======================
+   MOBILE RESPONSIVE
+   ====================== */
 @media (max-width: 768px) {
   body {
     font-size: 14px;
   }
 
+  /* Convert table to mobile-friendly blocks */
   table, thead, tbody, th, td, tr {
     display: block;
     width: 100%;
     padding-right: 1em;
   }
 
-  td.curr_signal,
-  td.old_signal {
-    justify-content: left;
-  }
-
   thead {
     display: none;
   }
 
+  /* Mobile row styling */
   tr {
     margin-bottom: var(--row-gap);
     border: 1px solid var(--color-border);
@@ -237,6 +306,7 @@ table.signal {
     padding: 0.3em;
   }
 
+  /* Mobile cell styling with labels */
   td {
     display: flex;
     justify-content: space-between;
@@ -256,9 +326,60 @@ table.signal {
     font-weight: bold;
   }
 
+  /* Mobile signal table adjustments */
+  table.signal, 
+  tr.combined-signal-tr, 
+  tr.signal-memory-tr {
+    width: 100%;
+  }
+
+  .combined-signal-tr td {
+    padding-top: 8px !important;
+    border-top: 1px solid var(--color-border) !important;
+    border-bottom: none !important;
+    justify-content: left;
+    vertical-align: top !important;
+  }
+
+  td.overview {
+    display: grid !important;
+    border-top: none !important;
+    padding-bottom: 8px !important;
+  }
+
+  .combined-signal-tr td:first-child {
+    border-top: none !important;
+  }
+
+  .signal-memory-tr td.old_signal {
+    border: none !important;
+    border-top: 1px solid var(--color-border) !important;
+    vertical-align: top !important;
+  }
+
+  .signal-memory-tr td.old_signal:first-child,
+  .signal-memory-tr td {
+    border: none !important;
+  }
+
+  .combined-signal-tr div.signal {
+    width: 100%;
+    border-bottom: none !important;
+  }
+
+  .signal-details-row {
+    border-top: none !important;
+  }
+
+  td.curr_signal,
+  td.old_signal {
+    justify-content: left;
+  }
+
+  /* Mobile signal details */
   .signal-details-row,
   .signal-details {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.2;
     border: none;
     background-color: var(--color-bg);
@@ -266,18 +387,11 @@ table.signal {
   }
   
   .signal td {
-    border: 1px solid var(--color-border);
     width: 100%;
-    padding: 8px;
-    text-align: left;
     border: none;
-    border-bottom: 1px solid var(--color-border);
   }
 
-  .signal td:last-child {
-    border-bottom: none;
-  }
-
+  /* Mobile colored row text */
   tr.signal-entry,
   tr.signal-exit,
   tr.signal-watchlist,
@@ -287,25 +401,23 @@ table.signal {
     color: var(--color-bg) !important;
   }
 
+  /* Mobile colored row links */
   tr.signal-entry a,
   tr.signal-exit a,
   tr.signal-watchlist a,
   tr.signal-caution a,
   tr.signal-holdcautiously a,
   tr.signal-none a,
+  tr.signal-skip a,
   tr.signal-mixed a {
     color: inherit !important;
     text-decoration: none;
   }
 
-  td .inner-div {
-    max-width: 100%;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
+  /* Mobile eventful component */
+  .info-row div.signal,
   div.eventful {
-    width: 120px;
+    width: 25%;
     display: flex;
     justify-content: space-between;
     flex-direction: row-reverse;

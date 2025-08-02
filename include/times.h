@@ -46,5 +46,5 @@ struct Timer {
   }
 };
 
-bool first_candle_in_hour(LocalTimePoint tp);
-bool last_candle_in_hour(LocalTimePoint tp);
+bool first_candle_in_interval(minutes interval, LocalTimePoint tp);
+bool last_candle_in_interval(minutes interval, LocalTimePoint tp);

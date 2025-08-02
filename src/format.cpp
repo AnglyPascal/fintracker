@@ -92,11 +92,13 @@ std::string to_str(const Rating& type) {
     case Rating::Watchlist:
       return "Watch";
     case Rating::Caution:
-      return "Watch cautiously";
+      return "Caution";
     case Rating::HoldCautiously:
-      return "Hold cautiously";
+      return "Hold";
     case Rating::Mixed:
       return "Mixed";
+    case Rating::Skip:
+      return "Skip";
     default:
       return "None";
   }
@@ -162,34 +164,39 @@ std::string to_str<FormatTarget::Telegram>(const Position* const& pos,
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Metrics& m) {
+  auto& ind = m.ind_1h;
+
   auto stop_line = m.has_position()
-                       ? std::format("Stop: {:.2f}\n", m.stop_loss.final_stop)
+                       ? std::format("Stop: {:.2f}\n", ind.stop_loss.final_stop)
                        : "";
-  auto [high, pb] = m.pullback();
+  auto [high, pb] = ind.pullback();
 
   return std::format(
       "Px: {:.2f} | EMA9/EMA21: {:.2f}/{:.2f}\n"
       "RSI: {:.2f} | Recent high: {:.2f} ({:+.2f}%)\n"
       "{}\n",
-      m.price(-1), m.ema9(-1), m.ema21(-1), m.rsi(-1), high, pb, stop_line);
+      ind.price(-1), ind.ema9(-1), ind.ema21(-1), ind.rsi(-1), high, pb,
+      stop_line);
 }
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
   auto& symbol = ticker.symbol;
   auto& metrics = ticker.metrics;
+
+  auto& ind = metrics.ind_1h;
   auto& signal = ticker.signal;
 
   auto pos_line =
-      to_str<FormatTarget::Telegram>(metrics.position, metrics.last_price());
+      to_str<FormatTarget::Telegram>(ind.position, metrics.last_price());
 
   return std::format(
-      "{} \"{}\" {}\n\n"                        //
-      "{}"                                      //
-      "{}\n",                                   //
-      emoji(signal.type), symbol, pos_line,     //
-      to_str<FormatTarget::Telegram>(metrics),  //
-      to_str<FormatTarget::Telegram>(signal)    //
+      "{} \"{}\" {}\n\n"                          //
+      "{}"                                        //
+      "{}\n",                                     //
+      emoji(signal.type), symbol, pos_line,       //
+      to_str<FormatTarget::Telegram>(metrics),    //
+      to_str<FormatTarget::Telegram>(ind.signal)  //
   );
 }
 
@@ -305,7 +312,8 @@ std::string to_str<FormatTarget::Alert>(const Signal& a, const Signal& b) {
 inline bool is_interesting(const Ticker& ticker, const Signal& prev_signal) {
   if (ticker.metrics.has_position())
     return true;
-  return ticker.signal.is_interesting() || prev_signal.is_interesting();
+  auto& sig = ticker.metrics.ind_1h.signal;
+  return sig.is_interesting() || prev_signal.is_interesting();
 }
 
 inline std::vector<std::string> split_lines(const std::string& s) {
@@ -335,8 +343,9 @@ std::string to_str<FormatTarget::Alert>(
     if (!is_interesting(ticker, prev_signal))
       continue;
 
-    msg += std::format("{}: {}\n", symbol,
-                       to_str<FormatTarget::Alert>(prev_signal, ticker.signal));
+    msg += std::format(
+        "{}: {}\n", symbol,
+        to_str<FormatTarget::Alert>(prev_signal, ticker.metrics.ind_1h.signal));
   }
 
   return msg;

@@ -11,6 +11,7 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use("/css", express.static("css"));
 app.use("/js", express.static("js"));
+app.use("/public", express.static("public"));
 
 let trades = [];
 let tradesByTicker = {};

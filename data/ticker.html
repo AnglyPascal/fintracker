@@ -10,26 +10,26 @@
     <div>PLACEHOLDER</div>
 
     <h3>Statistics</h3>
-    <table>
-      <tr> 
-        <td class="stats curr-signal">PLACEHOLDER</td>
-        <td class="stats">
-          <div><b>Reason</b></div>
-          <ul>PLACEHOLDER</ul>
-        </td>
-        <td class="stats">
-          <div><b>Hint</b></div>
-          <ul>PLACEHOLDER</ul>
-        </td>
-      </tr>
-    </table>
+    <div class="button-container">
+        <button id="btn1h" class="active" 
+                onclick="loadContent('1h') ">1H</button>
+        <button id="btn4h" 
+                onclick="loadContent('4h') ">4H</button>
+        <button id="btn1d" 
+                onclick="loadContent('1d') ">1D</button>
+    </div>
 
-    <h3>Recent Signals</h3>
-    <table class="memory-table">
-      PLACEHOLDER
-    </table>
+    <div id="content">
+    </div>
 
-    <hr>
+    <div class="break">
+      <!-- <hr> -->
+    <div>
 
+    <div id="plotly">
+    </div>
+
+    <script> let ticker = 'PLACEHOLDER'; </script>
+    <script src="js/ticker.js"></script>
   </body>
 </html>

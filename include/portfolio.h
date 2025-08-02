@@ -1,7 +1,6 @@
 #pragma once
 
 #include "api.h"
-#include "backtest.h"
 #include "calendar.h"
 #include "config.h"
 #include "indicators.h"
@@ -10,7 +9,6 @@
 #include "signals.h"
 #include "times.h"
 
-#include <map>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -23,29 +21,16 @@ struct Ticker {
   TimePoint last_polled;
 
   Metrics metrics;
-
-  Signal signal;
-  SignalMemory memory;
-  Forecast forecast;
-
-  std::string long_term_trend;
-
-  std::map<ReasonType, SignalStats> reason_stats;
-  std::map<HintType, SignalStats> hint_stats;
+  CombinedSignal signal;
 
   Ticker(const std::string& symbol,
          int priority,
          std::vector<Candle>&& candles,
          minutes update_interval,
-         const Position* position,
-         const std::string& long_term_trend) noexcept;
+         const Position* position) noexcept;
 
   void write_plot_data() const;
-  Signal gen_signal(int idx = -1) const;
-  Forecast gen_forecast() const;
-
- private:
-  void get_stats();
+  CombinedSignal gen_signal(int idx = -1) const;
 };
 
 using Tickers = std::map<std::string, Ticker>;

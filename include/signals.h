@@ -26,6 +26,7 @@ enum class Rating {
   Mixed = 4,           // Conflicting signals
   None = 5,            // No action
   Caution = 6,         // Not a trade yet, but worth being cautious
+  Skip = 7,
 };
 
 enum class ReasonType {
@@ -103,15 +104,21 @@ enum class Confidence {
   ModerateUptrend,
   NeutralOrSideways,
   Bearish,
+  None,
 };
 
 struct Filter {
   Confidence confidence;
   std::string str;
 
+  Filter() : confidence{Confidence::None}, str{""} {}
   Filter(Confidence confidence) : confidence{confidence}, str{""} {}
   Filter(Confidence confidence, const std::string& str)
       : confidence{confidence}, str{str} {}
+};
+
+struct Filters {
+  Filter trend_4h, trend_1d;
 };
 
 struct Confirmation {
@@ -121,18 +128,17 @@ struct Confirmation {
   Confirmation() : str{""} {}
 };
 
+struct Indicators;
 struct Metrics;
 
-struct Candle;
-using filter_f = Filter (*)(const std::vector<Candle>& candles,
-                            minutes interval);
-
-std::pair<bool, std::string> filter(const std::vector<Candle>& candles,
-                                    minutes interval);
-
-using signal_f = Reason (*)(const Metrics&, int idx);
-using hint_f = Hint (*)(const Metrics&, int idx);
+using signal_f = Reason (*)(const Indicators&, int idx);
+using hint_f = Hint (*)(const Indicators&, int idx);
 using conf_f = Confirmation (*)(const Metrics&);
+
+std::vector<Reason> reasons(const Indicators& ind, int idx);
+std::vector<Hint> hints(const Indicators& ind, int idx);
+std::vector<Confirmation> confirmations(const Metrics& m);
+Filters evaluate_filters(const Metrics& m);
 
 struct Signal {
   Rating type = Rating::None;
@@ -140,7 +146,6 @@ struct Signal {
 
   std::vector<Reason> reasons;
   std::vector<Hint> hints;
-  std::vector<Confirmation> confirmations;
 
   bool has_rating() const { return type != Rating::None; }
   bool has_reasons() const { return !reasons.empty(); }
@@ -159,7 +164,10 @@ struct SignalMemory {
       past.pop_front();
   }
 
-  void remove() { past.pop_back(); }
+  void remove() {
+    if (!past.empty())
+      past.pop_back();
+  }
 
   double score() const;
 };
@@ -177,3 +185,12 @@ struct Forecast {
            const std::map<HintType, SignalStats>& hint_stats);
 };
 
+struct CombinedSignal {
+  Rating type = Rating::None;
+  double score;
+
+  Filters filters;
+  std::vector<Confirmation> confirmations;
+
+  Forecast forecast;
+};
