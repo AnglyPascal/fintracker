@@ -27,11 +27,17 @@ inline constexpr std::string csv_fname(const std::string& symbol,
   return std::format("page/src/{}{}_{}.csv", symbol, time, fn);
 }
 
-void Indicators::plot(const std::string& sym, const std::string& time) const {
+inline constexpr size_t n_days_plot = 45;
+
+LocalTimePoint Indicators::plot(const std::string& sym,
+                                const std::string& time) const {
   std::ofstream f(csv_fname(sym, time, "data"));
   f << "datetime,open,close,high,low,volume,ema9,ema21,rsi,macd,signal\n";
 
-  for (size_t i = 0; i < candles.size(); i++)
+  size_t n_candles_per_day = (D_1 + interval - minutes{1}) / interval;
+  size_t n = std::min(candles.size(), n_candles_per_day * n_days_plot);
+
+  for (size_t i = candles.size() - n; i < candles.size(); i++)
     f << std::format(
         "{},{:.2f},{:.2f},{:.2f},{:.2f},{},"
         "{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n",
@@ -42,14 +48,14 @@ void Indicators::plot(const std::string& sym, const std::string& time) const {
   f.flush();
   f.close();
 
-  auto trends_to_csv = [this, &sym, &time](auto& top_trends, auto& name) {
+  auto trends_to_csv = [this, n, &sym, &time](auto& top_trends, auto& name) {
     for (size_t i = 0; i < top_trends.size(); i++) {
       std::ofstream f(csv_fname(sym, time, std::format("{}_fit_{}", name, i)));
       f << "datetime,value\n";
 
       auto& top_trend = top_trends[i];
-      for (size_t j = candles.size() - top_trend.period; j < candles.size();
-           j++)
+      auto m = std::min((size_t)top_trend.period, n);
+      for (size_t j = candles.size() - m; j < candles.size(); j++)
         f << std::format("{},{:.2f}\n", candles[j].datetime, top_trend.eval(j));
 
       f.flush();
@@ -59,12 +65,15 @@ void Indicators::plot(const std::string& sym, const std::string& time) const {
 
   trends_to_csv(trends.price.top_trends, "price");
   trends_to_csv(trends.rsi.top_trends, "rsi");
+
+  return candles[candles.size() - n].time();
 }
 
-void Metrics::plot(const std::string& sym) const {
-  ind_1h.plot(sym, "_1h");
-  ind_4h.plot(sym, "_4h");
-  ind_1d.plot(sym, "_1d");
+LocalTimePoint Metrics::plot(const std::string& sym) const {
+  auto start_1h = ind_1h.plot(sym, "_1h");
+  auto start_4h = ind_4h.plot(sym, "_4h");
+  auto start_1d = ind_1d.plot(sym, "_1d");
+  return std::max({start_1h, start_4h, start_1d});
 }
 
 void Portfolio::write_plot_data(const std::string& symbol) const {
@@ -77,18 +86,20 @@ void Portfolio::write_plot_data(const std::string& symbol) const {
 
   spdlog::trace("plotting {}", symbol.c_str());
 
+  auto start_time = it->second.metrics.plot(symbol);
+
   std::ofstream f(csv_fname(symbol, "", "trades"));
   f << "datetime,name,action,qty,price,total\n";
 
   auto& all_trades = get_trades();
   if (auto it = all_trades.find(symbol); it != all_trades.end()) {
-    for (auto& trade : it->second)
-      f << to_str(trade) << std::endl;
+    for (auto& trade : it->second) {
+      if (trade.time() > start_time)
+        f << to_str(trade) << std::endl;
+    }
   }
   f.flush();
   f.close();
-
-  it->second.metrics.plot(symbol);
 }
 
 void Portfolio::plot(const std::string& symbol) const {

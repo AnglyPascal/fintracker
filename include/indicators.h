@@ -134,7 +134,7 @@ struct Indicators {
   void add(const Candle& candle, bool new_candle) noexcept;
   void pop_back(bool pop_memory) noexcept;
 
-  void plot(const std::string& sym, const std::string& time) const;
+  LocalTimePoint plot(const std::string& sym, const std::string& time) const;
 
   Signal gen_signal(int idx) const;
   Forecast gen_forecast(int idx) const;
@@ -221,7 +221,7 @@ struct Metrics {
   Signal get_signal(minutes interval, int idx) const;
   bool has_position() const;
 
-  void plot(const std::string& sym) const;
+  LocalTimePoint plot(const std::string& sym) const;
 };
 
 struct PositionSizingConfig;

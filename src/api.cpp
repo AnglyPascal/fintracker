@@ -300,18 +300,26 @@ inline std::string interval_to_str(minutes interval) {
   return it->second;
 }
 
-TD::Result TD::api_call(const std::string& symbol, size_t output_size) {
+TD::Result TD::api_call(const std::string& symbol,
+                        size_t output_size,
+                        const std::string& end_date) {
   auto api_key = get_key();
 
   if (output_size > MAX_OUTPUT_SIZE)
     spdlog::error("[td] outputsize exceeds limit");
 
-  auto url = std::format(
-      "https://api.twelvedata.com/time_series?symbol={}"
-      "&interval={}&outputsize={}&order=asc&apikey={}",
-      symbol, interval_to_str(interval), output_size, api_key);
+  cpr::Parameters params{{"symbol", symbol},
+                         {"interval", interval_to_str(interval)},
+                         {"outputsize", std::to_string(output_size)},
+                         {"order", "asc"},
+                         {"apikey", api_key}};
 
-  auto res = cpr::Get(cpr::Url{url});
+  if (!end_date.empty())
+    params.Add({"end_date", end_date});
+
+  auto res =
+      cpr::Get(cpr::Url{"https://api.twelvedata.com/time_series"}, params);
+
   std::this_thread::sleep_for(milliseconds(1500));
 
   if (res.status_code != 200) {
@@ -338,17 +346,28 @@ TD::Result TD::api_call(const std::string& symbol, size_t output_size) {
 }
 
 TD::Result TD::time_series(const std::string& symbol, int n_days) {
-  size_t output_size =
-      n_days * 8 /* hours per day */ * (minutes(60) / interval);
-  return api_call(symbol, output_size);
+  Result res;
+  while (n_days > 0) {
+    auto min_n_days = std::min(n_days, 100);
+    size_t sz = min_n_days * 8 /* hours per day */ * (minutes(60) / interval);
+
+    auto end_date = res.empty() ? "" : res.front().datetime;
+    auto vec = api_call(symbol, sz, end_date);
+
+    vec.insert(vec.end(), res.begin(), res.end());
+    std::swap(res, vec);
+
+    n_days -= min_n_days;
+  }
+  return res;
 }
 
 Candle TD::real_time(const std::string& symbol) {
-  return api_call(symbol, 1).back();
+  return api_call(symbol, 1, "").back();
 }
 
 LocalTimePoint TD::latest_datetime() {
-  auto candle = api_call("NVDA", 1).back();
+  auto candle = api_call("NVDA", 1, "").back();
   return candle.time();
 }
 

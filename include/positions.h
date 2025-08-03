@@ -1,5 +1,7 @@
 #pragma once
 
+#include "times.h"
+
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -18,6 +20,8 @@ struct Trade {
   double qty;
   double px;
   double total;
+
+  LocalTimePoint time() const { return datetime_to_local(date); }
 };
 
 struct Position {

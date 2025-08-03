@@ -51,12 +51,14 @@ class TD {
   int try_get_key();
   const std::string& get_key();
 
-  Result api_call(const std::string& symbol, size_t output_size);
+  Result api_call(const std::string& symbol,
+                  size_t output_size,
+                  const std::string& end_date);
 
  public:
   TD(size_t n_tickers);
 
-  Result time_series(const std::string& symbol, int n_days = 90);
+  Result time_series(const std::string& symbol, int n_days = 200);
   Candle real_time(const std::string& symbol);
   LocalTimePoint latest_datetime();
 };
