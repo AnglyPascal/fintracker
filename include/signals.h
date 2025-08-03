@@ -42,7 +42,6 @@ enum class ReasonType {
   MacdBearishCross,
 
   TimeExit,
-  StopLossHit,
 };
 
 enum class HintType {
@@ -57,8 +56,6 @@ enum class HintType {
   RsiDropFromOverbought,
   MacdPeaked,
   Ema9Flattening,
-  StopProximity,
-  StopInATR,
 
   PriceUp,
   Ema21Up,
@@ -69,6 +66,13 @@ enum class HintType {
   Ema21Down,
   RsiDown,
   RsiDownStrongly,
+};
+
+enum class StopHitType {
+  None,
+  StopLossHit,
+  StopProximity,
+  StopInATR,
 };
 
 template <typename T, T _none>
@@ -98,27 +102,35 @@ struct SignalType {
 
 using Reason = SignalType<ReasonType, ReasonType::None>;
 using Hint = SignalType<HintType, HintType::None>;
+using StopHit = SignalType<StopHitType, StopHitType::None>;
 
-enum class Confidence {
+enum class Trend {
   StrongUptrend,
   ModerateUptrend,
   NeutralOrSideways,
+  Caution,
   Bearish,
   None,
 };
 
+enum class Confidence {
+  Low,
+  Medium,
+  High,
+};
+
 struct Filter {
+  Trend trend;
   Confidence confidence;
   std::string str;
 
-  Filter() : confidence{Confidence::None}, str{""} {}
-  Filter(Confidence confidence) : confidence{confidence}, str{""} {}
-  Filter(Confidence confidence, const std::string& str)
-      : confidence{confidence}, str{str} {}
+  Filter() : trend{Trend::None}, confidence{Confidence::Low}, str{""} {}
+  Filter(Trend t, Confidence c, const std::string& desc = "")
+      : trend{t}, confidence{c}, str{desc} {}
 };
 
 struct Filters {
-  Filter trend_4h, trend_1d;
+  std::vector<Filter> trends_4h, trends_1d;
 };
 
 struct Confirmation {
@@ -189,6 +201,7 @@ struct CombinedSignal {
   Rating type = Rating::None;
   double score;
 
+  StopHit stop_hit;
   Filters filters;
   std::vector<Confirmation> confirmations;
 

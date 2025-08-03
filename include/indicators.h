@@ -103,21 +103,6 @@ struct ATR {
   }
 };
 
-struct Position;
-struct Indicators;
-
-struct StopLoss {
-  double swing_low = 0.0;
-  double ema_stop = 0.0;
-  double atr_stop = 0.0;
-  double final_stop = 0.0;
-  double stop_pct = 0.0;
-  bool is_trailing = false;
-
-  StopLoss() noexcept = default;
-  StopLoss(const Indicators& ind, const Position* pos) noexcept;
-};
-
 struct Pullback {
   double recent_high;
   double pb;
@@ -133,9 +118,6 @@ struct Indicators {
   ATR _atr;
 
   Trends trends;
-
-  StopLoss stop_loss;
-  const Position* position;
 
   Signal signal;
   SignalMemory memory;
@@ -153,11 +135,6 @@ struct Indicators {
   void pop_back(bool pop_memory) noexcept;
 
   void plot(const std::string& sym, const std::string& time) const;
-
-  void update_position(const Position* pos) noexcept;
-  bool has_position() const {
-    return position != nullptr && position->qty != 0;
-  }
 
   Signal gen_signal(int idx) const;
   Forecast gen_forecast(int idx) const;
@@ -227,6 +204,7 @@ struct Metrics {
   std::vector<Candle> candles;
   const minutes interval;
   Indicators ind_1h, ind_4h, ind_1d;
+  const Position* position;
 
  public:
   Metrics(std::vector<Candle>&& candles,
@@ -240,13 +218,23 @@ struct Metrics {
   auto last_updated() const {
     return datetime_to_local(candles.back().datetime);
   }
-
-  const Position* position() const { return ind_1h.position; }
-  void update_position(const Position* pos) noexcept;
+  Signal get_signal(minutes interval, int idx) const;
   bool has_position() const;
 
   void plot(const std::string& sym) const;
+};
 
-  Signal get_signal(minutes interval, int idx) const;
+struct PositionSizingConfig;
+
+struct StopLoss {
+  double swing_low = 0.0;
+  double ema_stop = 0.0;
+  double atr_stop = 0.0;
+  double final_stop = 0.0;
+  double stop_pct = 0.0;
+  bool is_trailing = false;
+
+  StopLoss() noexcept = default;
+  StopLoss(const Metrics& m, const PositionSizingConfig& config) noexcept;
 };
 

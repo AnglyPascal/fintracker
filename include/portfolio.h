@@ -4,10 +4,10 @@
 #include "calendar.h"
 #include "config.h"
 #include "indicators.h"
+#include "position_sizing.h"
 #include "positions.h"
 #include "replay.h"
 #include "signals.h"
-#include "times.h"
 
 #include <mutex>
 #include <shared_mutex>
@@ -23,14 +23,26 @@ struct Ticker {
   Metrics metrics;
   CombinedSignal signal;
 
+  StopLoss stop_loss;
+  const PositionSizingConfig& sizing_config;
+  PositionSizing position_sizing;
+
   Ticker(const std::string& symbol,
          int priority,
          std::vector<Candle>&& candles,
          minutes update_interval,
-         const Position* position) noexcept;
+         const Position* position,
+         const PositionSizingConfig& config) noexcept;
 
   void write_plot_data() const;
   CombinedSignal gen_signal(int idx = -1) const;
+
+  void calculate_signal() {
+    stop_loss = StopLoss(metrics, sizing_config);
+    signal = gen_signal(-1);
+    position_sizing =
+        PositionSizing(metrics, signal, stop_loss, sizing_config);
+  }
 };
 
 using Tickers = std::map<std::string, Ticker>;
@@ -47,6 +59,7 @@ inline constexpr int max_concurrency = 32;
 class Portfolio {
  public:
   const Config config;
+  const PositionSizingConfig sizing_config;
 
  private:
   std::vector<SymbolInfo> symbols;
@@ -68,7 +81,7 @@ class Portfolio {
   const minutes update_interval;
 
  public:
-  Portfolio(Config config) noexcept;
+  Portfolio(Config config, PositionSizingConfig sizing_config) noexcept;
   void run();
   void update_trades();
 

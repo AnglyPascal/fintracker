@@ -1,7 +1,5 @@
 #include "backtest.h"
 #include "indicators.h"
-#include "portfolio.h"
-#include "signals.h"
 
 Backtest::Backtest(const Indicators& _ind, size_t max_candles) : ind{_ind} {
   auto& candles = ind.candles;

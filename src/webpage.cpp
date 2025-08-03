@@ -10,6 +10,17 @@
 #include <ranges>
 #include <thread>
 
+template <typename Arg>
+inline std::string colored(std::string_view color, Arg&& arg) {
+  return std::format("<span style='color: var(--color-{});'>{}</span>",  //
+                     color, std::forward<Arg>(arg));
+}
+
+inline std::string colored(std::string_view color, double arg) {
+  return std::format("<span style='color: var(--color-{});'>{:.2f}</span>",  //
+                     color, arg);
+}
+
 inline constexpr std::string csv_fname(const std::string& symbol,
                                        const std::string& time,
                                        const std::string& fn) {
@@ -150,15 +161,9 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Forecast& f) {
-  constexpr std::string_view red =
-      "<span style='color: var(--color-red);'>{:.2f}</span>";
-  constexpr std::string_view green =
-      "<span style='color: var(--color-green);'>{:.2f}</span>";
-
-  auto g_str = std::format(green, f.expected_return);
-  auto l_str = std::format(red, f.expected_drawdown);
-
-  return std::format("Forecast: <b>{} / {}, {:.2f}</b>", g_str, l_str,
+  return std::format("<b>Forecast</b>: <b>{} / {}</b>, {:.2f}",  //
+                     colored("green", f.expected_return),        //
+                     colored("red", f.expected_drawdown),        //
                      f.confidence);
 }
 
@@ -174,14 +179,9 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
   std::string body = "";
   for (auto& r : lst)
     if (r.cls() == cls) {
-      auto colored = [cls](auto gain, auto loss, auto win) {
-        constexpr std::string_view red =
-            "<span style='color: var(--color-red);'>{:.2f}</span>";
-        constexpr std::string_view green =
-            "<span style='color: var(--color-green);'>{:.2f}</span>";
-
-        auto g_str = std::format(green, gain);
-        auto l_str = std::format(red, loss);
+      auto colored_stats = [&, cls](auto gain, auto loss, auto win) {
+        auto g_str = colored("green", gain);
+        auto l_str = colored("red", loss);
 
         if (cls == SignalClass::Entry)
           return std::format("<b>{}</b> / {}, <b>{:.2f}</b>", g_str, l_str,
@@ -195,9 +195,10 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
       auto it = stats.find(r.type);
       if (it != stats.end()) {
         auto [_, ret, dd, w, _] = it->second;
-        stat_str = ": " + colored(ret, dd, w);
+        stat_str = ": " + colored_stats(ret, dd, w);
       }
-      body += std::format("<li>{}{}</li>", to_str(r), stat_str);
+      body += std::format("<li>{}<span class=\"stats-details\">{}</span></li>",
+                          to_str(r), stat_str);
     }
 
   if (body.empty())
@@ -217,7 +218,89 @@ std::string to_str<FormatTarget::HTML>(const Signal& s, const Indicators& ind) {
   auto d = reason_list("▽", s.hints, SignalClass::Exit,  //
                        ind.hint_stats);
   auto e = a + b + c + d;
-  return std::format(index_signal_entry_template, e);
+
+  return std::format(index_signal_entry_template,  //
+                     to_str<FormatTarget::HTML>(s), e);
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Recommendation& recom) {
+  switch (recom) {
+    case Recommendation::StrongBuy:
+      return colored("green", "Strong Buy");
+    case Recommendation::Buy:
+      return colored("green", "Buy");
+    case Recommendation::WeakBuy:
+      return colored("blue", "Weak Buy");
+    case Recommendation::Caution:
+      return colored("yellow", "Caution");
+    case Recommendation::Avoid:
+      return colored("red", "Avoid");
+    default:
+      return "";
+  }
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
+  if (sizing.recommendation == Recommendation::Avoid)
+    return std::format("<div><b>{}</b></div>",
+                       to_str<FormatTarget::HTML>(sizing.recommendation));
+
+  constexpr std::string_view templ = R"(
+    <div><b>{}</b>: {} w/ {:.2f}</div>
+    <div><b>Risk</b>: {} ({:.2f}%), {:.1f}</div>
+    {}
+  )";
+
+  std::string warnings = "";
+  if (!sizing.warnings.empty()) {
+    for (auto& warning : sizing.warnings) {
+      warnings += warning + ", ";
+    }
+    warnings.pop_back();
+    warnings.pop_back();
+
+    warnings = std::format("<div><b>Warnings:</b> {}</div>", warnings);
+  }
+
+  return std::format(templ,                                              //
+                     to_str<FormatTarget::HTML>(sizing.recommendation),  //
+                     colored("yellow", sizing.recommended_shares),       //
+                     sizing.recommended_capital,                         //
+                     colored("red", sizing.actual_risk_amount),          //
+                     sizing.actual_risk_pct * 100,                       //
+                     sizing.overall_risk_score,                          //
+                     warnings                                            //
+  );
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Filters& filters) {
+  std::string trend_1d, trend_4h;
+
+  for (auto& f : filters.trends_4h)
+    trend_4h += f.str + " ";
+  for (auto& f : filters.trends_1d)
+    trend_1d += f.str + " ";
+
+  constexpr std::string_view trend_html = R"(
+    <b>Trends</b>: 
+    <ul>
+      <li><b>4h</b>: {}</li>
+      <li><b>1d</b>: {}</li>
+    </ul>
+  )";
+
+  return std::format(trend_html, trend_4h, trend_1d);
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
+  if (sl.final_stop == 0.0)
+    return "";
+  return std::format("<b>Stops</b>: {:.2f}, {:.2f}, <b>{}</b>",  //
+                     sl.swing_low, sl.atr_stop, colored("blue", sl.final_stop));
 }
 
 template <>
@@ -232,18 +315,20 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
   auto& ind_1d = ticker.metrics.ind_1d;
   auto& sig_1d = ind_1d.signal;
 
-  auto trends =
-      std::format("{} {}", s.filters.trend_4h.str, s.filters.trend_1d.str);
+  auto overview =
+      std::format(index_signal_overview_template,
+                  to_str<FormatTarget::HTML>(s.filters),              //
+                  to_str<FormatTarget::HTML>(s.forecast),             //
+                  to_str<FormatTarget::HTML>(ticker.stop_loss),       //
+                  to_str<FormatTarget::HTML>(ticker.position_sizing)  //
+      );
 
-  return std::format(index_combined_sig_template,                 //
-                     to_str<FormatTarget::HTML>(s.forecast),      //
-                     trends,                                      //
-                     to_str<FormatTarget::HTML>(sig_1h),          //
+  return std::format(index_combined_signal_template,              //
+                     overview,                                    //
                      to_str<FormatTarget::HTML>(sig_1h, ind_1h),  //
-                     to_str<FormatTarget::HTML>(sig_4h),          //
                      to_str<FormatTarget::HTML>(sig_4h, ind_4h),  //
-                     to_str<FormatTarget::HTML>(sig_1d),          //
-                     to_str<FormatTarget::HTML>(sig_1d, ind_1d));
+                     to_str<FormatTarget::HTML>(sig_1d, ind_1d)   //
+  );
 }
 
 template <>
@@ -266,11 +351,10 @@ std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
+std::string to_str(const StopLoss& sl) {
   if (sl.final_stop == 0.0)
     return "";
-  return std::format("sw={:.2f}, atr={:.2f}, stop={:.2f}", sl.swing_low,
-                     sl.atr_stop, sl.final_stop);
+  return std::format("{:.2f}", sl.final_stop);
 }
 
 template <>
@@ -325,27 +409,28 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
     auto row_class = index_row_class(sig.type);
 
-    auto pos_str = to_str<FormatTarget::HTML>(m.position(), m.last_price());
-    auto stop_loss_str =
-        m.has_position()
-            ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
-                          to_str<FormatTarget::HTML>(ind_1h.stop_loss))
-            : "";
+    auto pos_str = to_str<FormatTarget::HTML>(m.position, m.last_price());
+    auto stop_loss_str = m.has_position()  //
+                             ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
+                                           to_str(ticker.stop_loss))
+                             : std::format("<b>{:.2f}</b>", m.last_price());
 
     auto event = p.calendar.next_event(symbol);
     auto event_str = std::format(index_event_template, symbol, to_str(event));
 
+    auto stop_str = sig.stop_hit.str();
     auto str = [&](auto src) {
       return to_str<FormatTarget::HTML>(sig_1h, src);
     };
-    body += std::format(
-        index_row_template,  //
-        row_class, symbol, hide(m, sig.type) ? "display:none;" : "", symbol,
-        to_str<FormatTarget::HTML>(sig),  //
-        symbol, symbol, event_str,        //
-        str(Source::Price) + str(Source::Stop), str(Source::EMA),
-        str(Source::RSI), str(Source::MACD),  //
-        pos_str, stop_loss_str                //
+
+    body += std::format(index_row_template,  //
+                        row_class, symbol,
+                        hide(m, sig.type) ? "display:none;" : "", symbol,
+                        to_str<FormatTarget::HTML>(sig),  //
+                        symbol, symbol, event_str,        //
+                        str(Source::Price) + stop_str, str(Source::EMA),
+                        str(Source::RSI), str(Source::MACD),  //
+                        pos_str, stop_loss_str                //
     );
 
     std::string mem_str = "";
@@ -378,22 +463,7 @@ template <>
 std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
   auto& sig = ind.signal;
 
-  constexpr std::string_view signal_template = "{}\n{}";
-
-  auto sig_str = [&](auto& s, auto& ind) {
-    return std::format(signal_template, to_str<FormatTarget::HTML>(s),
-                       to_str<FormatTarget::HTML>(s, ind));
-  };
-
-  // Current signal rendering
-  std::string curr_signal_html = sig_str(sig, ind);
-
   auto stats_html = []<typename S>(auto& stats, S) {
-    constexpr std::string_view red =
-        "<span style='color: var(--color-red);'>{:.2f}</span>";
-    constexpr std::string_view green =
-        "<span style='color: var(--color-green);'>{:.2f}</span>";
-
     std::string html;
     for (const auto& [rtype, stat] : stats) {
       if (rtype == S::none)
@@ -401,8 +471,8 @@ std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
       auto [_, ret, dd, winrate, _] = stat;
 
       S r{rtype};
-      auto ret_str = std::format(green, ret);
-      auto dd_str = std::format(red, dd);
+      auto ret_str = colored("green", ret);
+      auto dd_str = colored("red", dd);
 
       if (r.cls() == SignalClass::Entry)
         ret_str = std::format("<b>{}</b>", ret_str);
@@ -418,18 +488,14 @@ std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
     return html;
   };
 
-  auto reason_stats_html = stats_html(ind.reason_stats, Reason{});
-  auto hint_stats_html = stats_html(ind.hint_stats, Hint{});
-
   // Recent signals memory
   std::string mem_row, mem_html;
   auto& past = ind.memory.past;
   int i = 0;
   for (auto it = past.rbegin(); it != past.rend(); ++it) {
     i++;
-    auto mem_sig =
-        std::format("<td class=\"signal-td\">{}</td>", sig_str(*it, ind));
-    mem_row += mem_sig;
+    mem_row += std::format("<td class=\"signal-td\">{}</td>",
+                           to_str<FormatTarget::HTML>(*it, ind));
 
     if (i % 4 == 0) {
       mem_html += std::format("<tr>{}</tr>", mem_row);
@@ -438,10 +504,10 @@ std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
   }
 
   return std::format(indicators_template,
-                     curr_signal_html,   //
-                     reason_stats_html,  //
-                     hint_stats_html,    //
-                     mem_html            //
+                     to_str<FormatTarget::HTML>(sig, ind),    //
+                     stats_html(ind.reason_stats, Reason{}),  //
+                     stats_html(ind.hint_stats, Hint{}),      //
+                     mem_html                                 //
   );
 }
 
@@ -450,16 +516,13 @@ std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
   auto& m = ticker.metrics;
   auto& forecast = ticker.signal.forecast;
 
-  auto body = std::format(
-      R"(
-    <div><b>Position:</b> {}</div>
-    <div><b>Stop Loss:</b> {}</div>
-    <div><b>Forecast:</b> {}</div>
-  )",
-      to_str<FormatTarget::HTML>(m.ind_1h.position, m.last_price()),  //
-      to_str<FormatTarget::HTML>(m.ind_1h.stop_loss),                 //
-      to_str<FormatTarget::HTML>(forecast)                            //
-  );
+  auto body =
+      std::format(ticker_body_template,
+                  to_str<FormatTarget::HTML>(m.position, m.last_price()),  //
+                  to_str<FormatTarget::HTML>(ticker.stop_loss),            //
+                  to_str<FormatTarget::HTML>(forecast),                    //
+                  to_str<FormatTarget::HTML>(ticker.position_sizing)       //
+      );
 
   auto& sym = ticker.symbol;
   return std::format(ticker_template,

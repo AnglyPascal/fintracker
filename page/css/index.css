@@ -20,10 +20,13 @@
   /* Trading Colors */
   --color-buy: #cadabd;
   --color-sell: #d5979d;
+
   --color-green: #a3be8c;
   --color-red: #bf616a;
+  --color-blue: #88c0d0;
   --color-yellow: #ebcb8b;
   --color-black: #2e3440;
+  --color-white: #eceff4;
 
   /* Signal Colors */
   --color-signal-entry-bg: #a3be8c;
@@ -80,7 +83,7 @@ body {
   padding: 0.3em 0.6em;
   border: 1px solid var(--color-border);
   border-radius: 4px;
-  background-color: var(--color-header);
+  background-color: var(--color-bg);
   color: var(--color-fg);
   cursor: pointer;
   transition: background-color 0.2s;
@@ -240,10 +243,15 @@ table.signal {
   vertical-align: top !important;
 }
 
-.combined-signal-tr div.signal {
+.combined-signal-tr div.signal,
+.signal-memory-tr div.signal {
   padding: 5px;
   margin: 0em;
   border-bottom: 1px solid var(--color-border) !important;
+}
+
+.overview > div {
+  margin-bottom: 8px !important;
 }
 
 .signal-details-row {
@@ -277,6 +285,10 @@ td.signal-table {
 
 .signal-list > ul > li {
   margin-bottom: 0.5em; 
+}
+
+.stats-details {
+  display: none;
 }
 
 /* ======================

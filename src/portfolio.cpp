@@ -16,13 +16,15 @@ Ticker::Ticker(const std::string& symbol,
                int priority,
                std::vector<Candle>&& candles,
                minutes update_interval,
-               const Position* position) noexcept
+               const Position* position,
+               const PositionSizingConfig& config) noexcept
     : symbol{symbol},
       priority{priority},
       last_polled{Clock::now()},
-      metrics{std::move(candles), update_interval, position}  //
+      metrics{std::move(candles), update_interval, position},
+      sizing_config{config}  //
 {
-  signal = gen_signal(-1);
+  calculate_signal();
 }
 
 inline std::vector<SymbolInfo> read_symbols() {
@@ -50,8 +52,9 @@ LocalTimePoint Portfolio::last_updated() const {
   return _last_updated;
 }
 
-Portfolio::Portfolio(Config config) noexcept
+Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
     : config{config},
+      sizing_config{sizing_config},
       symbols{::read_symbols()},
       tg{config.tg_en},
       td{symbols.size()},
@@ -80,12 +83,8 @@ Portfolio::Portfolio(Config config) noexcept
           return;
         }
 
-        auto position = positions.get_position(symbol);
-        // FIXME
-        // auto [add, reason] = filter(candles, update_interval);
-
         Ticker ticker(symbol, priority, std::move(candles), update_interval,
-                      position);
+                      positions.get_position(symbol), sizing_config);
         {
           auto _ = writer_lock();
           tickers.emplace(symbol, std::move(ticker));
@@ -146,7 +145,7 @@ void Portfolio::add_candle() {
         {
           auto _ = writer_lock();
           ticker.metrics.add(candle, positions.get_position(symbol));
-          ticker.signal = ticker.gen_signal();
+          ticker.calculate_signal();
         }
 
         write_plot_data(symbol);
@@ -179,7 +178,7 @@ void Portfolio::add_candle_sync() {
     {
       auto _ = writer_lock();
       ticker.metrics.add(candle, positions.get_position(symbol));
-      ticker.signal = ticker.gen_signal();
+      ticker.calculate_signal();
     }
     write_plot_data(symbol);
   }
@@ -202,7 +201,7 @@ void Portfolio::rollback() {
     for (auto& [symbol, ticker] : tickers) {
       auto candle = ticker.metrics.pop_back();
       rp.rollback(symbol, candle);
-      ticker.signal = ticker.gen_signal();
+      ticker.calculate_signal();
       write_plot_data(symbol);
     }
   }
@@ -227,8 +226,7 @@ std::pair<const Position*, double> Portfolio::add_trade(
     pnl = portfolio->positions.add_trade(trade);
 
     auto& metrics = portfolio->tickers.at(trade.ticker).metrics;
-    pos = positions.get_position(trade.ticker);
-    metrics.update_position(pos);
+    pos = metrics.position = positions.get_position(trade.ticker);
 
     if (!tickers.empty())
       portfolio->_last_updated = tickers.begin()->second.metrics.last_updated();
@@ -277,7 +275,7 @@ void Portfolio::update_trades() {
 
   positions.update_trades();
   for (auto& [symbol, ticker] : tickers)
-    ticker.metrics.update_position(positions.get_position(symbol));
+    ticker.metrics.position = positions.get_position(symbol);
 }
 
 void Portfolio::run_replay() {

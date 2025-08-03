@@ -31,3 +31,16 @@ function showAllSignals() {
   const buttons = document.querySelectorAll('#signal-filters .filter-btn');
   buttons.forEach(btn => btn.classList.add('active'));
 }
+
+function toggleStats() {
+  const spans = document.querySelectorAll('.stats-details');
+  const button = document.querySelector('.stats-details-button');
+  const currentlyVisible = spans[0].style.display === 'inline';
+
+  spans.forEach(span => {
+    span.style.display = currentlyVisible ? 'none' : 'inline';
+  });
+
+  button.textContent = currentlyVisible ? 'Show Details' : 'Hide Details';
+  button.classList.toggle('active', !currentlyVisible);
+}

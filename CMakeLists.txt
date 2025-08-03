@@ -65,6 +65,7 @@ add_executable(${TARGET}
   src/signal_funcs.cpp
   src/portfolio.cpp
   src/positions.cpp
+  src/position_sizing.cpp
   src/notifier.cpp
   src/prediction.cpp
   src/webpage.cpp

@@ -30,7 +30,6 @@ inline constexpr double WATCHLIST_THRESHOLD = ENTRY_THRESHOLD;  // for symmetry
 inline Rating gen_rating(double entry_w,
                          double exit_w,
                          double /* past_score */,
-                         bool has_position,
                          bool has_reason,
                          auto& hints) {
   // 1. Strong Entry
@@ -39,7 +38,7 @@ inline Rating gen_rating(double entry_w,
 
   // 2. Strong Exit
   if (exit_w >= EXIT_THRESHOLD && entry_w <= WATCHLIST_THRESHOLD && has_reason)
-    return has_position ? Rating::Exit : Rating::Caution;
+    return Rating::Exit;
 
   // 3. Mixed
   if (entry_w >= MIXED_MIN && exit_w >= MIXED_MIN)
@@ -48,14 +47,12 @@ inline Rating gen_rating(double entry_w,
   // 4. Moderate Exit or urgent exit hint
   bool exit_hints_block_watchlist =
       std::any_of(hints.begin(), hints.end(), [](auto& h) {
-        return h.cls() == SignalClass::Exit &&
-               (h.type == HintType::StopInATR ||
-                h.severity() == Severity::Urgent);
+        return h.cls() == SignalClass::Exit && h.severity() == Severity::Urgent;
       });
 
   if ((exit_w >= EXIT_MIN && exit_w < EXIT_THRESHOLD) ||
       (exit_hints_block_watchlist && exit_w >= EXIT_MIN)) {
-    return has_position ? Rating::HoldCautiously : Rating::Caution;
+    return Rating::Caution;
   }
 
   // 5. Entry bias
@@ -77,7 +74,7 @@ inline Rating gen_rating(double entry_w,
   if (strong_entry_hint)
     return Rating::Watchlist;
   if (strong_exit_hint)
-    return has_position ? Rating::HoldCautiously : Rating::Caution;
+    return Rating::Caution;
 
   return Rating::None;
 }
@@ -93,11 +90,8 @@ inline int severity_weight(Severity s) {
 template <typename T>
 std::string to_str(const T& t);
 
-inline double signal_score(double entry_w,
-                           double exit_w,
-                           double past_score,
-                           bool has_position) {
-  double raw = has_position ? entry_w - 1.5 * exit_w : 1.2 * entry_w - exit_w;
+inline double signal_score(double entry_w, double exit_w, double past_score) {
+  auto raw = 1.2 * entry_w - exit_w;
   double curr_score = std::tanh((raw) / 3.0);  // squashes to [-1,1]
   constexpr double alpha = 0.7;
   return curr_score * 0.7 + past_score * (1 - alpha);
@@ -162,9 +156,8 @@ Signal Indicators::gen_signal(int idx) const {
   sort(s.hints);
 
   auto past_score = memory.score();
-  s.type = gen_rating(entry_w, exit_w, past_score, has_position(),
-                      s.has_reasons(), s.hints);
-  s.score = signal_score(entry_w, exit_w, past_score, has_position());
+  s.type = gen_rating(entry_w, exit_w, past_score, s.has_reasons(), s.hints);
+  s.score = signal_score(entry_w, exit_w, past_score);
 
   return s;
 }
@@ -179,19 +172,60 @@ Signal Metrics::get_signal(minutes interval, int idx) const {
   return {};
 }
 
+inline bool disqualify(auto& filters) {
+  int strongBearish1D = 0;
+  int weakBearish1D = 0;
+  int bearish4H = 0;
+
+  for (const auto& f : filters.trends_1d) {
+    if (f.trend == Trend::Bearish) {
+      if (f.confidence == Confidence::High)
+        ++strongBearish1D;
+      else
+        ++weakBearish1D;
+    }
+  }
+
+  for (const auto& f : filters.trends_4h) {
+    if (f.trend == Trend::Bearish)
+      ++bearish4H;
+  }
+
+  if (strongBearish1D > 0)
+    return true;
+  if (bearish4H >= 2 && weakBearish1D > 0)
+    return true;
+
+  // allow if only 4H is weakly bearish and daily is neutral/bullish
+  return false;
+}
+
 Rating contextual_rating(auto& sig_1h,
                          auto& sig_4h,
                          auto& sig_1d,
-                         auto& filters) {
+                         auto& filters,
+                         bool has_position,
+                         auto& stop_hit) {
   Rating base_rating = sig_1h.type;
 
-  // Keep existing bearish trend logic
-  auto& trend_4h = filters.trend_4h;
-  auto& trend_1d = filters.trend_1d;
-
-  if (trend_4h.confidence == Confidence::Bearish ||
-      trend_1d.confidence == Confidence::Bearish) {
+  if (disqualify(filters))
     return Rating::Skip;
+
+  if (base_rating == Rating::Caution && has_position)
+    base_rating = Rating::HoldCautiously;
+
+  if (base_rating == Rating::Exit && !has_position)
+    base_rating = Rating::Caution;
+
+  if (stop_hit.type == StopHitType::StopLossHit)
+    base_rating = Rating::Exit;
+  else if (stop_hit.type == StopHitType::StopInATR)
+    base_rating = Rating::HoldCautiously;
+  else if (stop_hit.type == StopHitType::StopProximity) {
+    if (base_rating == Rating::Watchlist)
+      base_rating = Rating::Mixed;
+    else if (base_rating == Rating::Mixed || base_rating == Rating::Caution)
+      base_rating = Rating::HoldCautiously;
   }
 
   // Upgrade to Entry if higher timeframes show strong entry signals
@@ -238,6 +272,8 @@ inline double weighted_score(double score_1h,
   return base_score;
 }
 
+StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss);
+
 CombinedSignal Ticker::gen_signal(int idx) const {
   auto sig_1h = metrics.get_signal(H_1, idx);
   auto sig_4h = metrics.get_signal(H_4, idx);
@@ -246,16 +282,13 @@ CombinedSignal Ticker::gen_signal(int idx) const {
   auto& ind_1h = metrics.ind_1h;
 
   CombinedSignal sig;
+  sig.stop_hit = stop_loss_hits(metrics, stop_loss);
   sig.forecast = ind_1h.gen_forecast(idx);
 
   sig.filters = evaluate_filters(metrics);
-  sig.type = contextual_rating(sig_1h, sig_4h, sig_1d, sig.filters);
+  sig.type = contextual_rating(sig_1h, sig_4h, sig_1d, sig.filters,
+                               metrics.has_position(), sig.stop_hit);
   sig.score = weighted_score(sig_1h.score, sig_4h.score, sig_1d.score);
-
-  if (sig.filters.trend_4h.confidence == Confidence::Bearish ||
-      sig.filters.trend_1d.confidence == Confidence::Bearish) {
-    sig.type = Rating::Skip;
-  }
 
   if (sig.type == Rating::Entry) {
     for (auto conf : confirmations(metrics))

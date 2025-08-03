@@ -61,6 +61,7 @@ inline constexpr std::string_view index_signal_td_template = R"(
 )";
 
 inline constexpr std::string_view index_signal_entry_template = R"(
+{}
 <div class="signal-list">
   <ul>
     {}
@@ -75,11 +76,18 @@ inline constexpr std::string_view index_signal_div_template = R"(
   </div>
 )";
 
-inline constexpr std::string_view index_combined_sig_template = R"(
-  <td class="overview"><div>{}</div><div>{}</div></td>
-  <td class="curr_signal signal-1h">{}{}</td>
-  <td class="signal-4h">{}{}</td>
-  <td class="signal-1d">{}{}</td>
+inline constexpr std::string_view index_signal_overview_template = R"(
+  <div class="trend">{}</div>
+  <div class="forecast">{}</div>
+  <div class="stop_loss">{}</div>
+  <div class="position_sizing">{}</div>
+)";
+
+inline constexpr std::string_view index_combined_signal_template = R"(
+  <td class="overview">{}</td>
+  <td class="curr_signal signal-1h">{}</td>
+  <td class="signal-4h">{}</td>
+  <td class="signal-1d">{}</td>
 )";
 
 inline constexpr std::string_view index_signal_template = R"(
@@ -95,5 +103,12 @@ inline constexpr std::string_view index_signal_template = R"(
       </div>
     </td>
   </tr>
+)";
+
+inline constexpr std::string_view ticker_body_template = R"(
+  <div><b>Position:</b> {}</div>
+  <div><b>Stop Loss:</b> {}</div>
+  <div><b>Forecast:</b> {}</div>
+  <div><b>Position size:</b> {}</div>
 )";
 

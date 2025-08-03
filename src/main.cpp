@@ -49,7 +49,9 @@ int main(int argc, char* argv[]) {
   if (config.replay_en)
     plot_daemon_port = "5556";
 
-  Portfolio portfolio{config};
+  PositionSizingConfig sizing_config{"private/sizing.json"};
+
+  Portfolio portfolio{config, sizing_config};
   Notifier notifier{portfolio};
   portfolio.run();
   return 0;

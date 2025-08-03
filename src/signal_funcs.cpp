@@ -24,8 +24,17 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
      {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi↱70"}},
     {ReasonType::MacdBearishCross,  //
      {Severity::High, Source::MACD, SignalClass::Exit, "macd⤰"}},
-    {ReasonType::StopLossHit,  //
+};
+
+inline const std::unordered_map<StopHitType, Meta> stop_hit_meta = {
+    {StopHitType::StopLossHit,  //
      {Severity::Urgent, Source::Stop, SignalClass::Exit, "stop⤰"}},
+    {StopHitType::StopProximity,  //
+     {Severity::High, Source::Stop, SignalClass::Exit, "stop⨯"}},
+    {StopHitType::StopInATR,  //
+     {Severity::High, Source::Stop, SignalClass::Exit, "stop!"}},
+    {StopHitType::None,  //
+     {Severity::Low, Source::None, SignalClass::None, ""}},
 };
 
 inline const std::unordered_map<HintType, Meta> hint_meta = {
@@ -49,10 +58,6 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
      {Severity::Medium, Source::MACD, SignalClass::Exit, "macd▲"}},
     {HintType::Ema9Flattening,  //
      {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↝21"}},
-    {HintType::StopProximity,  //
-     {Severity::High, Source::Stop, SignalClass::Exit, "stop⨯"}},
-    {HintType::StopInATR,  //
-     {Severity::High, Source::Stop, SignalClass::Exit, "stop!"}},
 
     // Trends:
 
@@ -89,75 +94,163 @@ SignalType<HintType, HintType::None>::SignalType(HintType type) : type{type} {
   meta = it == hint_meta.end() ? nullptr : &it->second;
 }
 
-// Filters
-
-Filter evaluate_daily_trend(const Indicators& ind_1d) {
-  auto& ind = ind_1d;
-
-  auto& ema = ind.trends.ema21.top_trends;
-  auto& rsi = ind._rsi.values;
-
-  if (ema.empty() || rsi.empty())
-    return Confidence::NeutralOrSideways;
-
-  double slope = ema[0].slope();
-  double r2 = ema[0].r2;
-  double rsi_val = rsi.back();
-
-  if (slope > 0.08 && r2 > 0.8 && rsi_val > 55)
-    return {Confidence::StrongUptrend, "1d⇗"};
-
-  if (slope > 0.02 && r2 > 0.6 && rsi_val > 50)
-    return {Confidence::ModerateUptrend, "1d↗"};
-
-  if (rsi_val > 45)
-    return {Confidence::NeutralOrSideways, "1d🡒"};
-
-  return {Confidence::Bearish, "1d↘"};
+template <>
+SignalType<StopHitType, StopHitType::None>::SignalType(StopHitType type)
+    : type{type} {
+  auto it = stop_hit_meta.find(type);
+  meta = it == stop_hit_meta.end() ? nullptr : &it->second;
 }
 
-Filter evaluate_four_hour_trend(const Indicators& ind_4h) {
-  auto& ind = ind_4h;
+// Filters
 
-  auto& ema_trend = ind.trends.ema21.top_trends;
-  auto& rsi_vals = ind._rsi.values;
-  auto& rsi_trend = ind.trends.rsi.top_trends;
+std::vector<Filter> evaluate_daily_trend(const Indicators& ind) {
+  std::vector<Filter> res;
 
-  if (ema_trend.empty() || rsi_vals.empty())
-    return {Confidence::NeutralOrSideways, "4h🡒"};
+  double slope = ind.ema21_trend(-1).slope();
+  double r2 = ind.ema21_trend(-1).r2;
+  double rsi = ind.rsi(-1);
 
-  double ema_slope = ema_trend[0].slope();
-  double ema_r2 = ema_trend[0].r2;
+  // Trend strength
+  if (slope > 0.08 && r2 > 0.8 && rsi > 55)
+    res.emplace_back(Trend::StrongUptrend, Confidence::High, "⇗");
+  else if (slope > 0.02 && r2 > 0.6 && rsi > 50)
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium, "↗");
+  else if (rsi > 45)
+    res.emplace_back(Trend::NeutralOrSideways, Confidence::Medium, "🡒");
+  else
+    res.emplace_back(Trend::Bearish, Confidence::High, "↘");
 
-  double rsi_val = rsi_vals.back();
-  double rsi_slope = 0.0;
-  double rsi_r2 = 0.0;
-  if (!rsi_trend.empty()) {
-    rsi_slope = rsi_trend[0].slope();
-    rsi_r2 = rsi_trend[0].r2;
+  // EMA21 alignment
+  if (ind.price(-1) > ind.ema21(-1))
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium, "p⌃21");
+  else if (ind.price(-1) > ind.ema21(-1) * 0.99)
+    res.emplace_back(Trend::NeutralOrSideways, Confidence::Low, "p~21");
+  else
+    res.emplace_back(Trend::Bearish, Confidence::Medium, "p⌄21");
+
+  // EMA50
+  if (ind.price(-1) > ind.ema50(-1))
+    res.emplace_back(Trend::NeutralOrSideways, Confidence::Low, "p⌃50");
+  else if (ind.price(-1) > ind.ema50(-1) * 0.99)
+    res.emplace_back(Trend::NeutralOrSideways, Confidence::Low, "p~50");
+  else
+    res.emplace_back(Trend::Bearish, Confidence::Medium, "p⌄50");
+
+  // RSI signal
+  if (rsi >= 50 && rsi <= 65)
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium, "r50-65");
+  else if (rsi > 65)
+    res.emplace_back(Trend::NeutralOrSideways, Confidence::Low, "r>65");
+  else if (rsi < 50 && rsi > 40)
+    res.emplace_back(Trend::Caution, Confidence::Low, "r40-50");
+  else
+    res.emplace_back(Trend::Bearish, Confidence::High, "r<40");
+
+  if (ind.atr(-1) / ind.price(-1) < 0.01)
+    res.emplace_back(Trend::NeutralOrSideways, Confidence::Low, "lowVol");
+
+  return res;
+}
+
+Filter potential_base(const Indicators& ind_4h) {
+  const int base_window = 6;  // last 6 candles (24 hours on 4H)
+  int start = -base_window;
+
+  // Price compression (range < 1.5 * ATR)
+  double max_price = ind_4h.price(start);
+  double min_price = ind_4h.price(start);
+  for (int i = start + 1; i < -1; ++i) {
+    max_price = std::max(max_price, ind_4h.price(i));
+    min_price = std::min(min_price, ind_4h.price(i));
+  }
+  double price_range = max_price - min_price;
+  double atr = ind_4h.atr(-1);
+  bool tight_range = price_range < 1.5 * atr;
+
+  // MACD histogram rising
+  bool hist_rising =
+      ind_4h.hist(-1) > ind_4h.hist(-2) && ind_4h.hist(-2) > ind_4h.hist(-3);
+
+  // RSI stable or rising
+  bool rsi_stable = ind_4h.rsi(-1) >= ind_4h.rsi(-2) - 2;
+
+  // EMA21 trend flat or rising
+  auto ema_trend = ind_4h.ema21_trend(-1);
+  bool ema_flat_or_up = ema_trend.slope() >= -0.0001;
+
+  // No lower lows (support holding)
+  bool higher_lows = true;
+  for (int i = start + 1; i < -1; ++i) {
+    if (ind_4h.candles[i].low < ind_4h.candles[i - 1].low) {
+      higher_lows = false;
+      break;
+    }
   }
 
-  // Strong Uptrend: clear EMA rise + solid RSI
-  if (ema_slope > 0.10 && ema_r2 > 0.8 && rsi_val > 55 && rsi_slope > 0.1 &&
+  if (tight_range && hist_rising && rsi_stable && ema_flat_or_up && higher_lows)
+    return {Trend::StrongUptrend, Confidence::High, "base+"};
+
+  if ((tight_range && ema_flat_or_up) && (hist_rising || rsi_stable) &&
+      higher_lows)
+    return {Trend::ModerateUptrend, Confidence::Medium, "base~"};
+
+  if (tight_range && !hist_rising && !higher_lows)
+    return {Trend::NeutralOrSideways, Confidence::Low, "base-"};
+
+  return {};
+}
+
+std::vector<Filter> evaluate_four_hour_trend(const Indicators& ind_4h) {
+  std::vector<Filter> res;
+
+  auto& ind = ind_4h;
+
+  auto ema_trend = ind.ema21_trend(-1);
+  auto rsi_trend = ind.rsi_trend(-1);
+
+  double ema_slope = ema_trend.slope();
+  double ema_r2 = ema_trend.r2;
+
+  double rsi = ind.rsi(-1);
+  double rsi_slope = rsi_trend.slope();
+  double rsi_r2 = rsi_trend.r2;
+
+  if (ema_slope > 0.10 && ema_r2 > 0.8 && rsi > 55 && rsi_slope > 0.1 &&
       rsi_r2 > 0.7)
-    return {Confidence::StrongUptrend, "4h⇗"};
+    res.emplace_back(Trend::StrongUptrend, Confidence::High, "⇗");
+  else if ((ema_slope > 0.03 && ema_r2 > 0.6 && rsi > 50) ||
+           (rsi_slope > 0.05 && rsi_r2 > 0.6 && rsi > 50))
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium, "↗");
+  else if (rsi > 45)
+    res.emplace_back(Trend::NeutralOrSideways, Confidence::Medium, "🡒");
+  else
+    res.emplace_back(Trend::Bearish, Confidence::Medium, "↘");
 
-  // Moderate Uptrend: some slope or RSI support
-  if ((ema_slope > 0.03 && ema_r2 > 0.6 && rsi_val > 50) ||
-      (rsi_slope > 0.05 && rsi_r2 > 0.6 && rsi_val > 50))
-    return {Confidence::ModerateUptrend, "4h↗"};
+  if (ind.hist(-1) > 0)
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium, "h+");
+  else if (ind.hist(-1) > ind.hist(-2))
+    res.emplace_back(Trend::NeutralOrSideways, Confidence::Low, "h~");
+  else
+    res.emplace_back(Trend::Bearish, Confidence::Low, "h-");
 
-  // Weak Neutral Zone
-  if (rsi_val > 45)
-    return {Confidence::NeutralOrSideways, "4h🡒"};
+  if (rsi > 65)
+    res.emplace_back(Trend::StrongUptrend, Confidence::Low, "r>65");
+  else if (rsi < 65 && rsi > 50)
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium, "r50-65");
+  else if (rsi < 50 && rsi > 40)
+    res.emplace_back(Trend::Caution, Confidence::Medium, "r40-50");
+  else
+    res.emplace_back(Trend::Bearish, Confidence::Low, "r<40");
 
-  return {Confidence::Bearish, "4h↘"};
+  res.emplace_back(potential_base(ind_4h));
+
+  return res;
 }
 
 Filters evaluate_filters(const Metrics& m) {
   Filters res{
-      .trend_4h = evaluate_four_hour_trend(m.ind_4h),
-      .trend_1d = evaluate_daily_trend(m.ind_1d),
+      .trends_4h = evaluate_four_hour_trend(m.ind_4h),
+      .trends_1d = evaluate_daily_trend(m.ind_1d),
   };
   return res;
 }
@@ -208,13 +301,6 @@ inline Reason macd_bearish_cross_exit(const Indicators& ind, int idx) {
   return ReasonType::None;
 }
 
-inline Reason stop_loss_exit(const Indicators& ind, int) {
-  auto price = ind.price(-1);
-  if (price < ind.stop_loss.final_stop)
-    return ReasonType::StopLossHit;
-  return ReasonType::None;
-}
-
 inline constexpr signal_f reason_funcs[] = {
     // Entry
     ema_crossover_entry,
@@ -224,7 +310,6 @@ inline constexpr signal_f reason_funcs[] = {
     // Exit
     ema_crossdown_exit,
     macd_bearish_cross_exit,
-    stop_loss_exit,
 };
 
 std::vector<Reason> reasons(const Indicators& ind, int idx) {
@@ -306,22 +391,6 @@ inline Hint ema_flattens_hint(const Indicators& m, int idx) {
   return HintType::None;
 }
 
-inline Hint stop_proximity_hint(const Indicators& ind, int idx) {
-  auto price = ind.price(-1);
-  auto dist = price - ind.stop_loss.final_stop;
-
-  if (dist < 0)
-    return HintType::StopInATR;
-
-  if (dist < ind.atr(idx) * 0.75)
-    return HintType::StopProximity;
-
-  if (dist < 1.0 * ind.stop_loss.atr_stop - ind.stop_loss.final_stop)
-    return HintType::StopInATR;
-
-  return HintType::None;
-}
-
 // Trends
 
 inline Hint price_trending(const Indicators& m, int idx) {
@@ -368,7 +437,6 @@ inline constexpr hint_f hint_funcs[] = {
     rsi_falling_from_overbought_hint,
     macd_histogram_peaking_hint,
     ema_flattens_hint,
-    stop_proximity_hint,
 
     // Trends
     price_trending,
@@ -475,4 +543,24 @@ void Indicators::get_stats() {
     auto [r, s] = bt.get_stats<HintType>(f);
     hint_stats.try_emplace(r, s);
   }
+}
+
+// Stop Loss tests
+StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
+  if (!m.has_position())
+    return StopHitType::None;
+
+  auto price = m.last_price();
+  if (price < stop_loss.final_stop)
+    return StopHitType::StopLossHit;
+
+  auto dist = price - stop_loss.final_stop;
+
+  if (dist < m.ind_1h.atr(-1) * 0.75)
+    return StopHitType::StopProximity;
+
+  if (dist < 1.0 * stop_loss.atr_stop - stop_loss.final_stop)
+    return StopHitType::StopInATR;
+
+  return StopHitType::None;
 }

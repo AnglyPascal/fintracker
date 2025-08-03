@@ -105,6 +105,30 @@ std::string to_str(const Rating& type) {
 }
 
 template <>
+std::string to_str(const Recommendation& recom) {
+  switch (recom) {
+    case Recommendation::StrongBuy:
+      return "Strong Buy";
+    case Recommendation::Buy:
+      return "Buy";
+    case Recommendation::WeakBuy:
+      return "Weak Buy";
+    case Recommendation::Caution:
+      return "Caution";
+    case Recommendation::Avoid:
+      return "Avoid";
+    default:
+      return "";
+  }
+}
+
+template <>
+std::string to_str(const TimeframeRisk& risk) {
+  return std::format("Vol: {:.2f}%, Trend: {:.2f}%",  //
+                     risk.volatility_score, risk.trend_alignment * 100);
+}
+
+template <>
 std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
   if (!sig.has_reasons() && !sig.has_hints())
     return "";
@@ -166,17 +190,12 @@ template <>
 std::string to_str<FormatTarget::Telegram>(const Metrics& m) {
   auto& ind = m.ind_1h;
 
-  auto stop_line = m.has_position()
-                       ? std::format("Stop: {:.2f}\n", ind.stop_loss.final_stop)
-                       : "";
   auto [high, pb] = ind.pullback();
 
   return std::format(
       "Px: {:.2f} | EMA9/EMA21: {:.2f}/{:.2f}\n"
-      "RSI: {:.2f} | Recent high: {:.2f} ({:+.2f}%)\n"
-      "{}\n",
-      ind.price(-1), ind.ema9(-1), ind.ema21(-1), ind.rsi(-1), high, pb,
-      stop_line);
+      "RSI: {:.2f} | Recent high: {:.2f} ({:+.2f}%)\n",
+      ind.price(-1), ind.ema9(-1), ind.ema21(-1), ind.rsi(-1), high, pb);
 }
 
 template <>
@@ -187,15 +206,22 @@ std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
   auto& ind = metrics.ind_1h;
   auto& signal = ticker.signal;
 
+  auto stop_line =
+      metrics.has_position()
+          ? std::format("Stop: {:.2f}\n", ticker.stop_loss.final_stop)
+          : "";
+
   auto pos_line =
-      to_str<FormatTarget::Telegram>(ind.position, metrics.last_price());
+      to_str<FormatTarget::Telegram>(metrics.position, metrics.last_price());
 
   return std::format(
-      "{} \"{}\" {}\n\n"                          //
-      "{}"                                        //
-      "{}\n",                                     //
-      emoji(signal.type), symbol, pos_line,       //
-      to_str<FormatTarget::Telegram>(metrics),    //
+      "{} \"{}\" {}\n\n"  //
+      "{}"                //
+      "{}\n"
+      "{}\n",                                   //
+      emoji(signal.type), symbol, pos_line,     //
+      to_str<FormatTarget::Telegram>(metrics),  //
+      stop_line,
       to_str<FormatTarget::Telegram>(ind.signal)  //
   );
 }

@@ -1,5 +1,6 @@
 #include "indicators.h"
 #include "format.h"
+#include "position_sizing.h"
 #include "positions.h"
 #include "times.h"
 
@@ -222,11 +223,12 @@ void Indicators::add(const Candle& candle, bool new_candle) noexcept {
   signal = gen_signal(-1);
 }
 
-void Indicators::update_position(const Position* pos) noexcept {
-  position = pos;
-  stop_loss = StopLoss{*this, position};
-  signal = gen_signal(-1);
-}
+// FIXME:
+// void Indicators::update_position(const Position* pos) noexcept {
+//   position = pos;
+//   stop_loss = StopLoss{*this, position};
+//   signal = gen_signal(-1);
+// }
 
 void Indicators::pop_back(bool pop_memory) noexcept {
   candles.pop_back();
@@ -313,21 +315,15 @@ Metrics::Metrics(std::vector<Candle>&& candles,
       interval{interval},
       ind_1h{downsample(this->candles, interval, H_1), H_1},  //
       ind_4h{downsample(this->candles, interval, H_4), H_4},  //
-      ind_1d{downsample(this->candles, interval, D_1), D_1}   //
+      ind_1d{downsample(this->candles, interval, D_1), D_1},
+      position{position}  //
 {
-  update_position(position);
   if (has_position())
     position->max_price_seen = std::max(position->max_price_seen, last_price());
 }
 
-void Metrics::update_position(const Position* pos) noexcept {
-  ind_1h.update_position(pos);
-  ind_4h.update_position(pos);
-  ind_1d.update_position(pos);
-}
-
 bool Metrics::has_position() const {
-  return ind_1h.position != nullptr && ind_1h.position->qty != 0;
+  return position != nullptr && position->qty != 0;
 }
 
 inline auto interval_start(minutes interval, auto end) {
@@ -343,7 +339,7 @@ inline auto interval_start(minutes interval, auto end) {
   return end;
 }
 
-bool Metrics::add(const Candle& candle, const Position* position) noexcept {
+bool Metrics::add(const Candle& candle, const Position* pos) noexcept {
   candles.push_back(candle);
 
   auto add_to_ind = [&](auto& ind) {
@@ -361,7 +357,7 @@ bool Metrics::add(const Candle& candle, const Position* position) noexcept {
   add_to_ind(ind_4h);
   add_to_ind(ind_1d);
 
-  update_position(position);
+  position = pos;
   if (position != nullptr)
     position->max_price_seen =
         std::max(position->max_price_seen, candle.price());
@@ -390,66 +386,59 @@ Candle Metrics::pop_back() noexcept {
   pop_from_ind(ind_4h);
   pop_from_ind(ind_1d);
 
-  update_position(ind_1h.position);
-
   return candle;
 }
 
-StopLoss::StopLoss(const Indicators& ind, const Position* pos) noexcept {
-  if (pos == nullptr || pos->qty == 0)
-    return;
-
-  auto& candles = ind.candles;
+StopLoss::StopLoss(const Metrics& m,
+                   const PositionSizingConfig& config) noexcept {
+  auto& ind = m.ind_1h;
 
   auto price = ind.price(-1);
   auto atr = ind.atr(-1);
-  auto entry_price = pos->px;
-  auto gain = price - entry_price;
 
-  is_trailing = (gain > atr);  // trailing kicks in after ~1R move
+  auto pos = m.position;
+  auto entry_price = m.has_position() ? pos->px : price;
 
-  auto hard_stop = pos->max_price_seen * (1.0 - 0.02);
+  // trailing kicks in after ~1R move
+  is_trailing = m.has_position() && (price > entry_price + atr);
+
+  auto& candles = ind.candles;
+  auto n = std::min(config.swing_low_window, (int)candles.size());
+
+  swing_low = std::numeric_limits<double>::max();
+  for (size_t i = candles.size() - n; i < candles.size(); ++i)
+    swing_low = std::min(swing_low, candles[i].low);
+  swing_low *= 1.0 - config.swing_low_buffer;
 
   // Initial Stop
   if (!is_trailing) {
-    constexpr size_t N = 30;
-    auto n = std::min(N, candles.size());
-
-    swing_low = std::numeric_limits<double>::max();
-    for (size_t i = candles.size() - n; i < candles.size(); ++i)
-      swing_low = std::min(swing_low, candles[i].low);
-    swing_low *= 0.998;
-
-    auto buffer = 0.015 * price;
+    auto buffer = config.ema_stop_buffer * price;
     ema_stop = ind.ema21(-1) - buffer;
 
     auto best = std::min(swing_low, ema_stop) * 0.999;
-    atr_stop = entry_price - 2.0 * atr;
+    atr_stop = entry_price - config.stop_atr_multiplier * atr;
 
-    final_stop = std::min(std::max(best, atr_stop), hard_stop);
+    auto hard_stop = entry_price * (1.0 - config.stop_pct);
+
+    final_stop = std::max(std::max(best, atr_stop), hard_stop);
     stop_pct = (entry_price - final_stop) / entry_price;
   }
 
   // Trailing Stop
   else {
     auto max_price = pos->max_price_seen;
+    atr_stop = max_price - config.stop_atr_multiplier * atr;
 
-    atr_stop = max_price - 2.0 * atr;
+    auto hard_stop = max_price * (1.0 - config.stop_pct);
 
-    constexpr size_t N = 30;
-    auto n = std::min(N, candles.size());
-
-    swing_low = std::numeric_limits<double>::max();
-    for (size_t i = candles.size() - n; i < candles.size(); ++i)
-      swing_low = std::min(swing_low, candles[i].low);
-    swing_low *= 0.998;
-
-    final_stop = std::min(std::max(swing_low, atr_stop), hard_stop);
+    final_stop = std::max(std::max(swing_low, atr_stop), hard_stop);
     stop_pct = (price - final_stop) / price;
   }
 
-  spdlog::trace("[stop] price={:.2f} entry={:.2f} atr={:.2f} atr_stop={:.2f}\n",
-                price, entry_price, atr, atr_stop);
+  spdlog::info(
+      "[stop] price={:.2f} entry={:.2f} atr={:.2f} atr_stop={:.2f} "
+      "final={:.2f}",
+      price, entry_price, atr, atr_stop, final_stop);
 }
 
 Forecast Indicators::gen_forecast(int) const {
