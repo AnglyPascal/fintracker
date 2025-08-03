@@ -1088,3 +1088,7 @@ page/public
 page/package-lock.json
 
 include/_html_template.h
+
+.ninja_deps 
+.ninja_log 
+build.ninja

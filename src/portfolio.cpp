@@ -110,6 +110,7 @@ Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
     std::string cmd = "python3 scripts/plot_metrics.py " + plot_daemon_port;
     std::system(cmd.c_str());
   }).detach();
+
   plot();
   write_page();
 

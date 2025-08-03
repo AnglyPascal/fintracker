@@ -44,6 +44,9 @@ struct Timer {
     return std::chrono::duration<double, std::milli>(Clock::now() - start)
         .count();
   }
+  double diff_s() const {
+    return std::chrono::duration<double>(Clock::now() - start).count();
+  }
 };
 
 bool first_candle_in_interval(minutes interval, LocalTimePoint tp);

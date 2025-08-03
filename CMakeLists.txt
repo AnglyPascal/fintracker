@@ -1,4 +1,8 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.11)
+
+set(CMAKE_C_COMPILER_LAUNCHER ccache)
+set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+
 project(MarketMonitor LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 26)
@@ -10,9 +14,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(TARGET fin)
-
-
-find_package(date REQUIRED)
 
 # Use FetchContent to pull dependencies
 include(FetchContent)
@@ -29,11 +30,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(argparse)
 
-# nlohmann/json - JSON parsing
 FetchContent_Declare(
-  json
-  GIT_REPOSITORY https://github.com/nlohmann/json.git
-  GIT_TAG        v3.11.2
+  json 
+  URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(json)
 
@@ -79,10 +79,20 @@ target_include_directories(${TARGET} PRIVATE
   ${ZMQ_INCLUDE_DIR}
 )
 
+get_target_property(
+  NLOHMANN_JSON_INCLUDE_DIR 
+  nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
+
+get_target_property(
+  SPDLOG_INCLUDE_DIR 
+  spdlog::spdlog INTERFACE_INCLUDE_DIRECTORIES)
+
+target_include_directories(${TARGET} SYSTEM PRIVATE ${SPDLOG_INCLUDE_DIR})
+target_include_directories(${TARGET} SYSTEM PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
+
 target_link_libraries(${TARGET}
   cpr::cpr
   argparse
-  spdlog::spdlog
   ${ZMQ_LIB}
 )
 
@@ -100,14 +110,6 @@ add_custom_command(
 add_custom_target(html_header DEPENDS ${OUTPUT_HEADER})
 add_dependencies(${TARGET} html_header)
 
-add_executable(get_calendar
-  src/get_calendar.cpp
-)
-
-target_link_libraries(get_calendar
-  cpr::cpr
-)
-
 function(add_env_vars TARGET)
     # Remaining args are the list of environment variable names
     foreach(VAR_NAME IN LISTS ARGN)
@@ -124,3 +126,14 @@ add_env_vars(${TARGET}
              TD_API_KEY_1 TD_API_KEY_2 TD_API_KEY_3
              TG_TOKEN TG_CHAT_ID TG_USER
              PATH HOME)
+
+add_executable(get_calendar
+  src/get_calendar.cpp
+)
+
+set(CALENDAR get_calendar)
+
+target_link_libraries(${CALENDAR} cpr::cpr)
+target_include_directories(${CALENDAR} SYSTEM PRIVATE ${SPDLOG_INCLUDE_DIR})
+target_include_directories(${CALENDAR} SYSTEM PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
+

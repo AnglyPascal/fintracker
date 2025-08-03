@@ -33,6 +33,7 @@
   --color-signal-exit-bg: #bf616a;
   --color-signal-watchlist-bg: #88c0d0;
   --color-signal-caution-bg: #ebcb8b;
+  --color-signal-none-bg: #202027;
   --color-signal-mixed-bg: #d8dee9;
 }
 
@@ -164,6 +165,7 @@ td .inner-div {
 .signal-watchlist { background-color: var(--color-signal-watchlist-bg); }
 .signal-caution,
 .signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
+.signal-none { background-color: var(--color-signal-none-bg); }
 .signal-mixed { background-color: var(--color-signal-mixed-bg); }
 
 /* Force dark text on colored backgrounds */
@@ -247,7 +249,10 @@ table.signal {
 .signal-memory-tr div.signal {
   padding: 5px;
   margin: 0em;
-  border-bottom: 1px solid var(--color-border) !important;
+}
+
+.signal-memory-tr div.signal {
+  margin-top: 5px;
 }
 
 .overview > div {
@@ -374,7 +379,8 @@ td.signal-table {
     border: none !important;
   }
 
-  .combined-signal-tr div.signal {
+  .combined-signal-tr div.signal,
+  .signal-memory-tr div.signal {
     width: 100%;
     border-bottom: none !important;
   }

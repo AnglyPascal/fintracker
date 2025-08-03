@@ -16,7 +16,7 @@
 
 struct Ticker {
   const std::string symbol;
-  int priority;  // 1 = high, 2 = medium, 3 = low
+  int priority;
 
   TimePoint last_polled;
 
@@ -40,8 +40,7 @@ struct Ticker {
   void calculate_signal() {
     stop_loss = StopLoss(metrics, sizing_config);
     signal = gen_signal(-1);
-    position_sizing =
-        PositionSizing(metrics, signal, stop_loss, sizing_config);
+    position_sizing = PositionSizing(metrics, signal, stop_loss, sizing_config);
   }
 };
 

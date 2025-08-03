@@ -267,7 +267,9 @@ inline Candle combine(auto start, auto end) {
   return out;
 }
 
-inline auto downsample(auto& candles, minutes source, minutes target) {
+inline auto downsample(auto& candles,
+                       [[maybe_unused]] minutes source,
+                       minutes target) {
   if (candles.empty())
     return std::vector<Candle>{};
 
