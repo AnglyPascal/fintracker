@@ -1,8 +1,17 @@
 #include "calendar.h"
 #include "times.h"
 
+#include <chrono>
 #include <fstream>
 #include <iostream>
+
+int Event::days_until() const {
+  using namespace std::chrono;
+  auto date_now = floor<days>(now_ny_time());
+  if (ny_date < date_now)
+    return -1;
+  return duration_cast<days>(ny_date - date_now).count();
+}
 
 Calendar::Calendar() {
   std::ifstream file("data/calendar.csv");
@@ -38,10 +47,9 @@ Event Calendar::next_event(std::string symbol) const {
   if (it == events.end() || it->second.empty())
     return {};
 
-  auto& event = it->second[0];
-  auto diff_days = duration_cast<days>(event.ny_date - now_ny_time()).count();
-  if (diff_days < 0)
-    return {};
+  for (auto& ev : it->second)
+    if (ev.days_until() >= 0)
+      return ev;
 
-  return event;
+  return {};
 }

@@ -9,6 +9,7 @@
 struct Event {
   char type = '\0';
   LocalTimePoint ny_date;
+  int days_until() const;
 };
 
 std::vector<Event> get_events();

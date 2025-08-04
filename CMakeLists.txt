@@ -96,14 +96,17 @@ target_link_libraries(${TARGET}
   ${ZMQ_LIB}
 )
 
-set(EMBED_SCRIPT scripts/embed_str.py)
-set(INPUT_HTML data/index.html data/ticker.html)
-set(OUTPUT_HEADER include/_html_template.h)
+set(EMBED_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_str.py)
+set(INPUT_HTML 
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/index.html 
+    ${CMAKE_CURRENT_SOURCE_DIR}/data/ticker.html)
+set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/_html_template.h)
 
 add_custom_command(
   OUTPUT ${OUTPUT_HEADER} 
   COMMAND python ${EMBED_SCRIPT}
   DEPENDS ${INPUT_HTML} ${EMBED_SCRIPT} 
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   COMMENT "Generating html_templates"
 )
 

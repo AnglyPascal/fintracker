@@ -373,8 +373,10 @@ std::string to_str(const Event& ev) {
   if (ev.type == '\0')
     return "";
 
-  auto diff_date = duration_cast<days>(ev.ny_date - now_ny_time()).count();
-  return std::format("{}{:+}", ev.type, diff_date);
+  auto days_until = ev.days_until();
+  if (days_until < 0)
+    return "";
+  return std::format("{}{:+}", ev.type, days_until);
 }
 
 template <>
