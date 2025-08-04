@@ -255,6 +255,14 @@ table.signal {
   margin-top: 5px;
 }
 
+div.signal-time {
+  display: none;
+}
+
+.signal-memory-tr div.signal-time {
+  display: block !important;
+}
+
 .overview > div {
   margin-bottom: 8px !important;
 }

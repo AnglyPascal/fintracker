@@ -72,6 +72,7 @@ inline constexpr std::string_view index_signal_entry_template = R"(
 inline constexpr std::string_view index_signal_div_template = R"(
   <div class="signal {}">
     <div class="signal-text">{}</div> 
+    <div class="signal-time">{:%d-%m %H:%M}</div>
     <div class="signal-score">{}</div>
   </div>
 )";

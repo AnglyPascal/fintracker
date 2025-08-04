@@ -99,6 +99,8 @@ inline double signal_score(double entry_w, double exit_w, double past_score) {
 
 Signal Indicators::gen_signal(int idx) const {
   Signal s;
+  s.tp = time(idx);
+
   double entry_w = 0.0, exit_w = 0.0;
 
   // Hard signals
@@ -282,6 +284,7 @@ CombinedSignal Ticker::gen_signal(int idx) const {
   auto& ind_1h = metrics.ind_1h;
 
   CombinedSignal sig;
+
   sig.stop_hit = stop_loss_hits(metrics, stop_loss);
   sig.forecast = ind_1h.gen_forecast(idx);
 

@@ -52,11 +52,15 @@ Config::Config(int argc, char* argv[]) {
   speed = program.get<double>("--speed");
 }
 
-#define GET_FROM_JSON(name)     \
-  do {                          \
-    if (j.contains(#name))      \
-      j.at(#name).get_to(name); \
-  } while (0);
+#define GET_FROM_JSON(name)                                           \
+  do {                                                                \
+    try {                                                             \
+      if (j.contains(#name))                                          \
+        j.at(#name).get_to(name);                                     \
+    } catch (const std::exception& e) {                               \
+      spdlog::warn("[pos] failed to read '{}': {}", #name, e.what()); \
+    }                                                                 \
+  } while (0)
 
 PositionSizingConfig::PositionSizingConfig(const std::string& path) {
   std::ifstream file(path);
@@ -89,6 +93,14 @@ PositionSizingConfig::PositionSizingConfig(const std::string& path) {
     GET_FROM_JSON(min_hold_days);
     GET_FROM_JSON(max_hold_days);
 
+    spdlog::info(
+        "[pos] Config: cap={} max_cap_pos={} risk_pct={} stop_pct={} "
+        "stop_atr={} swing_win={} swing_buf={} ema_buf={} score_cutoff={} "
+        "risk_cutoff={} conf_cutoff={} min_days={} max_days={}",
+        capital, max_capital_per_position, max_risk_pct, stop_pct,
+        stop_atr_multiplier, swing_low_window, swing_low_buffer,
+        ema_stop_buffer, entry_score_cutoff, entry_risk_cutoff,
+        entry_confidence_cutoff, min_hold_days, max_hold_days);
   } catch (const std::exception& e) {
     spdlog::warn("[pos] error parsing positing sizing config file {}: {}",
                  path.c_str(), e.what());

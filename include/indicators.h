@@ -144,6 +144,9 @@ struct Indicators {
   }
 
   double price(int idx) const { return candles[sanitize(idx)].price(); }
+  double low(int idx) const { return candles[sanitize(idx)].low; }
+  double high(int idx) const { return candles[sanitize(idx)].high; }
+  LocalTimePoint time(int idx) const { return candles[sanitize(idx)].time(); }
 
   double ema9(int idx) const { return _ema9.values[sanitize(idx)]; }
   double ema21(int idx) const { return _ema21.values[sanitize(idx)]; }

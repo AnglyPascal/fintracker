@@ -404,13 +404,14 @@ StopLoss::StopLoss(const Metrics& m,
   // trailing kicks in after ~1R move
   is_trailing = m.has_position() && (price > entry_price + atr);
 
-  auto& candles = ind.candles;
-  auto n = std::min(config.swing_low_window, (int)candles.size());
+  auto n = std::min((size_t)config.swing_low_window, ind.candles.size());
 
   swing_low = std::numeric_limits<double>::max();
-  for (size_t i = candles.size() - n; i < candles.size(); ++i)
-    swing_low = std::min(swing_low, candles[i].low);
+  for (int i = -n; i <= -1; ++i)
+    swing_low = std::min(swing_low, ind.low(i));
   swing_low *= 1.0 - config.swing_low_buffer;
+
+  double hard_stop = 0.0;
 
   // Initial Stop
   if (!is_trailing) {
@@ -420,9 +421,9 @@ StopLoss::StopLoss(const Metrics& m,
     auto best = std::min(swing_low, ema_stop) * 0.999;
     atr_stop = entry_price - config.stop_atr_multiplier * atr;
 
-    auto hard_stop = entry_price * (1.0 - config.stop_pct);
+    hard_stop = entry_price * (1.0 - config.stop_pct);
 
-    final_stop = std::max(std::max(best, atr_stop), hard_stop);
+    final_stop = std::max({best, atr_stop, hard_stop});
     stop_pct = (entry_price - final_stop) / entry_price;
   }
 
@@ -431,16 +432,16 @@ StopLoss::StopLoss(const Metrics& m,
     auto max_price = pos->max_price_seen;
     atr_stop = max_price - config.stop_atr_multiplier * atr;
 
-    auto hard_stop = max_price * (1.0 - config.stop_pct);
+    hard_stop = max_price * (1.0 - config.stop_pct);
 
-    final_stop = std::max(std::max(swing_low, atr_stop), hard_stop);
+    final_stop = std::max({swing_low, atr_stop, hard_stop});
     stop_pct = (price - final_stop) / price;
   }
 
   spdlog::info(
-      "[stop] price={:.2f} entry={:.2f} atr={:.2f} atr_stop={:.2f} "
-      "final={:.2f}",
-      price, entry_price, atr, atr_stop, final_stop);
+      "[stop] {} price={:.2f} entry={:.2f} "
+      "atr_stop={:.2f} hard={:.2f} final={:.2f}",
+      is_trailing, price, entry_price, atr_stop, hard_stop, final_stop);
 }
 
 Forecast Indicators::gen_forecast(int) const {

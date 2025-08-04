@@ -63,7 +63,8 @@ std::pair<T, SignalStats> Backtest::get_stats(Func signal_fn) const {
   bool entry = true;
   for (size_t i = 0; i < candles.size(); ++i) {
     auto r = signal_fn(ind, i);
-    if (!r.exists() || r.source() == Source::Stop)
+    if (!r.exists() || r.source() == Source::Stop ||
+        r.source() == Source::Trend)
       continue;
 
     r0 = r.type;

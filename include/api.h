@@ -58,7 +58,7 @@ class TD {
  public:
   TD(size_t n_tickers);
 
-  Result time_series(const std::string& symbol, int n_days = 200);
+  Result time_series(const std::string& symbol, int n_days = 100);
   Candle real_time(const std::string& symbol);
   LocalTimePoint latest_datetime();
 };

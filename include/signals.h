@@ -8,7 +8,7 @@
 #include <vector>
 
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
-enum class Source { Price, Stop, EMA, RSI, MACD, None };
+enum class Source { Price, Stop, EMA, RSI, MACD, Trend, None };
 enum class SignalClass { None, Entry, Exit };
 
 struct Meta {
@@ -51,6 +51,12 @@ enum class HintType {
   RsiConv50,
   MacdRising,
   Pullback,
+
+  RsiBullishDiv,
+  RsiBearishDiv,
+
+  MacdBullishDiv,
+  // MacdBearishDiv,
 
   Ema9DivergeEma21,
   RsiDropFromOverbought,
@@ -155,6 +161,7 @@ Filters evaluate_filters(const Metrics& m);
 struct Signal {
   Rating type = Rating::None;
   double score;
+  LocalTimePoint tp;
 
   std::vector<Reason> reasons;
   std::vector<Hint> hints;

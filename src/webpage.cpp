@@ -155,7 +155,7 @@ std::string to_str<FormatTarget::HTML>(const Signal& s) {
   auto sig_str = to_str(s.type);
   auto scr_str = std::format("{:+}", (int)std::round(s.score * 10));
   return std::format(index_signal_div_template, index_row_class(s.type),
-                     sig_str, scr_str);
+                     sig_str, s.tp, scr_str);
 }
 
 template <>
@@ -167,7 +167,7 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
                                    join(conf.begin(), conf.end()));
   auto scr_str = std::format("{:+}", (int)std::round(s.score * 10));
   return std::format(index_signal_div_template, index_row_class(s.type),
-                     sig_str, scr_str);
+                     sig_str, now_ny_time(), scr_str);
 }
 
 template <>
@@ -189,7 +189,7 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
 
   std::string body = "";
   for (auto& r : lst)
-    if (r.cls() == cls) {
+    if (r.cls() == cls && r.source() != Source::Trend) {
       auto colored_stats = [&, cls](auto gain, auto loss, auto win) {
         auto g_str = colored("green", gain);
         auto l_str = colored("red", loss);
@@ -287,23 +287,47 @@ std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Filters& filters) {
-  std::string trend_1d, trend_4h;
+std::string to_str<FormatTarget::HTML>(const Filter& f) {
+  auto str = f.str;
+
+  if (str == "⇗")
+    return colored("green", "<b>⇗</b>");
+  if (str == "↗")
+    return colored("green", "<b>↗</b>");
+  if (str == "🡒")
+    return colored("blue", "<b>🡒</b>");
+  if (str == "↘")
+    return colored("red", "<b>↘</b>");
+
+  return str;
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Filters& filters,
+                                       const std::vector<Hint>& trends_1h) {
+  std::string trend_1h, trend_1d, trend_4h;
+
+  for (auto& h : trends_1h)
+    trend_1h += h.str() + " ";
+
+  if (!trend_1h.empty())
+    trend_1h = std::format("<li><b>1h</b>: {}</li>", trend_1h);
 
   for (auto& f : filters.trends_4h)
-    trend_4h += f.str + " ";
+    trend_4h += to_str<FormatTarget::HTML>(f) + " ";
   for (auto& f : filters.trends_1d)
-    trend_1d += f.str + " ";
+    trend_1d += to_str<FormatTarget::HTML>(f) + " ";
 
   constexpr std::string_view trend_html = R"(
     <b>Trends</b>: 
     <ul>
+      {}
       <li><b>4h</b>: {}</li>
       <li><b>1d</b>: {}</li>
     </ul>
   )";
 
-  return std::format(trend_html, trend_4h, trend_1d);
+  return std::format(trend_html, trend_1h, trend_4h, trend_1d);
 }
 
 template <>
@@ -326,9 +350,15 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
   auto& ind_1d = ticker.metrics.ind_1d;
   auto& sig_1d = ind_1d.signal;
 
+  std::vector<Hint> trends_1h;
+  for (auto h : ticker.metrics.ind_1h.signal.hints) {
+    if (h.source() == Source::Trend)
+      trends_1h.push_back(h);
+  }
+
   auto overview =
       std::format(index_signal_overview_template,
-                  to_str<FormatTarget::HTML>(s.filters),              //
+                  to_str<FormatTarget::HTML>(s.filters, trends_1h),   //
                   to_str<FormatTarget::HTML>(s.forecast),             //
                   to_str<FormatTarget::HTML>(ticker.stop_loss),       //
                   to_str<FormatTarget::HTML>(ticker.position_sizing)  //

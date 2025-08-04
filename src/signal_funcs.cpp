@@ -12,7 +12,7 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
     {ReasonType::EmaCrossover,  //
      {Severity::High, Source::EMA, SignalClass::Entry, "ema⤯"}},
     {ReasonType::RsiCross50,  //
-     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤯50"}},
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi↗50"}},
     {ReasonType::PullbackBounce,  //
      {Severity::Urgent, Source::Price, SignalClass::Entry, "bounce"}},
     {ReasonType::MacdHistogramCross,  //
@@ -44,11 +44,19 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
     {HintType::Ema9ConvEma21,  //
      {Severity::Low, Source::EMA, SignalClass::Entry, "ema9↗21"}},
     {HintType::RsiConv50,  //
-     {Severity::Low, Source::RSI, SignalClass::Entry, "rsi↗50"}},
+     {Severity::Low, Source::RSI, SignalClass::Entry, "rsi↝50"}},
     {HintType::MacdRising,  //
      {Severity::Medium, Source::MACD, SignalClass::Entry, "macd↗"}},
     {HintType::Pullback,  //
      {Severity::Medium, Source::Price, SignalClass::Entry, "pullback"}},
+
+    {HintType::RsiBullishDiv,  //
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤯"}},
+    {HintType::RsiBearishDiv,  //
+     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤰"}},
+    {HintType::MacdBullishDiv,  //
+     {Severity::Medium, Source::MACD, SignalClass::Entry, "macd⤯"}},
+
     // Exit
     {HintType::Ema9DivergeEma21,  //
      {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↘21"}},
@@ -63,22 +71,22 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
 
     // Entry
     {HintType::PriceUp,  //
-     {Severity::Medium, Source::Price, SignalClass::Entry, "price↗"}},
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "price↗"}},
     {HintType::Ema21Up,  //
-     {Severity::Medium, Source::EMA, SignalClass::Entry, "ema21↗"}},
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "ema21↗"}},
     {HintType::RsiUp,  //
-     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi↗"}},
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "rsi↗"}},
     {HintType::RsiUpStrongly,  //
-     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⇗"}},
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "rsi⇗"}},
     // Exit
     {HintType::PriceDown,  //
-     {Severity::Medium, Source::Price, SignalClass::Exit, "price↘"}},
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "price↘"}},
     {HintType::Ema21Down,  //
-     {Severity::Medium, Source::EMA, SignalClass::Exit, "ema21↘"}},
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "ema21↘"}},
     {HintType::RsiDown,  //
-     {Severity::Medium, Source::RSI, SignalClass::Exit, "price↘"}},
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "price↘"}},
     {HintType::RsiDownStrongly,  //
-     {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi⇘"}},
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "rsi⇘"}},
 };
 
 template <>
@@ -351,6 +359,24 @@ inline Hint price_pullback_hint(const Indicators& m, int idx) {
   return HintType::None;
 }
 
+inline Hint rsi_bullish_divergence(const Indicators& ind, int idx) {
+  // Price made a lower low, RSI made a higher low -> bullish divergence
+  if (ind.low(idx - 1) > ind.low(idx) && ind.rsi(idx - 1) < ind.rsi(idx) &&
+      ind.rsi(idx - 1) < 40 && ind.rsi(idx) < 60)
+    return HintType::RsiConv50;
+
+  return HintType::None;
+}
+
+inline Hint macd_bullish_divergence(const Indicators& ind, int idx) {
+  // Price made a lower low, MACD made a higher low
+  if (ind.low(idx) < ind.low(idx - 1) && ind.macd(idx) > ind.macd(idx - 1) &&
+      ind.macd(idx - 1) < 0 && ind.macd(idx) < 0)
+    return HintType::MacdBullishDiv;
+
+  return HintType::None;
+}
+
 // Exit Hints
 
 inline Hint ema_diverging_hint(const Indicators& m, int idx) {
@@ -387,6 +413,15 @@ inline Hint ema_flattens_hint(const Indicators& m, int idx) {
 
   if (is_flat && is_close)
     return HintType::Ema9Flattening;
+
+  return HintType::None;
+}
+
+inline Hint momentum_divergence(const Indicators& ind, int idx) {
+  // Price up but RSI down — loss of momentum
+  if (ind.price(idx) > ind.price(idx - 1) && ind.rsi(idx) < ind.rsi(idx - 1) &&
+      ind.rsi(idx) > 50)
+    return HintType::RsiBearishDiv;
 
   return HintType::None;
 }
@@ -431,6 +466,10 @@ inline constexpr hint_f hint_funcs[] = {
     rsi_approaching_50_hint,
     macd_histogram_rising_hint,
     price_pullback_hint,
+
+    rsi_bullish_divergence,
+    macd_bullish_divergence,
+    momentum_divergence,
 
     // Exit
     ema_diverging_hint,

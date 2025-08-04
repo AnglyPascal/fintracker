@@ -24,7 +24,7 @@ struct Ticker {
   CombinedSignal signal;
 
   StopLoss stop_loss;
-  const PositionSizingConfig& sizing_config;
+  PositionSizingConfig sizing_config;
   PositionSizing position_sizing;
 
   Ticker(const std::string& symbol,
