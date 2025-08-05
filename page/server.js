@@ -2,11 +2,27 @@ import express from 'express';
 import fs from 'fs/promises';
 import {parse} from 'csv-parse/sync';
 import {stringify} from 'csv-stringify/sync';
+import livereload from 'livereload';
+import connectLivereload from 'connect-livereload';
 
 const app = express();
 const PORT = 8000;
 const CSV_PATH = '../private/trades.csv';
 
+const liveReloadServer = livereload.createServer();
+liveReloadServer.watch([
+    "public",
+    "css",
+    "js"
+]);
+
+liveReloadServer.server.once("connection", () => {
+    setTimeout(() => {
+        liveReloadServer.refresh("/");
+    }, 100);
+});
+
+app.use(connectLivereload());
 app.use(express.json());
 app.use(express.static('public'));
 app.use("/css", express.static("css"));
