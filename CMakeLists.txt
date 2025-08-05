@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -D_GLIBCXX_DEBUG")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -37,6 +38,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
+get_target_property(
+  NLOHMANN_JSON_INCLUDE_DIR 
+  nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
+
 # Fetch spdlog (compiled version)
 FetchContent_Declare(
   spdlog
@@ -50,8 +55,13 @@ set(SPDLOG_HEADER_ONLY OFF)
 
 FetchContent_MakeAvailable(spdlog)
 
+get_target_property(
+  SPDLOG_INCLUDE_DIR 
+  spdlog::spdlog INTERFACE_INCLUDE_DIRECTORIES)
+
 find_library(ZMQ_LIB zmq REQUIRED)
 find_path(ZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
+
 
 # Add your source files
 add_executable(${TARGET}
@@ -74,19 +84,8 @@ add_executable(${TARGET}
   src/replay.cpp
 )
 
-target_include_directories(${TARGET} PRIVATE
-  ${PROJECT_SOURCE_DIR}/include
-  ${ZMQ_INCLUDE_DIR}
-)
-
-get_target_property(
-  NLOHMANN_JSON_INCLUDE_DIR 
-  nlohmann_json::nlohmann_json INTERFACE_INCLUDE_DIRECTORIES)
-
-get_target_property(
-  SPDLOG_INCLUDE_DIR 
-  spdlog::spdlog INTERFACE_INCLUDE_DIRECTORIES)
-
+target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(${TARGET} SYSTEM PRIVATE ${ZMQ_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${SPDLOG_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
 
@@ -107,7 +106,6 @@ add_custom_command(
   COMMAND python ${EMBED_SCRIPT}
   DEPENDS ${INPUT_HTML} ${EMBED_SCRIPT} 
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  COMMENT "Generating html_templates"
 )
 
 add_custom_target(html_header DEPENDS ${OUTPUT_HEADER})
@@ -126,15 +124,16 @@ function(add_env_vars TARGET)
 endfunction()
 
 add_env_vars(${TARGET} 
-             TD_API_KEY_1 TD_API_KEY_2 TD_API_KEY_3
+             TD_API_KEY_1 TD_API_KEY_2 TD_API_KEY_3 TD_API_KEY_4 TD_API_KEY_5
              TG_TOKEN TG_CHAT_ID TG_USER
              PATH HOME)
 
-add_executable(get_calendar
-  src/get_calendar.cpp
-)
 
 set(CALENDAR get_calendar)
+
+add_executable(${CALENDAR}
+  src/get_calendar.cpp
+)
 
 target_link_libraries(${CALENDAR} cpr::cpr)
 target_include_directories(${CALENDAR} SYSTEM PRIVATE ${SPDLOG_INCLUDE_DIR})

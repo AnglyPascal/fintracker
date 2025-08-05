@@ -6,7 +6,7 @@
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
-#include <fstream>
+#include <iostream>
 
 namespace fs = std::filesystem;
 

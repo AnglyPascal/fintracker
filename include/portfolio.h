@@ -16,7 +16,7 @@
 
 struct Ticker {
   const std::string symbol;
-  int priority;
+  const int priority;
 
   TimePoint last_polled;
 
@@ -27,12 +27,15 @@ struct Ticker {
   PositionSizingConfig sizing_config;
   PositionSizing position_sizing;
 
+  Event ev;
+
   Ticker(const std::string& symbol,
          int priority,
          std::vector<Candle>&& candles,
          minutes update_interval,
          const Position* position,
-         const PositionSizingConfig& config) noexcept;
+         const PositionSizingConfig& config,
+         const Event& ev) noexcept;
 
   void write_plot_data() const;
   CombinedSignal gen_signal(int idx = -1) const;
@@ -41,6 +44,11 @@ struct Ticker {
     stop_loss = StopLoss(metrics, sizing_config);
     signal = gen_signal(-1);
     position_sizing = PositionSizing(metrics, signal, stop_loss, sizing_config);
+  }
+
+  void update_position(const Position* pos) {
+    metrics.position = pos;
+    calculate_signal();
   }
 };
 
@@ -137,8 +145,6 @@ class Portfolio {
   friend std::string to_str(const T& t, const S& s);
 
   void write_plot_data(const std::string& symbol) const;
-  void plot(const std::string& symbol = "") const;
 
   void write_page() const;
 };
-

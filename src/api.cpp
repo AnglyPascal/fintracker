@@ -8,7 +8,6 @@
 #include <zmq.hpp>
 
 #include <format>
-#include <iostream>
 #include <unordered_map>
 
 using nlohmann::json;
@@ -24,6 +23,14 @@ namespace fs = std::filesystem;
 
 #ifndef TD_API_KEY_3
 #define TD_API_KEY_3 ""
+#endif
+
+#ifndef TD_API_KEY_4
+#define TD_API_KEY_4 ""
+#endif
+
+#ifndef TD_API_KEY_5
+#define TD_API_KEY_5 ""
 #endif
 
 #ifndef TG_TOKEN
@@ -241,9 +248,11 @@ inline constexpr minutes get_interval(size_t n_tickers) {
 }
 
 TD::TD(size_t n_tickers) : interval{get_interval(n_tickers)} {
-  constexpr char const* api_keys[] = {TD_API_KEY_1, TD_API_KEY_2, TD_API_KEY_3};
+  constexpr char const* api_keys[] = {TD_API_KEY_1, TD_API_KEY_2, TD_API_KEY_3,
+                                      TD_API_KEY_4, TD_API_KEY_5};
   for (auto key : api_keys)
     keys.emplace_back(key);
+  spdlog::info("[td] initiated with {} api keys", keys.size());
 }
 
 int TD::try_get_key() {
@@ -298,6 +307,43 @@ inline std::string interval_to_str(minutes interval) {
   if (it == str_map.end())
     return "";
   return it->second;
+}
+
+double TD::to_usd(double amount, const std::string& currency) {
+  if (currency == "USD")
+    return amount;
+
+  auto symbol = currency + "/USD";
+  auto api_key = get_key();
+
+  cpr::Parameters params{{"symbol", symbol},
+                         {"amount", std::to_string(amount)},
+                         {"apikey", api_key}};
+
+  auto res = cpr::Get(
+      cpr::Url{"https://api.twelvedata.com/currency_conversion"}, params);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  if (res.status_code != 200) {
+    spdlog::error("[td] HTTP error {} while converting {} to USD",
+                  res.status_code, currency);
+    return -1;
+  }
+
+  auto j = json::parse(res.text, nullptr, false);
+  if (j.is_discarded() || !j.contains("amount")) {
+    spdlog::error("[td] Invalid JSON or missing 'converted' for {} -> USD",
+                  currency);
+    return -1;
+  }
+
+  try {
+    return j["amount"].get<double>();
+  } catch (const std::exception& e) {
+    spdlog::error("[td] Exception parsing 'converted' value: {}", e.what());
+    return amount;
+  }
 }
 
 TD::Result TD::api_call(const std::string& symbol,

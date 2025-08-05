@@ -4,9 +4,7 @@
 
 #include <spdlog/spdlog.h>
 #include <cmath>
-#include <filesystem>
 #include <fstream>
-#include <iostream>
 
 Position operator-(const Position& lhs, const Position& rhs) {
   auto diff_qty = lhs.qty - rhs.qty;
@@ -52,6 +50,53 @@ inline auto net_position(const std::vector<Trade>& trades)
   return {Position{qty, px, total, 0.0}, pnl};
 }
 
+std::pair<std::string, int> parse_remark_rating(const std::string& line) {
+  std::istringstream ss(line);
+  std::string remark;
+  int rating = 0;
+
+  // Check if the string starts with a quote (")
+  if (!line.empty() && line[0] == '"') {
+    // Find the closing quote (accounting for possible escaped quotes)
+    size_t end_quote = line.find('"', 1);
+    while (end_quote != std::string::npos && line[end_quote - 1] == '\\') {
+      // Skip escaped quotes (e.g., "\"")
+      end_quote = line.find('"', end_quote + 1);
+    }
+
+    if (end_quote != std::string::npos) {
+      // Extract the quoted part (including quotes)
+      remark = line.substr(0, end_quote + 1);
+
+      // The rating should be after the comma following the closing quote
+      size_t comma_pos = line.find(',', end_quote + 1);
+      if (comma_pos != std::string::npos) {
+        std::string rating_str = line.substr(comma_pos + 1);
+        try {
+          rating = std::stoi(rating_str);
+        } catch (...) {
+          // Handle invalid rating (e.g., set to 0 or throw)
+          rating = 0;
+        }
+      }
+    }
+  } else {
+    // No quotes: split at the first comma
+    size_t comma_pos = line.find(',');
+    if (comma_pos != std::string::npos) {
+      remark = line.substr(0, comma_pos);
+      std::string rating_str = line.substr(comma_pos + 1);
+      try {
+        rating = std::stoi(rating_str);
+      } catch (...) {
+        rating = 0;
+      }
+    }
+  }
+
+  return {remark, rating};
+}
+
 inline Trades read_trades() {
   std::ifstream file("private/trades.csv");
   if (!file.is_open()) {
@@ -75,12 +120,17 @@ inline Trades read_trades() {
     getline(ss, price_str, ',');
     getline(ss, total_str, ',');
 
+    std::string remaining;
+    getline(ss, remaining, '\n');
+    auto [remark, rating] = parse_remark_rating(remaining);
+
     auto action = action_str == "BUY" ? Action::BUY : Action::SELL;
     auto qty = std::stod(qty_str);
     auto px = std::stod(price_str);
     auto total = std::stod(total_str);
 
-    trades[ticker].emplace_back(date, ticker, action, qty, px, total);
+    trades[ticker].emplace_back(date, ticker, action, qty, px, total,  //
+                                remark, rating);
   }
 
   return trades;
@@ -129,4 +179,3 @@ const Position* OpenPositions::get_position(const std::string& symbol) const {
   auto it = positions.find(symbol);
   return it == positions.end() ? nullptr : &it->second;
 }
-

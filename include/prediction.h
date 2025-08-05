@@ -1,6 +1,5 @@
 #pragma once
 
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -72,7 +71,7 @@ struct Trends {
   static TrendLines rsi_trends(const Indicators& ind,
                                int last_idx = -1) noexcept;
   static TrendLines ema21_trends(const Indicators& ind,
-                               int last_idx = -1) noexcept;
+                                 int last_idx = -1) noexcept;
 };
 
 enum class ForecastType {

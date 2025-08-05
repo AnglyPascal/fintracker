@@ -18,6 +18,9 @@ struct Config {
 
 struct PositionSizingConfig {
   double capital = 4000.0;
+  std::string capital_currency = "GBP";
+  double capital_usd = -1.0;
+
   double max_capital_per_position = 0.25;
 
   double max_risk_pct = 0.015;
@@ -35,7 +38,9 @@ struct PositionSizingConfig {
   int min_hold_days = 2;
   int max_hold_days = 15;
 
-  double max_risk_amount() const { return capital * max_risk_pct; }
+  int earnings_volatility_buffer = 3;
+
+  double max_risk_amount() const { return capital_usd * max_risk_pct; }
 
   PositionSizingConfig() = default;
   PositionSizingConfig(const std::string& path);

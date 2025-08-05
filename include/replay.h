@@ -6,7 +6,7 @@
 
 struct Candle;
 struct SymbolInfo;
-struct TD;
+class TD;
 
 class Replay {
   TD& td;

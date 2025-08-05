@@ -3,7 +3,6 @@
 #include "times.h"
 
 #include <deque>
-#include <iostream>
 #include <mutex>
 #include <set>
 #include <string>
@@ -58,7 +57,8 @@ class TD {
  public:
   TD(size_t n_tickers);
 
-  Result time_series(const std::string& symbol, int n_days = 100);
+  double to_usd(double amount, const std::string& currency = "GBP");
+  Result time_series(const std::string& symbol, int n_days = 200);
   Candle real_time(const std::string& symbol);
   LocalTimePoint latest_datetime();
 };

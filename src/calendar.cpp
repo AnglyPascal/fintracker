@@ -3,7 +3,6 @@
 
 #include <chrono>
 #include <fstream>
-#include <iostream>
 
 int Event::days_until() const {
   using namespace std::chrono;

@@ -2,7 +2,6 @@
 
 #include "times.h"
 
-#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -20,6 +19,9 @@ struct Trade {
   double qty;
   double px;
   double total;
+
+  std::string remark = "";
+  int rating = 0;
 
   LocalTimePoint time() const { return datetime_to_local(date); }
 };

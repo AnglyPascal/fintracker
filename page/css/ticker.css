@@ -171,10 +171,13 @@ button:hover {
     opacity: 0.6;
 }
 
-.break {
+#break {
     margin: 2em;
 }
 
-#plotly {
+#chart {
     margin-top:2em;
+    width: 100%;
+    max-width: 100%;
+    height: 400px;
 }

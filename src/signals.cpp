@@ -1,9 +1,8 @@
 #include "backtest.h"
 #include "indicators.h"
 #include "portfolio.h"
-#include "signal.h"
 
-#include <iostream>
+#include <cmath>
 
 bool Signal::is_interesting() const {
   if (type == Rating::Entry || type == Rating::Exit ||
@@ -297,6 +296,11 @@ CombinedSignal Ticker::gen_signal(int idx) const {
     for (auto conf : confirmations(metrics))
       if (conf.str != "")
         sig.confirmations.push_back(conf);
+
+    // disqualify if earnings is near
+    if (ev.is_earnings() && ev.days_until() >= 0 &&
+        ev.days_until() < sizing_config.earnings_volatility_buffer)
+      sig.type = Rating::Watchlist;
   }
 
   return sig;

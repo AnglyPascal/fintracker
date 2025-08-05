@@ -9,14 +9,9 @@
 
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 
 using nlohmann::json;
 namespace fs = std::filesystem;
-
-#ifndef TD_API_KEY_3
-#define TD_API_KEY_3 ""
-#endif
 
 inline void write_candles(const std::string& fname, auto& src) {
   std::ofstream f{fname};

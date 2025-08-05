@@ -160,6 +160,8 @@ def merge_trades_to_csv(csv_path: str, new_df: pd.DataFrame):
     unique_new_df["Rating"] = 0
 
     combined_df = pd.concat([existing_df, unique_new_df], ignore_index=True)
+    combined_df.sort_values(by="Time", inplace=True)
+
     combined_df.to_csv(csv_path, index=False)
 
 

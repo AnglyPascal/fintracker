@@ -1,9 +1,5 @@
 #include "backtest.h"
 #include "indicators.h"
-#include "portfolio.h"
-#include "signal.h"
-
-#include <iostream>
 
 inline const std::unordered_map<ReasonType, Meta> reason_meta = {
     {ReasonType::None,  //
@@ -71,22 +67,30 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
 
     // Entry
     {HintType::PriceUp,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "price↗"}},
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "p↗"}},
+    {HintType::PriceUpStrongly,  //
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "p⇗"}},
     {HintType::Ema21Up,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "ema21↗"}},
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "e21↗"}},
+    {HintType::Ema21UpStrongly,  //
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "e21⇗"}},
     {HintType::RsiUp,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "rsi↗"}},
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "r↗"}},
     {HintType::RsiUpStrongly,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "rsi⇗"}},
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "r⇗"}},
     // Exit
     {HintType::PriceDown,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "price↘"}},
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "p↘"}},
+    {HintType::PriceDownStrongly,  //
+     {Severity::Medium, Source::Trend, SignalClass::Entry, "p⇘"}},
     {HintType::Ema21Down,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "ema21↘"}},
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "e21↘"}},
+    {HintType::Ema21DownStrongly,  //
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "e21⇘"}},
     {HintType::RsiDown,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "price↘"}},
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "r↘"}},
     {HintType::RsiDownStrongly,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "rsi⇘"}},
+     {Severity::Medium, Source::Trend, SignalClass::Exit, "r⇘"}},
 };
 
 template <>
@@ -363,7 +367,7 @@ inline Hint rsi_bullish_divergence(const Indicators& ind, int idx) {
   // Price made a lower low, RSI made a higher low -> bullish divergence
   if (ind.low(idx - 1) > ind.low(idx) && ind.rsi(idx - 1) < ind.rsi(idx) &&
       ind.rsi(idx - 1) < 40 && ind.rsi(idx) < 60)
-    return HintType::RsiConv50;
+    return HintType::RsiBullishDiv;
 
   return HintType::None;
 }
@@ -417,7 +421,7 @@ inline Hint ema_flattens_hint(const Indicators& m, int idx) {
   return HintType::None;
 }
 
-inline Hint momentum_divergence(const Indicators& ind, int idx) {
+inline Hint rsi_bearish_divergence(const Indicators& ind, int idx) {
   // Price up but RSI down — loss of momentum
   if (ind.price(idx) > ind.price(idx - 1) && ind.rsi(idx) < ind.rsi(idx - 1) &&
       ind.rsi(idx) > 50)
@@ -431,32 +435,45 @@ inline Hint momentum_divergence(const Indicators& ind, int idx) {
 inline Hint price_trending(const Indicators& m, int idx) {
   auto best = m.price_trend(idx);
 
-  if (best.slope() > 0.2 && best.r2 > 0.8)
+  if (best.slope() > 0.3 && best.r2 > 0.8)
+    return HintType::PriceUpStrongly;
+  if (best.slope() > 0.15)
     return HintType::PriceUp;
-  if (best.slope() < -0.2 && best.r2 > 0.8)
+  if (best.slope() < -0.3 && best.r2 > 0.8)
+    return HintType::PriceDownStrongly;
+  if (best.slope() < -0.15)
     return HintType::PriceDown;
+
   return HintType::None;
 }
 
 inline Hint ema21_trending(const Indicators& m, int idx) {
   auto best = m.ema21_trend(idx);
+
+  if (best.slope() > 0.3 && best.r2 > 0.8)
+    return HintType::Ema21UpStrongly;
   if (best.slope() > 0.15 && best.r2 > 0.8)
     return HintType::Ema21Up;
+  if (best.slope() < -0.3 && best.r2 > 0.8)
+    return HintType::Ema21DownStrongly;
   if (best.slope() < -0.15 && best.r2 > 0.8)
     return HintType::Ema21Down;
+
   return HintType::None;
 }
 
 inline Hint rsi_trending(const Indicators& m, int idx) {
   auto best = m.rsi_trend(idx);
+
   if (best.slope() > 0.3 && best.r2 > 0.85)
     return HintType::RsiUpStrongly;
-  if (best.slope() > 0.15 && best.r2 > 0.8)
+  if (best.slope() > 0.15)
     return HintType::RsiUp;
   if (best.slope() < -0.3 && best.r2 > 0.85)
     return HintType::RsiDownStrongly;
-  if (best.slope() < -0.15 && best.r2 > 0.8)
+  if (best.slope() < -0.15)
     return HintType::RsiDown;
+
   return HintType::None;
 }
 
@@ -469,13 +486,14 @@ inline constexpr hint_f hint_funcs[] = {
 
     rsi_bullish_divergence,
     macd_bullish_divergence,
-    momentum_divergence,
 
     // Exit
     ema_diverging_hint,
     rsi_falling_from_overbought_hint,
     macd_histogram_peaking_hint,
     ema_flattens_hint,
+
+    rsi_bearish_divergence,
 
     // Trends
     price_trending,

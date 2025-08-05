@@ -2,9 +2,6 @@
 
 #include "signals.h"
 
-#include <cmath>
-#include <unordered_map>
-
 struct LookaheadStats {
   double max_return;
   double max_drawdown;

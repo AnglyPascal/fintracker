@@ -10,6 +10,7 @@ const CSV_PATH = '../private/trades.csv';
 app.use(express.json());
 app.use(express.static('public'));
 app.use("/css", express.static("css"));
+app.use("/src", express.static("src"));
 app.use("/js", express.static("js"));
 app.use("/public", express.static("public"));
 

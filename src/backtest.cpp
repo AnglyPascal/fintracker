@@ -1,6 +1,8 @@
 #include "backtest.h"
 #include "indicators.h"
 
+#include <cmath>
+
 Backtest::Backtest(const Indicators& _ind, size_t max_candles) : ind{_ind} {
   auto& candles = ind.candles;
   size_t n = candles.size();

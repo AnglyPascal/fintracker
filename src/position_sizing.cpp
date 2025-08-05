@@ -1,6 +1,5 @@
 #include "position_sizing.h"
 #include "format.h"
-#include "portfolio.h"
 
 #include <spdlog/spdlog.h>
 
@@ -43,15 +42,15 @@ PositionSizing::PositionSizing(const Metrics& metrics,
 
   // Ensure we don't exceed capital constraints: max 25% of capital per position
   recommended_capital = recommended_shares * current_price;
-  if (recommended_capital > config.capital * config.max_capital_per_position) {
-    auto total_capital = config.capital * config.max_capital_per_position;
+  if (recommended_capital > config.capital_usd * config.max_capital_per_position) {
+    auto total_capital = config.capital_usd * config.max_capital_per_position;
     recommended_shares = round_to(total_capital / current_price, 2);
     recommended_capital = recommended_shares * current_price;
   }
 
   // Calculate actual risk with final position size
   actual_risk_amount = recommended_shares * risk_per_share;
-  actual_risk_pct = actual_risk_amount / config.capital;
+  actual_risk_pct = actual_risk_amount / config.capital_usd;
 
   bool possible_entry = signal.type == Rating::Entry ||
                         (signal.type == Rating::Watchlist &&

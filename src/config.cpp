@@ -75,6 +75,7 @@ PositionSizingConfig::PositionSizingConfig(const std::string& path) {
     file >> j;
 
     GET_FROM_JSON(capital);
+    GET_FROM_JSON(capital_currency);
     GET_FROM_JSON(max_capital_per_position);
 
     GET_FROM_JSON(max_risk_pct);
@@ -92,6 +93,8 @@ PositionSizingConfig::PositionSizingConfig(const std::string& path) {
 
     GET_FROM_JSON(min_hold_days);
     GET_FROM_JSON(max_hold_days);
+
+    GET_FROM_JSON(earnings_volatility_buffer);
 
     spdlog::info(
         "[pos] Config: cap={} max_cap_pos={} risk_pct={} stop_pct={} "

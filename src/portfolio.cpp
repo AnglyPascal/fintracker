@@ -6,7 +6,6 @@
 #include <spdlog/spdlog.h>
 
 #include <fstream>
-#include <future>
 #include <iostream>
 #include <latch>
 #include <semaphore>
@@ -17,12 +16,14 @@ Ticker::Ticker(const std::string& symbol,
                std::vector<Candle>&& candles,
                minutes update_interval,
                const Position* position,
-               const PositionSizingConfig& config) noexcept
+               const PositionSizingConfig& config,
+               const Event& ev) noexcept
     : symbol{symbol},
       priority{priority},
       last_polled{Clock::now()},
       metrics{std::move(candles), update_interval, position},
-      sizing_config{config}  //
+      sizing_config{config},
+      ev{ev}  //
 {
   calculate_signal();
 }
@@ -64,6 +65,9 @@ Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
       _last_updated{},
       update_interval{td.interval}  //
 {
+  sizing_config.capital_usd =
+      td.to_usd(sizing_config.capital, sizing_config.capital_currency);
+
   std::counting_semaphore<max_concurrency> sem(
       std::thread::hardware_concurrency() / 2);
   std::latch done(symbols.size());
@@ -84,7 +88,8 @@ Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
         }
 
         Ticker ticker(symbol, priority, std::move(candles), update_interval,
-                      positions.get_position(symbol), sizing_config);
+                      positions.get_position(symbol), sizing_config,
+                      calendar.next_event(symbol));
         {
           auto _ = writer_lock();
           tickers.emplace(symbol, std::move(ticker));
@@ -106,12 +111,6 @@ Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
   if (!tickers.empty())
     _last_updated = tickers.begin()->second.metrics.last_updated();
 
-  std::thread([] {
-    std::string cmd = "python3 scripts/plot_metrics.py " + plot_daemon_port;
-    std::system(cmd.c_str());
-  }).detach();
-
-  plot();
   write_page();
 
   spdlog::info("[init] at {}", std::format("{}", last_updated()).c_str());
@@ -167,7 +166,6 @@ void Portfolio::add_candle() {
   if (!tickers.empty())
     _last_updated = tickers.begin()->second.metrics.last_updated();
 
-  plot();
   write_page();
   spdlog::info("[update] at {}", std::format("{}", last_updated()).c_str());
 }
@@ -188,7 +186,6 @@ void Portfolio::add_candle_sync() {
   if (!tickers.empty())
     _last_updated = tickers.begin()->second.metrics.last_updated();
 
-  plot();
   write_page();
   spdlog::info("[update] at " + std::format("{}", last_updated()));
 }
@@ -210,7 +207,6 @@ void Portfolio::rollback() {
   if (!tickers.empty())
     _last_updated = tickers.begin()->second.metrics.last_updated();
 
-  plot();
   write_page();
   spdlog::info("[rollback] to " + std::format("{}", last_updated()));
 }
@@ -235,7 +231,6 @@ std::pair<const Position*, double> Portfolio::add_trade(
   spdlog::info("[add_trade] at " + std::format("{}", last_updated()));
 
   write_plot_data(trade.ticker);
-  plot(trade.ticker);
   write_page();
 
   return {pos, pnl};
@@ -272,11 +267,21 @@ void Portfolio::run() {
 }
 
 void Portfolio::update_trades() {
-  auto _ = writer_lock();
+  {
+    auto _ = writer_lock();
 
-  positions.update_trades();
-  for (auto& [symbol, ticker] : tickers)
-    ticker.metrics.position = positions.get_position(symbol);
+    positions.update_trades();
+    for (auto& [symbol, ticker] : tickers) {
+      ticker.update_position(positions.get_position(symbol));
+    }
+  }
+
+  for (auto& [symbol, _] : tickers) {
+    write_plot_data(symbol);
+  }
+  write_page();
+  spdlog::info("[trades] updated at {}",
+               std::format("{}", now_ny_time()).c_str());
 }
 
 void Portfolio::run_replay() {

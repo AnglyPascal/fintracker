@@ -1,10 +1,5 @@
 #include "format.h"
 #include "portfolio.h"
-#include "times.h"
-
-#include <functional>
-#include <iostream>
-#include <unordered_set>
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const std::string& lang,
@@ -17,18 +12,6 @@ std::string to_str(const Candle& candle) {
   auto& [datetime, open, high, low, close, volume] = candle;
   return std::format("{} {:.2f} {:.2f} {:.2f} {:.2f} {}",  //
                      datetime, open, high, low, close, volume);
-}
-
-template <>
-std::string to_str(const Trade& t) {
-  return std::format(                               //
-      "{},{},{},{:.2f},{:.2f},{:.2f}",              //
-      closest_nyse_aligned_time(t.date), t.ticker,  //
-      (t.action == Action::BUY ? "BUY" : "SELL"),   //
-      t.qty,                                        //
-      t.px,                                         //
-      t.total                                       //
-  );
 }
 
 template <>

@@ -1,5 +1,4 @@
 #include "indicators.h"
-#include "format.h"
 #include "position_sizing.h"
 #include "positions.h"
 #include "times.h"
@@ -7,7 +6,6 @@
 #include <spdlog/spdlog.h>
 
 #include <cassert>
-#include <iostream>
 #include <numeric>
 
 EMA::EMA(const std::vector<Candle>& candles, int period) noexcept

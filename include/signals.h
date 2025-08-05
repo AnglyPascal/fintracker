@@ -63,13 +63,19 @@ enum class HintType {
   MacdPeaked,
   Ema9Flattening,
 
+  // Trends:
+
   PriceUp,
+  PriceUpStrongly,
   Ema21Up,
+  Ema21UpStrongly,
   RsiUp,
   RsiUpStrongly,
 
   PriceDown,
+  PriceDownStrongly,
   Ema21Down,
+  Ema21DownStrongly,
   RsiDown,
   RsiDownStrongly,
 };

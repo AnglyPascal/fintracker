@@ -3,7 +3,6 @@
 #include "signals.h"
 
 #include <iostream>
-#include <numeric>
 
 template <template <typename...> class Container>
 LinearRegression::LinearRegression(const Container<Point>& vals) noexcept {

@@ -6,7 +6,6 @@
 #include <spdlog/spdlog.h>
 #include <filesystem>
 #include <fstream>
-#include <latch>
 #include <ranges>
 #include <thread>
 
@@ -27,7 +26,7 @@ inline constexpr std::string csv_fname(const std::string& symbol,
   return std::format("page/src/{}{}_{}.csv", symbol, time, fn);
 }
 
-inline constexpr size_t n_days_plot = 45;
+inline constexpr size_t n_days_plot = 90;
 
 LocalTimePoint Indicators::plot(const std::string& sym,
                                 const std::string& time) const {
@@ -76,6 +75,21 @@ LocalTimePoint Metrics::plot(const std::string& sym) const {
   return std::max({start_1h, start_4h, start_1d});
 }
 
+template <>
+std::string to_str(const Trade& t) {
+  return std::format(                              //
+      "{},{},{},{:.2f},{:.2f},{:.2f},{},{}",       //
+      closest_nyse_aligned_time(t.date),           //
+      t.ticker,                                    //
+      (t.action == Action::BUY ? "BUY" : "SELL"),  //
+      t.qty,                                       //
+      t.px,                                        //
+      t.total,                                     //
+      t.remark,                                    //
+      t.rating                                     //
+  );
+}
+
 void Portfolio::write_plot_data(const std::string& symbol) const {
   if (!config.plot_en)
     return;
@@ -89,7 +103,7 @@ void Portfolio::write_plot_data(const std::string& symbol) const {
   auto start_time = it->second.metrics.plot(symbol);
 
   std::ofstream f(csv_fname(symbol, "", "trades"));
-  f << "datetime,name,action,qty,price,total\n";
+  f << "datetime,name,action,qty,price,total,remark,rating\n";
 
   auto& all_trades = get_trades();
   if (auto it = all_trades.find(symbol); it != all_trades.end()) {
@@ -100,15 +114,6 @@ void Portfolio::write_plot_data(const std::string& symbol) const {
   }
   f.flush();
   f.close();
-}
-
-void Portfolio::plot(const std::string& symbol) const {
-  if (symbol != "")
-    return notify_plot_daemon({symbol});
-
-  auto syms =
-      tickers | std::ranges::views::keys | std::ranges::to<std::vector>();
-  notify_plot_daemon(syms);
 }
 
 /******************************
