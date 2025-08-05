@@ -11,23 +11,6 @@
 #include <semaphore>
 #include <thread>
 
-Ticker::Ticker(const std::string& symbol,
-               int priority,
-               std::vector<Candle>&& candles,
-               minutes update_interval,
-               const Position* position,
-               const PositionSizingConfig& config,
-               const Event& ev) noexcept
-    : symbol{symbol},
-      priority{priority},
-      last_polled{Clock::now()},
-      metrics{std::move(candles), update_interval, position},
-      sizing_config{config},
-      ev{ev}  //
-{
-  calculate_signal();
-}
-
 inline std::vector<SymbolInfo> read_symbols() {
   std::vector<SymbolInfo> symbols;
   std::ifstream file("private/tickers.csv");
@@ -144,8 +127,7 @@ void Portfolio::add_candle() {
 
         {
           auto _ = writer_lock();
-          ticker.metrics.add(candle, positions.get_position(symbol));
-          ticker.calculate_signal();
+          ticker.add(candle, positions.get_position(symbol));
         }
 
         write_plot_data(symbol);
@@ -176,8 +158,7 @@ void Portfolio::add_candle_sync() {
     auto candle = real_time(symbol);
     {
       auto _ = writer_lock();
-      ticker.metrics.add(candle, positions.get_position(symbol));
-      ticker.calculate_signal();
+      ticker.add(candle, positions.get_position(symbol));
     }
     write_plot_data(symbol);
   }
@@ -197,9 +178,8 @@ void Portfolio::rollback() {
   {
     auto _ = writer_lock();
     for (auto& [symbol, ticker] : tickers) {
-      auto candle = ticker.metrics.pop_back();
+      auto candle = ticker.pop_back();
       rp.rollback(symbol, candle);
-      ticker.calculate_signal();
       write_plot_data(symbol);
     }
   }
@@ -222,8 +202,9 @@ std::pair<const Position*, double> Portfolio::add_trade(
     auto _ = portfolio->writer_lock();
     pnl = portfolio->positions.add_trade(trade);
 
-    auto& metrics = portfolio->tickers.at(trade.ticker).metrics;
-    pos = metrics.position = positions.get_position(trade.ticker);
+    auto& ticker = portfolio->tickers.at(trade.ticker);
+    pos = positions.get_position(trade.ticker);
+    ticker.update_position(pos);
 
     if (!tickers.empty())
       portfolio->_last_updated = tickers.begin()->second.metrics.last_updated();

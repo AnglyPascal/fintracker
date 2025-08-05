@@ -10,7 +10,7 @@ Position operator-(const Position& lhs, const Position& rhs) {
   auto diff_qty = lhs.qty - rhs.qty;
   auto diff_cost = lhs.total - rhs.total;
   auto diff_px = diff_qty != 0 ? std::round(double(diff_cost) / diff_qty) : 0;
-  return {diff_qty, diff_px, diff_cost, 0.0};
+  return {diff_qty, diff_px, diff_cost, 0.0, {}};
 }
 
 double Position::pnl(double price) const {
@@ -29,7 +29,10 @@ inline auto net_position(const std::vector<Trade>& trades)
   double cost = 0;
   double pnl = 0;
 
+  LocalTimePoint tp;
   for (auto& t : trades) {
+    tp = std::max(tp, t.time());
+
     int mult = t.action == Action::BUY ? 1 : -1;
     qty += mult * t.qty;
     total += mult * t.total;
@@ -47,7 +50,7 @@ inline auto net_position(const std::vector<Trade>& trades)
     return {{}, pnl};
 
   auto px = cost / qty;
-  return {Position{qty, px, total, 0.0}, pnl};
+  return {Position{qty, px, total, 0.0, tp}, pnl};
 }
 
 std::pair<std::string, int> parse_remark_rating(const std::string& line) {
@@ -55,33 +58,26 @@ std::pair<std::string, int> parse_remark_rating(const std::string& line) {
   std::string remark;
   int rating = 0;
 
-  // Check if the string starts with a quote (")
   if (!line.empty() && line[0] == '"') {
-    // Find the closing quote (accounting for possible escaped quotes)
     size_t end_quote = line.find('"', 1);
     while (end_quote != std::string::npos && line[end_quote - 1] == '\\') {
-      // Skip escaped quotes (e.g., "\"")
       end_quote = line.find('"', end_quote + 1);
     }
 
     if (end_quote != std::string::npos) {
-      // Extract the quoted part (including quotes)
       remark = line.substr(0, end_quote + 1);
 
-      // The rating should be after the comma following the closing quote
       size_t comma_pos = line.find(',', end_quote + 1);
       if (comma_pos != std::string::npos) {
         std::string rating_str = line.substr(comma_pos + 1);
         try {
           rating = std::stoi(rating_str);
         } catch (...) {
-          // Handle invalid rating (e.g., set to 0 or throw)
           rating = 0;
         }
       }
     }
   } else {
-    // No quotes: split at the first comma
     size_t comma_pos = line.find(',');
     if (comma_pos != std::string::npos) {
       remark = line.substr(0, comma_pos);

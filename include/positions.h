@@ -33,6 +33,8 @@ struct Position {
 
   mutable double max_price_seen = 0.0;
 
+  LocalTimePoint tp = {};
+
   double pnl(double price) const;
   double pct(double price) const;
 };

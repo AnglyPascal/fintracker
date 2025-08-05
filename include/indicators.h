@@ -223,6 +223,7 @@ struct Metrics {
   }
   Signal get_signal(minutes interval, int idx) const;
   bool has_position() const;
+  void update_position(const Position* pos);
 
   LocalTimePoint plot(const std::string& sym) const;
 };

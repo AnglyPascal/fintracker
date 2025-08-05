@@ -218,6 +218,8 @@ Rating contextual_rating(auto& sig_1h,
   if (base_rating == Rating::Exit && !has_position)
     base_rating = Rating::Caution;
 
+  if (stop_hit.type == StopHitType::TimeExit)
+    base_rating = Rating::Exit;
   if (stop_hit.type == StopHitType::StopLossHit)
     base_rating = Rating::Exit;
   else if (stop_hit.type == StopHitType::StopInATR)

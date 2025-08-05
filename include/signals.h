@@ -40,8 +40,6 @@ enum class ReasonType {
   EmaCrossdown,
   RsiOverbought,
   MacdBearishCross,
-
-  TimeExit,
 };
 
 enum class HintType {
@@ -85,6 +83,7 @@ enum class StopHitType {
   StopLossHit,
   StopProximity,
   StopInATR,
+  TimeExit,
 };
 
 template <typename T, T _none>

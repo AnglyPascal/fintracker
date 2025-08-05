@@ -1,6 +1,6 @@
 #pragma once
 
-#include "_html_template.h"
+#include "_html_template.hpp"
 
 #include <string_view>
 
@@ -73,7 +73,7 @@ inline constexpr std::string_view index_signal_div_template = R"(
   <div class="signal {}">
     <div class="signal-text">{}</div> 
     <div class="signal-time">{:%d-%m %H:%M}</div>
-    <div class="signal-score">{}</div>
+    <div class="signal-score">{:+}</div>
   </div>
 )";
 

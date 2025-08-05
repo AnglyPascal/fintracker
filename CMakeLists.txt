@@ -84,7 +84,7 @@ add_executable(${TARGET}
   src/replay.cpp
 )
 
-target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/include)
 target_include_directories(${TARGET} SYSTEM PRIVATE ${ZMQ_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${SPDLOG_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
@@ -99,7 +99,7 @@ set(EMBED_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_str.py)
 set(INPUT_HTML 
     ${CMAKE_CURRENT_SOURCE_DIR}/data/index.html 
     ${CMAKE_CURRENT_SOURCE_DIR}/data/ticker.html)
-set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/_html_template.h)
+set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/_html_template.hpp)
 
 add_custom_command(
   OUTPUT ${OUTPUT_HEADER} 
@@ -108,6 +108,7 @@ add_custom_command(
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+set_source_files_properties(${OUTPUT_HEADER} PROPERTIES GENERATED TRUE)
 add_custom_target(html_header DEPENDS ${OUTPUT_HEADER})
 add_dependencies(${TARGET} html_header)
 

@@ -221,7 +221,7 @@ std::string to_str<FormatTarget::Telegram>(const Positions& positions,
     auto ticker = portfolio.get_ticker(symbol);
     double price = ticker == nullptr ? 0.0 : ticker->metrics.last_price();
 
-    auto [qty, px, cost, _] = position;
+    auto [qty, px, cost, _, _] = position;
     auto pnl = position.pnl(price);
 
     double total = cost;

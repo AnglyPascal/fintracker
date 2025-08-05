@@ -1087,7 +1087,7 @@ page/src
 page/public
 page/package-lock.json
 
-include/_html_template.h
+include/_html_template.hpp
 
 .ninja_deps 
 .ninja_log 

@@ -25,6 +25,8 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
 inline const std::unordered_map<StopHitType, Meta> stop_hit_meta = {
     {StopHitType::StopLossHit,  //
      {Severity::Urgent, Source::Stop, SignalClass::Exit, "stop⤰"}},
+    {StopHitType::TimeExit,  //
+     {Severity::Urgent, Source::Stop, SignalClass::Exit, "time⨯"}},
     {StopHitType::StopProximity,  //
      {Severity::High, Source::Stop, SignalClass::Exit, "stop⨯"}},
     {StopHitType::StopInATR,  //
@@ -606,6 +608,12 @@ void Indicators::get_stats() {
 StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
   if (!m.has_position())
     return StopHitType::None;
+
+  auto days_held =
+      std::chrono::floor<days>(std::chrono::floor<days>(now_ny_time()) -
+                               std::chrono::floor<days>(m.position->tp));
+  if (days_held.count() > 20)
+    return StopHitType::TimeExit;
 
   auto price = m.last_price();
   if (price < stop_loss.final_stop)

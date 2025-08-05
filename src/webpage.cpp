@@ -1,5 +1,5 @@
 #include "format.h"
-#include "html_template.h"
+#include "html_template.hpp"
 #include "portfolio.h"
 #include "times.h"
 
@@ -157,22 +157,28 @@ inline constexpr std::string index_row_class(Rating type) {
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Signal& s) {
-  auto sig_str = to_str(s.type);
-  auto scr_str = std::format("{:+}", (int)std::round(s.score * 10));
   return std::format(index_signal_div_template, index_row_class(s.type),
-                     sig_str, s.tp, scr_str);
+                     to_str(s.type), s.tp, (int)std::round(s.score * 10));
 }
 
 template <>
 std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
-  auto& conf = s.confirmations;
-  auto sig_str = s.type != Rating::Entry
-                     ? to_str(s.type)
-                     : std::format("{}: ({})", to_str(s.type),
-                                   join(conf.begin(), conf.end()));
-  auto scr_str = std::format("{:+}", (int)std::round(s.score * 10));
-  return std::format(index_signal_div_template, index_row_class(s.type),
-                     sig_str, now_ny_time(), scr_str);
+  std::string conf_str = "";
+
+  if (s.type == Rating::Exit) {
+    if (s.stop_hit.type != StopHitType::None)
+      conf_str = s.stop_hit.str();
+  } else if (s.type == Rating::Entry) {
+    auto& conf = s.confirmations;
+    conf_str = join(conf.begin(), conf.end());
+  }
+
+  if (conf_str != "")
+    conf_str = std::format(": ({})", conf_str);
+
+  return std::format(index_signal_div_template,  //
+                     index_row_class(s.type), to_str(s.type) + conf_str,
+                     now_ny_time(), (int)std::round(s.score * 10));
 }
 
 template <>

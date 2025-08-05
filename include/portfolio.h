@@ -35,20 +35,41 @@ struct Ticker {
          minutes update_interval,
          const Position* position,
          const PositionSizingConfig& config,
-         const Event& ev) noexcept;
+         const Event& ev) noexcept
+      : symbol{symbol},
+        priority{priority},
+        last_polled{Clock::now()},
+        metrics{std::move(candles), update_interval, position},
+        sizing_config{config},
+        ev{ev}  //
+  {
+    calculate_signal();
+  }
 
   void write_plot_data() const;
   CombinedSignal gen_signal(int idx = -1) const;
 
+  void update_position(const Position* pos) {
+    metrics.update_position(pos);
+    calculate_signal();
+  }
+
+  void add(const Candle& candle, const Position* pos) {
+    metrics.add(candle, pos);
+    calculate_signal();
+  }
+
+  Candle pop_back() {
+    auto candle = metrics.pop_back();
+    calculate_signal();
+    return candle;
+  }
+
+ private:
   void calculate_signal() {
     stop_loss = StopLoss(metrics, sizing_config);
     signal = gen_signal(-1);
     position_sizing = PositionSizing(metrics, signal, stop_loss, sizing_config);
-  }
-
-  void update_position(const Position* pos) {
-    metrics.position = pos;
-    calculate_signal();
   }
 };
 
