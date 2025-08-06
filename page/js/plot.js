@@ -157,7 +157,8 @@ function createPlotlyLayout({
     data,
     start,
     NORD,
-    heights
+    heights,
+    srShapes
 }) {
     const subplots = [{
         key: 'yaxis',
@@ -321,7 +322,7 @@ function createPlotlyLayout({
             color: NORD.white
         },
         ...yaxes,
-        shapes: [...dividers, ...rsiLines]
+        shapes: [...dividers, ...rsiLines, ...srShapes]
     };
 }
 
@@ -389,6 +390,33 @@ async function plotChart(symbol) {
 
         // Extract datetime series
         const dt = data.map(row => row.datetime);
+
+        const sr = await loadDF(symbol, timeframeMapped, 'support_resistance');
+
+        const srShapes = sr.map(row => {
+            const isSupport = row.support === 0;
+            console.log(isSupport);
+            const color = 
+                isSupport 
+                    ? 'rgba(0, 128, 0, 0.2)' 
+                    : 'rgba(255, 0, 0, 0.2)'; 
+
+            return {
+                type: 'rect',
+                xref: 'x',
+                yref: 'y',
+                x0: dt[0],
+                x1: dt[dt.length - 1],
+                y0: row.lower,
+                y1: row.upper,
+                fillcolor: color,
+                opacity: 0.5,
+                line: {
+                    width: 0,
+                },
+                layer: 'below', // draw under the price lines
+            };
+        });
 
         // Create traces
         const traces = [];
@@ -680,7 +708,8 @@ async function plotChart(symbol) {
             data,
             start,
             NORD,
-            heights: [4, 1, 2, 1.8] // relative weights for price, volume, RSI, MACD
+            heights: [4, 1, 2, 1.8],
+            srShapes
         });
 
         // Plot the chart

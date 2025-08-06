@@ -1,6 +1,6 @@
 #pragma once
 
-#include "_html_template.hpp"
+#include "_html_template.h"
 
 #include <string_view>
 

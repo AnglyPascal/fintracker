@@ -6,7 +6,6 @@
 #include <spdlog/spdlog.h>
 
 #include <fstream>
-#include <iostream>
 #include <latch>
 #include <semaphore>
 #include <thread>
@@ -32,20 +31,22 @@ inline std::vector<SymbolInfo> read_symbols() {
   return symbols;
 }
 
-LocalTimePoint Portfolio::last_updated() const {
-  return _last_updated;
-}
-
 Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
     : config{config},
       sizing_config{sizing_config},
-      symbols{::read_symbols()},
+      symbols{read_symbols()},
+
+      // APIs
       tg{config.tg_en},
       td{symbols.size()},
       rp{td, symbols, config.replay_en},
+
+      // components
       positions{},
       calendar{},
-      _last_updated{},
+
+      // timing
+      last_updated{},
       update_interval{td.interval}  //
 {
   sizing_config.capital_usd =
@@ -59,19 +60,20 @@ Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
 
   for (auto& [symbol, priority] : symbols) {
     sem.acquire();
-    std::jthread([&, priority]() {
+    std::jthread([&]() {
       try {
-        auto candles = time_series(symbol);
+        auto candles = time_series(symbol, H_1);
         if (candles.empty()) {
-          spdlog::error("[init] no candles fetched for {}", symbol.c_str());
+          spdlog::error("[init] no candles fetched for " + symbol);
 
           sem.release();
           done.count_down();
           return;
         }
 
-        Ticker ticker(symbol, priority, std::move(candles), update_interval,
-                      positions.get_position(symbol), sizing_config,
+        Ticker ticker(symbol, priority,                               //
+                      std::move(candles), H_1,                        //
+                      positions.get_position(symbol), sizing_config,  //
                       calendar.next_event(symbol));
         {
           auto _ = writer_lock();
@@ -85,18 +87,18 @@ Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
 
       sem.release();
       done.count_down();
-    }).detach();  // safe because latch ensures completion
+    }).detach();
   }
 
   done.wait();
   spdlog::info("[init] took {:.2f}ms", timer.diff_ms());
 
   if (!tickers.empty())
-    _last_updated = tickers.begin()->second.metrics.last_updated();
+    last_updated = tickers.begin()->second.metrics.last_updated();
 
   write_page();
 
-  spdlog::info("[init] at {}", std::format("{}", last_updated()).c_str());
+  spdlog::info("[init] at {}", std::format("{}", last_updated).c_str());
 }
 
 void Portfolio::add_candle() {
@@ -111,9 +113,8 @@ void Portfolio::add_candle() {
   for (auto& [symbol, ticker] : tickers) {
     sem.acquire();
     std::jthread([&]() {
-      spdlog::trace("[add] start {}", symbol.c_str());
       try {
-        Candle candle = real_time(symbol);
+        Candle candle = real_time(symbol, H_1);
 
         if (candle.time() == LocalTimePoint{}) {
           spdlog::error("[add] invalid candle {}: {}", symbol.c_str(),
@@ -123,18 +124,10 @@ void Portfolio::add_candle() {
           return;
         }
 
-        spdlog::trace("[add] {}: {}", symbol.c_str(), to_str(candle).c_str());
-
-        {
-          auto _ = writer_lock();
-          ticker.add(candle, positions.get_position(symbol));
-        }
-
+        ticker.add(candle, positions.get_position(symbol));
         write_plot_data(symbol);
-
-        spdlog::trace("[add] end {}", symbol.c_str());
       } catch (const std::exception& ex) {
-        spdlog::warn("[add] failed. {}: {}", symbol.c_str(), ex.what());
+        spdlog::warn("[add] failed for {}: {}", symbol.c_str(), ex.what());
       }
 
       sem.release();
@@ -146,29 +139,29 @@ void Portfolio::add_candle() {
   spdlog::info("[add] took {:.2f}ms", timer.diff_ms());
 
   if (!tickers.empty())
-    _last_updated = tickers.begin()->second.metrics.last_updated();
+    last_updated = tickers.begin()->second.metrics.last_updated();
 
   write_page();
-  spdlog::info("[update] at {}", std::format("{}", last_updated()).c_str());
+  spdlog::info("[update] at " + std::format("{}", last_updated));
 }
 
 void Portfolio::add_candle_sync() {
   Timer timer;
   for (auto& [symbol, ticker] : tickers) {
-    auto candle = real_time(symbol);
+    auto candle = real_time(symbol, H_1);
     {
       auto _ = writer_lock();
       ticker.add(candle, positions.get_position(symbol));
     }
     write_plot_data(symbol);
   }
-  spdlog::info("[add_candle_sync] completed in {:.2f} ms", timer.diff_ms());
+  spdlog::info("[add sync] completed in {:.2f} ms", timer.diff_ms());
 
   if (!tickers.empty())
-    _last_updated = tickers.begin()->second.metrics.last_updated();
+    last_updated = tickers.begin()->second.metrics.last_updated();
 
   write_page();
-  spdlog::info("[update] at " + std::format("{}", last_updated()));
+  spdlog::info("[update] at " + std::format("{}", last_updated));
 }
 
 void Portfolio::rollback() {
@@ -178,17 +171,17 @@ void Portfolio::rollback() {
   {
     auto _ = writer_lock();
     for (auto& [symbol, ticker] : tickers) {
-      auto candle = ticker.pop_back();
+      auto candle = ticker.rollback();
       rp.rollback(symbol, candle);
       write_plot_data(symbol);
     }
   }
 
   if (!tickers.empty())
-    _last_updated = tickers.begin()->second.metrics.last_updated();
+    last_updated = tickers.begin()->second.metrics.last_updated();
 
   write_page();
-  spdlog::info("[rollback] to " + std::format("{}", last_updated()));
+  spdlog::info("[rollback] to " + std::format("{}", last_updated));
 }
 
 std::pair<const Position*, double> Portfolio::add_trade(
@@ -205,11 +198,8 @@ std::pair<const Position*, double> Portfolio::add_trade(
     auto& ticker = portfolio->tickers.at(trade.ticker);
     pos = positions.get_position(trade.ticker);
     ticker.update_position(pos);
-
-    if (!tickers.empty())
-      portfolio->_last_updated = tickers.begin()->second.metrics.last_updated();
   }
-  spdlog::info("[add_trade] at " + std::format("{}", last_updated()));
+  spdlog::info("[add trade] at " + std::format("{}", last_updated));
 
   write_plot_data(trade.ticker);
   write_page();
@@ -230,19 +220,15 @@ void Portfolio::run() {
     return run_replay();
 
   while (true) {
-    auto [open, remaining] = market_status();
+    auto [open, remaining] = market_status(update_interval);
     if (!open)
       break;
 
-    sleep(remaining + minutes(3));
-    if (td.latest_datetime() == last_updated())
-      sleep(2);
-
+    sleep(remaining + minutes(4));
     add_candle();
   }
 
   spdlog::info("[close]");
-
   while (true)
     sleep(1);
 }
@@ -257,44 +243,40 @@ void Portfolio::update_trades() {
     }
   }
 
-  for (auto& [symbol, _] : tickers) {
+  for (auto& [symbol, _] : tickers)
     write_plot_data(symbol);
-  }
   write_page();
-  spdlog::info("[trades] updated at {}",
-               std::format("{}", now_ny_time()).c_str());
+
+  spdlog::info("[trades] updated at" + std::format("{}", now_ny_time()));
 }
 
 void Portfolio::run_replay() {
   if (config.continuous_en) {
     while (rp.has_data()) {
-      std::cout << "adding data" << std::endl;
+      spdlog::info("[replay] adding data");
       add_candle();
       sleep(config.speed);
     }
-    std::cout << "done" << std::endl;
+    spdlog::info("[replay] done");
     return;
   }
 
-  {
-    RawMode _;
+  RawMode _;
 
-    while (rp.has_data()) {
-      char ch;
-      if (read(STDIN_FILENO, &ch, 1) == 1) {
-        std::cout << "\b \b" << std::flush;
+  while (rp.has_data()) {
+    char ch;
+    if (read(STDIN_FILENO, &ch, 1) == 1) {
+      printf("\b \b");
+      fflush(stdout);
 
-        if (ch == 'q')
-          break;
+      if (ch == 'q')
+        break;
 
-        if (ch == 'l')
-          add_candle();
+      if (ch == 'l')
+        add_candle();
 
-        if (ch == 'h')
-          rollback();
-      }
+      if (ch == 'h')
+        rollback();
     }
   }
-
-  std::cout << "exit" << std::endl;
 }

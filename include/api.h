@@ -36,6 +36,8 @@ struct APIKey {
 
 struct Candle;
 
+inline constexpr int MAX_OUTPUT_SIZE = 5000;
+
 class TD {
   using Result = std::vector<Candle>;
 
@@ -51,15 +53,16 @@ class TD {
   const std::string& get_key();
 
   Result api_call(const std::string& symbol,
-                  size_t output_size,
-                  const std::string& end_date);
+                  minutes timeframe,
+                  size_t output_size = MAX_OUTPUT_SIZE);
 
  public:
   TD(size_t n_tickers);
 
   double to_usd(double amount, const std::string& currency = "GBP");
-  Result time_series(const std::string& symbol, int n_days = 200);
-  Candle real_time(const std::string& symbol);
+
+  Result time_series(const std::string& symbol, minutes timeframe = H_1);
+  Candle real_time(const std::string& symbol, minutes timeframe = H_1);
   LocalTimePoint latest_datetime();
 };
 

@@ -4,6 +4,7 @@
 #include "positions.h"
 #include "prediction.h"
 #include "signals.h"
+#include "support_resistance.h"
 #include "times.h"
 
 #include <cassert>
@@ -24,6 +25,14 @@ struct Candle {
   double price() const { return close; }
   LocalTimePoint time() const { return datetime_to_local(datetime); }
 };
+
+std::vector<Candle> downsample(std::vector<Candle>& candles,
+                               minutes source,
+                               minutes target);
+
+Candle latest_candle(std::vector<Candle>& candles,
+                     minutes source,
+                     minutes target);
 
 struct EMA {
   std::vector<double> values;
@@ -122,17 +131,23 @@ struct Indicators {
   Signal signal;
   SignalMemory memory;
 
-  void get_stats();
   std::map<ReasonType, SignalStats> reason_stats;
   std::map<HintType, SignalStats> hint_stats;
+
+  Support support;
+  Resistance resistance;
+
+ private:
+  void get_stats();
 
   friend struct Metrics;
 
  public:
   Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
 
-  void add(const Candle& candle, bool new_candle) noexcept;
-  void pop_back(bool pop_memory) noexcept;
+  void add(const Candle& candle) noexcept;
+  void pop_back() noexcept;
+  void pop_memory() noexcept;
 
   LocalTimePoint plot(const std::string& sym, const std::string& time) const;
 
@@ -215,7 +230,7 @@ struct Metrics {
           const Position* position) noexcept;
 
   bool add(const Candle& candle, const Position* position) noexcept;
-  Candle pop_back() noexcept;
+  Candle rollback() noexcept;
 
   auto last_price() const { return candles.back().price(); }
   auto last_updated() const {
@@ -241,4 +256,3 @@ struct StopLoss {
   StopLoss() noexcept = default;
   StopLoss(const Metrics& m, const PositionSizingConfig& config) noexcept;
 };
-

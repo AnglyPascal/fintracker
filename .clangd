@@ -1,3 +1,9 @@
 CompileFlags:
-  Add: [-x, c++-header]
-  Compiler: /usr/bin/g++
+  Add: [-std=c++23]
+
+---
+
+If:
+  PathMatch: .*\.(h|hpp)$
+CompileFlags:
+  Add: [-xc++-header]

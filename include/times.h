@@ -35,7 +35,7 @@ LocalTimePoint now_ny_time();
 
 std::string closest_nyse_aligned_time(const std::string& ny_time_str);
 
-std::pair<bool, minutes> market_status();
+std::pair<bool, minutes> market_status(minutes update_interval);
 
 struct Timer {
   TimePoint start;
@@ -49,5 +49,9 @@ struct Timer {
   }
 };
 
+
 bool first_candle_in_interval(minutes interval, LocalTimePoint tp);
 bool last_candle_in_interval(minutes interval, LocalTimePoint tp);
+
+LocalTimePoint start_of_interval(LocalTimePoint tp, minutes interval);
+

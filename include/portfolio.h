@@ -29,6 +29,9 @@ struct Ticker {
 
   Event ev;
 
+ private:
+  friend class Portfolio;
+
   Ticker(const std::string& symbol,
          int priority,
          std::vector<Candle>&& candles,
@@ -59,13 +62,12 @@ struct Ticker {
     calculate_signal();
   }
 
-  Candle pop_back() {
-    auto candle = metrics.pop_back();
+  Candle rollback() {
+    auto candle = metrics.rollback();
     calculate_signal();
     return candle;
   }
 
- private:
   void calculate_signal() {
     stop_loss = StopLoss(metrics, sizing_config);
     signal = gen_signal(-1);
@@ -104,8 +106,10 @@ class Portfolio {
   OpenPositions positions;
   Calendar calendar;
 
-  LocalTimePoint _last_updated;
+ public:
+  LocalTimePoint last_updated;
 
+ private:
   const minutes update_interval;
 
  public:
@@ -118,12 +122,16 @@ class Portfolio {
  private:
   void run_replay();
 
-  auto time_series(auto& symbol) {
-    return rp.enabled ? rp.time_series(symbol) : td.time_series(symbol);
+  template <typename... Args>
+  auto time_series(Args&&... args) {
+    return rp.enabled ? rp.time_series(std::forward<Args>(args)...)
+                      : td.time_series(std::forward<Args>(args)...);
   }
 
-  auto real_time(auto& symbol) {
-    return rp.enabled ? rp.real_time(symbol) : td.real_time(symbol);
+  template <typename... Args>
+  auto real_time(Args&&... args) {
+    return rp.enabled ? rp.real_time(std::forward<Args>(args)...)
+                      : td.real_time(std::forward<Args>(args)...);
   }
 
   void add_candle();
@@ -132,8 +140,6 @@ class Portfolio {
   void add_candle_sync();
 
  public:  // getters
-  LocalTimePoint last_updated() const;
-
   auto& get_trades() const { return positions.get_trades(); }
   auto& get_positions() const { return positions.get_positions(); }
 
@@ -166,6 +172,5 @@ class Portfolio {
   friend std::string to_str(const T& t, const S& s);
 
   void write_plot_data(const std::string& symbol) const;
-
   void write_page() const;
 };

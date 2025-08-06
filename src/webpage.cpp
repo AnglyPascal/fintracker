@@ -1,5 +1,5 @@
 #include "format.h"
-#include "html_template.hpp"
+#include "html_template.h"
 #include "portfolio.h"
 #include "times.h"
 
@@ -64,6 +64,15 @@ LocalTimePoint Indicators::plot(const std::string& sym,
 
   trends_to_csv(trends.price.top_trends, "price");
   trends_to_csv(trends.rsi.top_trends, "rsi");
+
+  std::ofstream sr(csv_fname(sym, time, "support_resistance"));
+  sr << "support,lower,upper,confidence\n";
+  for (auto [lo, hi, conf] : support.zones)
+    sr << std::format("0,{:.2f},{:.2f},{}\n", lo, hi, conf);
+  for (auto [lo, hi, conf] : resistance.zones)
+    sr << std::format("1,{:.2f},{:.2f},{}\n", lo, hi, conf);
+  sr.flush();
+  sr.close();
 
   return candles[candles.size() - n].time();
 }
@@ -506,7 +515,7 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
                         mem_str);
   }
 
-  auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated());
+  auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated);
   auto subtitle = std::format(index_subtitle_template, datetime);
   auto reload = (p.config.replay_en && p.config.debug_en) ? index_reload : "";
 

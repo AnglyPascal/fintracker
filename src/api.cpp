@@ -232,10 +232,9 @@ int TG::send_doc(const std::string& fname,
  ** TwelveData API **
  ********************/
 
-inline constexpr int MAX_OUTPUT_SIZE = 5000;
 inline constexpr int API_TOKENS = 800;
 inline constexpr int MAX_CALLS_MIN = 8;
-inline constexpr int N_APIs = 3;
+inline constexpr int N_APIs = 5;
 
 inline constexpr minutes get_interval(size_t n_tickers) {
   auto mins = 60 / ((API_TOKENS * N_APIs) / (n_tickers * 8));
@@ -347,21 +346,18 @@ double TD::to_usd(double amount, const std::string& currency) {
 }
 
 TD::Result TD::api_call(const std::string& symbol,
-                        size_t output_size,
-                        const std::string& end_date) {
+                        minutes timeframe,
+                        size_t output_size) {
   auto api_key = get_key();
 
   if (output_size > MAX_OUTPUT_SIZE)
     spdlog::error("[td] outputsize exceeds limit");
 
   cpr::Parameters params{{"symbol", symbol},
-                         {"interval", interval_to_str(interval)},
+                         {"interval", interval_to_str(timeframe)},
                          {"outputsize", std::to_string(output_size)},
                          {"order", "asc"},
                          {"apikey", api_key}};
-
-  if (!end_date.empty())
-    params.Add({"end_date", end_date});
 
   auto res =
       cpr::Get(cpr::Url{"https://api.twelvedata.com/time_series"}, params);
@@ -391,30 +387,16 @@ TD::Result TD::api_call(const std::string& symbol,
   return candles;
 }
 
-TD::Result TD::time_series(const std::string& symbol, int n_days) {
-  Result res;
-  while (n_days > 0) {
-    auto min_n_days = std::min(n_days, 100);
-    size_t sz = min_n_days * 8 /* hours per day */ * (minutes(60) / interval);
-
-    auto end_date = res.empty() ? "" : res.front().datetime;
-    auto vec = api_call(symbol, sz, end_date);
-
-    vec.insert(vec.end(), res.begin(), res.end());
-    std::swap(res, vec);
-
-    n_days -= min_n_days;
-  }
-  return res;
+TD::Result TD::time_series(const std::string& symbol, minutes timeframe) {
+  return api_call(symbol, timeframe);
 }
 
-Candle TD::real_time(const std::string& symbol) {
-  return api_call(symbol, 1, "").back();
+Candle TD::real_time(const std::string& symbol, minutes timeframe) {
+  return api_call(symbol, timeframe, 1).back();
 }
 
 LocalTimePoint TD::latest_datetime() {
-  auto candle = api_call("NVDA", 1, "").back();
-  return candle.time();
+  return real_time("NVDA", interval).time();
 }
 
 bool wait_for_file(const std::string& path,

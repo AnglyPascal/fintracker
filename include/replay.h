@@ -1,5 +1,7 @@
 #pragma once
 
+#include "times.h"
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -19,11 +21,13 @@ class Replay {
 
  public:
   Replay(TD& td,
-           const std::vector<SymbolInfo>& symbols,
-           bool bt_enabled = false);
+         const std::vector<SymbolInfo>& symbols,
+         bool bt_enabled = false);
 
-  std::vector<Candle> time_series(const std::string& symbol, int n_days = 90);
-  Candle real_time(const std::string& symbol);
+  std::vector<Candle> time_series(const std::string& symbol,
+                                  minutes timeframe = M_15);
+
+  Candle real_time(const std::string& symbol, minutes timeframe = M_15);
 
   void rollback(const std::string& symbol, const Candle& candle);
 

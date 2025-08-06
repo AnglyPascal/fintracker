@@ -65,23 +65,24 @@ find_path(ZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
 
 # Add your source files
 add_executable(${TARGET}
-  src/main.cpp
-  src/times.cpp
-  src/config.cpp
   src/api.cpp
+  src/backtest.cpp
+  src/calendar.cpp
+  src/config.cpp
   src/format.cpp
   src/indicators.cpp
-  src/signals.cpp
-  src/signal_funcs.cpp
-  src/portfolio.cpp
-  src/positions.cpp
-  src/position_sizing.cpp
+  src/main.cpp
   src/notifier.cpp
+  src/portfolio.cpp
+  src/position_sizing.cpp
+  src/positions.cpp
   src/prediction.cpp
-  src/webpage.cpp
-  src/calendar.cpp
-  src/backtest.cpp
   src/replay.cpp
+  src/signal_funcs.cpp
+  src/signals.cpp
+  src/support_resistance.cpp
+  src/times.cpp
+  src/webpage.cpp
 )
 
 target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/include)
@@ -99,7 +100,7 @@ set(EMBED_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_str.py)
 set(INPUT_HTML 
     ${CMAKE_CURRENT_SOURCE_DIR}/data/index.html 
     ${CMAKE_CURRENT_SOURCE_DIR}/data/ticker.html)
-set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/_html_template.hpp)
+set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/_html_template.h)
 
 add_custom_command(
   OUTPUT ${OUTPUT_HEADER} 

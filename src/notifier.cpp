@@ -37,7 +37,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
 
   if constexpr (command == Commands::PING) {
     tg.send(std::format("```json\nping: \"{}\"\nlast updated: \"{}\"```",  //
-                        now_ny_time(), portfolio.last_updated()));
+                        now_ny_time(), portfolio.last_updated));
   }
 
   if constexpr (command == Commands::STATUS) {
@@ -169,7 +169,7 @@ void Notifier::iter(Notifier* notifier) {
     std::string alert, status;
     {
       auto _ = portfolio.reader_lock();
-      if (notifier->last_updated != portfolio.last_updated()) {
+      if (notifier->last_updated != portfolio.last_updated) {
         auto& prev_signals = notifier->prev_signals;
 
         auto diff = to_str<FormatTarget::Alert>(portfolio, prev_signals);
@@ -182,7 +182,7 @@ void Notifier::iter(Notifier* notifier) {
         auto str = to_str<FormatTarget::Telegram>(portfolio);
         status = to_str<FormatTarget::Telegram>(HASKELL, str);
 
-        notifier->last_updated = portfolio.last_updated();
+        notifier->last_updated = portfolio.last_updated;
       }
     }
     if (alert != "")
@@ -250,7 +250,7 @@ inline void cleanup() {
 Notifier::Notifier(const Portfolio& portfolio)
     : portfolio{portfolio},
       tg{portfolio.tg},
-      last_updated{portfolio.last_updated()}  //
+      last_updated{portfolio.last_updated}  //
 {
   for (auto& [symbol, ticker] : portfolio.tickers)
     prev_signals.emplace(symbol, ticker.metrics.ind_1h.signal);

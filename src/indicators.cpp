@@ -196,7 +196,9 @@ Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
       _rsi{this->candles},
       _macd{this->candles},
       _atr{this->candles},
-      trends{*this}  //
+      trends{*this},
+      support{*this},
+      resistance{*this}  //
 {
   get_stats();
   signal = gen_signal(-1);
@@ -204,7 +206,11 @@ Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
     memory.add(gen_signal(i));
 }
 
-void Indicators::add(const Candle& candle, bool new_candle) noexcept {
+void Indicators::add(const Candle& candle) noexcept {
+  bool new_candle = candles.back().time() != candle.time();
+  if (new_candle)
+    memory.add(signal);
+
   candles.push_back(candle);
 
   _ema9.add(candle);
@@ -215,13 +221,10 @@ void Indicators::add(const Candle& candle, bool new_candle) noexcept {
   _atr.add(candle);
 
   trends = Trends{*this};
-
-  if (new_candle)
-    memory.add(signal);
   signal = gen_signal(-1);
 }
 
-void Indicators::pop_back(bool pop_memory) noexcept {
+void Indicators::pop_back() noexcept {
   candles.pop_back();
   auto close = candles.back().close;
 
@@ -233,10 +236,11 @@ void Indicators::pop_back(bool pop_memory) noexcept {
   _atr.pop_back(close);
 
   trends = Trends{*this};
-
-  if (pop_memory)
-    memory.remove();
   signal = gen_signal(-1);
+}
+
+void Indicators::pop_memory() noexcept {
+  memory.remove();
 }
 
 inline Candle combine(auto start, auto end) {
@@ -258,15 +262,22 @@ inline Candle combine(auto start, auto end) {
   return out;
 }
 
-inline auto downsample(auto& candles,
-                       [[maybe_unused]] minutes source,
-                       minutes target) {
+std::vector<Candle> downsample(std::vector<Candle>& candles,
+                               minutes source,
+                               minutes target) {
   if (candles.empty())
-    return std::vector<Candle>{};
+    return {};
 
   assert(target.count() % source.count() == 0);
 
-  std::vector<Candle> out, bucket;
+  std::vector<Candle> out;
+
+  if (source == target) {
+    out.insert(out.end(), candles.cbegin(), candles.cend());
+    return out;
+  }
+
+  std::vector<Candle> bucket;
   std::string current_day = candles.front().day();
   LocalTimePoint bucket_time;
 
@@ -329,56 +340,71 @@ void Metrics::update_position(const Position* pos) {
   }
 }
 
-inline auto interval_start(minutes interval, auto end) {
-  auto last_time = (end - 1)->time();
-  auto start_of_day = floor<days>(last_time) + hours{9} + minutes{30};
+Candle latest_candle(std::vector<Candle>& candles,
+                     minutes source,
+                     minutes target) {
+  if (candles.empty())
+    return {};
 
-  auto time_of_day = floor<minutes>(last_time - start_of_day);
-  auto floor = time_of_day - time_of_day % interval;
-  auto start_of_interval = start_of_day + floor;
+  if (source == target)
+    return candles.back();
 
-  while (start_of_interval <= (end - 1)->time())
-    end--;
-  return end;
+  auto last_time = candles.back().time();
+  auto start_time = start_of_interval(last_time, target);
+
+  auto end = candles.end();
+  auto start = end;
+  while (start_time <= (start - 1)->time())
+    start--;
+
+  return combine(start, end);
 }
 
 bool Metrics::add(const Candle& candle, const Position* pos) noexcept {
+  if (candles.back().time() == candle.time())
+    candles.pop_back();
   candles.push_back(candle);
 
   auto add_to_ind = [&](auto& ind) {
-    auto end = candles.end();
-    auto start = interval_start(ind.interval, end);
-    bool new_candle = first_candle_in_interval(ind.interval, candle.time());
+    auto prev_time = ind.candles.back().time();
+    auto curr_time = candle.time();
+
+    auto target = ind.interval;
+    bool new_candle = start_of_interval(prev_time, target) !=
+                      start_of_interval(curr_time, target);
 
     if (!new_candle)
-      ind.pop_back(false);
+      ind.pop_back();
 
-    ind.add(combine(start, end), new_candle);
+    ind.add(latest_candle(candles, interval, ind.interval));
+    return new_candle;
   };
 
-  add_to_ind(ind_1h);
+  auto new_candle = add_to_ind(ind_1h);
   add_to_ind(ind_4h);
   add_to_ind(ind_1d);
 
   update_position(pos);
-  return last_candle_in_interval(H_1, candle.time());
+  return new_candle;
 }
 
-Candle Metrics::pop_back() noexcept {
+Candle Metrics::rollback() noexcept {
   auto candle = candles.back();
   candles.pop_back();
 
   auto pop_from_ind = [&](auto& ind) {
-    bool pop_memory = first_candle_in_interval(ind.interval, candle.time());
-    ind.pop_back(pop_memory);
+    auto prev_time = ind.candles.back().time();
+    auto curr_time = candle.time();
 
-    auto end = candles.end();
-    auto start = interval_start(ind.interval, end);
+    bool complete_pop = prev_time == curr_time;
+    ind.pop_back();
 
-    if (end - start == 0)
+    if (complete_pop) {
+      ind.pop_memory();
       return;
+    }
 
-    ind.add(combine(start, end), false);
+    ind.add(latest_candle(candles, interval, ind.interval));
   };
 
   pop_from_ind(ind_1h);
@@ -440,5 +466,5 @@ StopLoss::StopLoss(const Metrics& m,
 }
 
 Forecast Indicators::gen_forecast(int) const {
-  return Forecast(signal, reason_stats, hint_stats);  // FIXME
+  return Forecast(signal, reason_stats, hint_stats);  // FIX ME
 }

@@ -61,7 +61,7 @@ Replay::Replay(TD& td, const std::vector<SymbolInfo>& symbols, bool rp_enabled)
   }
 
   for (auto& [symbol, _] : symbols) {
-    auto candles = td.time_series(symbol, 120);
+    auto candles = td.time_series(symbol, H_1);
     if (candles.empty())
       continue;
 
@@ -81,15 +81,15 @@ Replay::Replay(TD& td, const std::vector<SymbolInfo>& symbols, bool rp_enabled)
   write_candles(curr_day_fname, curr_day_candles_rev);
 }
 
-std::vector<Candle> Replay::time_series(const std::string& symbol, int n_days) {
+std::vector<Candle> Replay::time_series(const std::string& symbol, minutes) {
   auto it = prev_day_candles.find(symbol);
   if (it == prev_day_candles.end()) {
     spdlog::warn("[replay] no time series for {}", symbol.c_str());
     return {};
   }
 
-  size_t output_size = n_days * 8 /* hours per day */ * (minutes(60) / M_15);
-  if (it->second.size() < output_size) {
+  size_t min_sz = 300;
+  if (it->second.size() < min_sz) {
     spdlog::warn("[replay] no time series for {}", symbol.c_str());
     return {};
   }
@@ -99,7 +99,7 @@ std::vector<Candle> Replay::time_series(const std::string& symbol, int n_days) {
   return vec;
 }
 
-Candle Replay::real_time(const std::string& symbol) {
+Candle Replay::real_time(const std::string& symbol, minutes) {
   auto it = curr_day_candles_rev.find(symbol);
   if (it == curr_day_candles_rev.end() || it->second.empty()) {
     spdlog::warn("[replay] no candle for {}", symbol.c_str());

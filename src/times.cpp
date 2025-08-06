@@ -83,7 +83,8 @@ std::string to_str(const LocalTimePoint& datetime) {
   return std::format("{:%F %T}", datetime);
 }
 
-std::pair<bool, minutes> market_status() {
+std::pair<bool, minutes> market_status(minutes interval) {
+  auto interval_mins = interval.count();
   auto now = now_ny_time();
   auto today = floor<days>(now);
   auto time_of_day = now - today;
@@ -101,11 +102,12 @@ std::pair<bool, minutes> market_status() {
   }
 
   if (time_of_day < market_close) {
-    auto minutes_since_midnight = duration_cast<minutes>(time_of_day);
-    auto next_15_min_block = ((minutes_since_midnight.count() + 14) / 15) * 15;
-    auto minutes_until_next_block =
-        next_15_min_block - minutes_since_midnight.count();
-    return {true, minutes{minutes_until_next_block}};
+    auto mins_since_midnight = duration_cast<minutes>(time_of_day).count();
+    auto next_block =
+        ((mins_since_midnight + interval_mins - 1) / interval_mins) *
+        interval_mins;
+    auto mins_until_next_block = next_block - mins_since_midnight;
+    return {true, minutes{mins_until_next_block}};
   }
 
   // Market already closed today
@@ -122,4 +124,11 @@ bool first_candle_in_interval(minutes interval, LocalTimePoint tp) {
   auto start_of_day = floor<days>(tp) + hours{9} + minutes{30};
   auto time_of_day = floor<minutes>(tp - start_of_day);
   return time_of_day % interval == minutes{0};
+}
+
+LocalTimePoint start_of_interval(LocalTimePoint tp, minutes interval) {
+  auto start_of_day = floor<days>(tp) + hours{9} + minutes{30};
+  auto time_of_day = floor<minutes>(tp - start_of_day);
+  auto floor = time_of_day - time_of_day % interval;
+  return start_of_day + floor;
 }
