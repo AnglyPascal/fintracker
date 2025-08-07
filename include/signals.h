@@ -66,7 +66,9 @@ enum class HintType {
 
   // SR
   NearSupport,
+  NearStrongSupport,
   NearResistance,
+  NearStrongResistance,
 
   // Trends:
 

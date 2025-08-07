@@ -81,6 +81,14 @@ struct SupportResistanceConfig {
       return n_candles_in_zone_4h;
     return n_candles_in_zone_1d;
   }
+
+  auto n_lookback_candles(minutes interval) const {
+    if (interval == H_1)
+      return lookback_days * 8;
+    if (interval == H_4)
+      return lookback_days * 2 * 2;
+    return lookback_days * 3;
+  }
 };
 
 struct Config {

@@ -463,7 +463,7 @@ StopLoss::StopLoss(const Metrics& m,
     stop_pct = (price - final_stop) / price;
   }
 
-  spdlog::info(
+  spdlog::trace(
       "[stop] {} price={:.2f} entry={:.2f} "
       "atr_stop={:.2f} hard={:.2f} final={:.2f}",
       is_trailing, price, entry_price, atr_stop, hard_stop, final_stop);

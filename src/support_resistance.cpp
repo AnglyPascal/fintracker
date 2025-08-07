@@ -2,6 +2,7 @@
 #include "indicators.h"
 
 #include <algorithm>
+#include <iostream>
 
 template <SR sr>
 inline bool is_swing(auto& ind, int i, int window = 3) {
@@ -30,7 +31,8 @@ auto count_bounces(auto& ind, double lower, double upper, auto& config) {
   size_t max_inside = config.n_candles_in_zone(ind.interval);
 
   auto N = ind.candles.size();
-  for (size_t i = 3; i < N; ++i) {
+  auto l = N - 1.5 * config.n_lookback_candles(ind.interval);
+  for (size_t i = l; i < N; ++i) {
     double prev_close = ind.price(i - 1);
     double curr_close = ind.price(i);
 
@@ -49,7 +51,7 @@ auto count_bounces(auto& ind, double lower, double upper, auto& config) {
         break;
 
       double close = ind.price(idx);
-      double next_close = ind.price(idx + 1);
+      // double next_close = ind.price(idx + 1);
       double low = ind.low(idx);
       double high = ind.high(idx);
 
@@ -58,7 +60,7 @@ auto count_bounces(auto& ind, double lower, double upper, auto& config) {
           broken = true;
           break;
         }
-        if (close < upper && next_close > upper) {
+        if (close < upper) {  //  && next_close > upper
           clean_exit = true;
           break;
         }
@@ -67,7 +69,7 @@ auto count_bounces(auto& ind, double lower, double upper, auto& config) {
           broken = true;
           break;
         }
-        if (close > lower && next_close < lower) {
+        if (close > lower) {  // && next_close < lower
           clean_exit = true;
           break;
         }
@@ -75,7 +77,8 @@ auto count_bounces(auto& ind, double lower, double upper, auto& config) {
     }
 
     if (clean_exit && !broken) {
-      conf += (double)i * 2 / N;
+      auto weight = (double)i / N;
+      conf += 1.0 + weight * weight;
       i += j + 1;
     }
   }
@@ -83,7 +86,7 @@ auto count_bounces(auto& ind, double lower, double upper, auto& config) {
   return conf;
 }
 
-auto merge_zones(auto raw) {
+auto merge_zones(auto raw, double max_zone_width = 0.01) {
   if (raw.empty())
     return raw;
 
@@ -104,40 +107,41 @@ auto merge_zones(auto raw) {
     }
   }
 
+  for (auto& zone : zones) {
+    double center = (zone.lo + zone.hi) / 2;
+    double current_width = (zone.hi - zone.lo) / center;
+
+    if (current_width > max_zone_width) {
+      double half_max = center * max_zone_width / 2;
+      zone.lo = center - half_max;
+      zone.hi = center + half_max;
+    }
+  }
+
   return zones;
 }
 
-double get_adaptive_zone_width(auto interval) {
-  if (interval == H_1)
-    return 0.004;  // 0.4%
-  if (interval == H_4)
-    return 0.008;  // 0.8%
-  if (interval == D_1)
-    return 0.015;  // 1.5%
-  return 0.004;
-}
-
 double get_atr_based_zone_width(auto& ind, int lookback_periods = 14) {
-    double avg_atr = 0;
-    int count = 0;
-    
-    for (int i = -1; i >= -lookback_periods; --i) {
-        avg_atr += ind.atr(i);
-        count++;
-    }
-    avg_atr /= count;
-    
-    double atr_multiplier = 0.5; // Adjust this based on testing
-    return (avg_atr / ind.price(-1)) * atr_multiplier;
+  double avg_atr = 0;
+  int count = 0;
+
+  for (int i = -1; i >= -lookback_periods; --i) {
+    avg_atr += ind.atr(i);
+    count++;
+  }
+  avg_atr /= count;
+
+  double atr_multiplier = 0.8;  // Adjust this based on testing
+  return (avg_atr / ind.price(-1)) * atr_multiplier;
 }
 
 double confidence_multiplier(auto& ind) {
   if (ind.interval == H_1)
-    return 1.0; 
-  if (ind.interval == H_4) 
-    return 3.0;
+    return 1.0;
+  if (ind.interval == H_4)
+    return 1.5;
   if (ind.interval == D_1)
-    return 6.0;
+    return 2;
   return 0;
 }
 
@@ -145,18 +149,12 @@ template <SR sr>
 inline auto find_zones(auto& ind, auto& config) {
   std::vector<double> swings;
 
-  auto lookback =
-      config.lookback_days * ((D_1 + ind.interval - minutes{1}) / ind.interval);
-  if (ind.interval == H_4)
-    lookback *= 1.5;
-  if (ind.interval == D_1)
-    lookback *= 2.5;
-
+  auto lookback = config.n_lookback_candles(ind.interval);
   auto window = config.swing_window(ind.interval);
 
   for (int i = -lookback; i < -window - 1; ++i) {
     if (is_swing<sr>(ind, i, window))
-      swings.push_back(ind.low(i));
+      swings.push_back(sr == SR::Support ? ind.low(i) : ind.high(i));
   }
 
   std::vector<Zone> zones;

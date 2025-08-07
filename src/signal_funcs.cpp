@@ -104,6 +104,10 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
      {Severity::Low, Source::SR, SignalClass::Entry, "near⊥"}},
     {HintType::NearResistance,
      {Severity::Low, Source::SR, SignalClass::Exit, "near⊤"}},
+    {HintType::NearStrongSupport,
+     {Severity::High, Source::SR, SignalClass::Entry, "near⊥"}},
+    {HintType::NearStrongResistance,
+     {Severity::High, Source::SR, SignalClass::Exit, "near⊤"}},
 };
 
 template <>
@@ -553,17 +557,15 @@ inline Hint near_support_hint(const Indicators& ind, int idx) {
 
   for (const auto& zone : ind.support.zones) {
     if (zone.contains(current_price)) {
-      // Weight hint by zone confidence - stronger zones get priority
-      // Price should be moving towards or testing the zone
-      if (ind.price(idx) <= ind.price(idx - 1)) {  // Declining or stable
-        return HintType::NearSupport;
+      if (ind.price(idx) <= ind.price(idx - 1)) {
+        return zone.confidence > 15 ? HintType::NearStrongSupport
+                                    : HintType::NearSupport;
       }
-    }
-    // Also hint when approaching zone (within 2x break_buffer distance)
-    else if (current_price > zone.hi &&
-             current_price <= zone.hi * (1 + 2 * 0.01)) {  // FIXME
-      if (ind.price(idx) < ind.price(idx - 1)) {  // Moving towards zone
-        return HintType::NearSupport;
+    } else if (current_price > zone.hi &&
+               current_price <= zone.hi * (1 + 0.008)) {
+      if (ind.price(idx) < ind.price(idx - 1)) {
+        return zone.confidence > 15 ? HintType::NearStrongSupport
+                                    : HintType::NearSupport;
       }
     }
   }
@@ -575,17 +577,15 @@ inline Hint near_resistance_hint(const Indicators& ind, int idx) {
 
   for (const auto& zone : ind.resistance.zones) {
     if (zone.contains(current_price)) {
-      // Weight hint by zone confidence
-      // Price should be moving towards or testing the zone
-      if (ind.price(idx) >= ind.price(idx - 1)) {  // Rising or stable
-        return HintType::NearResistance;
+      if (ind.price(idx) >= ind.price(idx - 1)) {
+        return zone.confidence > 15 ? HintType::NearStrongResistance
+                                    : HintType::NearResistance;
       }
-    }
-    // Also hint when approaching zone
-    else if (current_price < zone.lo &&
-             current_price >= zone.lo * (1 + 2 * 0.01)) {  // FIXME
-      if (ind.price(idx) > ind.price(idx - 1)) {  // Moving towards zone
-        return HintType::NearResistance;
+    } else if (current_price < zone.lo &&
+               current_price >= zone.lo * (1 - 0.008)) {
+      if (ind.price(idx) > ind.price(idx - 1)) {
+        return zone.confidence > 15 ? HintType::NearStrongResistance
+                                    : HintType::NearResistance;
       }
     }
   }

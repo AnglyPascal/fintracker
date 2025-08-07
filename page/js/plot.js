@@ -399,7 +399,8 @@ async function plotChart(symbol) {
                 const t = (x - l) / (r - l); // normalize to [0, 1]
                 const scaled = 1.5 * (t - 0.5); // map to [-1, 1]
                 const stretched = Math.sign(scaled) * Math.pow(Math.abs(scaled), 0.4);
-                return 0.5 + 0.5 * stretched; // map back to [0, 1]
+                // return 0.5 + 0.5 * stretched; // map back to [0, 1]
+                return t;
             }
             const confidence = row.confidence;
             const stretched = stretchEnds(confidence, 1, maxConfidence);
@@ -413,7 +414,7 @@ async function plotChart(symbol) {
                 y0: row.lower,
                 y1: row.upper,
                 fillcolor: row.support === 0 ? NORD.green : NORD.red,
-                opacity: stretched * .5,
+                opacity: stretched * .7,
                 line: {
                     width: 0,
                 },
