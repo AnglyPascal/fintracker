@@ -58,14 +58,16 @@ inline Rating gen_rating(double entry_w,
   if (entry_w >= ENTRY_MIN && entry_w < ENTRY_THRESHOLD)
     return Rating::Watchlist;
 
-  // 6. Strong hint conflicts and fallbacks
+  // 6. Fallbacks
   bool strong_entry_hint =
       std::any_of(hints.begin(), hints.end(), [](const auto& h) {
-        return h.cls() == SignalClass::Entry && h.severity() >= Severity::High;
+        return h.cls() == SignalClass::Entry &&
+               h.severity() >= Severity::High && h.source() != Source::SR;
       });
   bool strong_exit_hint =
       std::any_of(hints.begin(), hints.end(), [](const auto& h) {
-        return h.cls() == SignalClass::Exit && h.severity() >= Severity::High;
+        return h.cls() == SignalClass::Exit && h.severity() >= Severity::High &&
+               h.source() != Source::SR;
       });
 
   if (strong_entry_hint && strong_exit_hint)

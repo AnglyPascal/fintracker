@@ -80,15 +80,18 @@ PositionSizingConfig::PositionSizingConfig(const std::string& path) {
     GET_FROM_JSON(capital);
     GET_FROM_JSON(capital_currency);
     GET_FROM_JSON(max_capital_per_position);
-
     GET_FROM_JSON(max_risk_pct);
 
     GET_FROM_JSON(stop_pct);
     GET_FROM_JSON(stop_atr_multiplier);
 
+    GET_FROM_JSON(trailing_trigger_atr);
+    GET_FROM_JSON(trailing_atr_multiplier);
+    GET_FROM_JSON(trailing_stop_pct);
+
     GET_FROM_JSON(swing_low_window);
     GET_FROM_JSON(swing_low_buffer);
-    GET_FROM_JSON(ema_stop_buffer);
+    GET_FROM_JSON(ema_stop_pct);
 
     GET_FROM_JSON(entry_score_cutoff);
     GET_FROM_JSON(entry_risk_cutoff);
@@ -100,7 +103,7 @@ PositionSizingConfig::PositionSizingConfig(const std::string& path) {
     GET_FROM_JSON(earnings_volatility_buffer);
   } catch (const std::exception& e) {
     spdlog::error("[pos] error parsing positing sizing config file {}: {}",
-                 path.c_str(), e.what());
+                  path.c_str(), e.what());
   }
 }
 
@@ -133,6 +136,6 @@ SupportResistanceConfig::SupportResistanceConfig(const std::string& path) {
     GET_FROM_JSON(n_candles_in_zone_1d);
   } catch (const std::exception& e) {
     spdlog::error("[pos] error parsing positing sizing config file {}: {}",
-                 path.c_str(), e.what());
+                  path.c_str(), e.what());
   }
 }

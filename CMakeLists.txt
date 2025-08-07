@@ -109,7 +109,6 @@ add_custom_command(
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-set_source_files_properties(${OUTPUT_HEADER} PROPERTIES GENERATED TRUE)
 add_custom_target(html_header DEPENDS ${OUTPUT_HEADER})
 add_dependencies(${TARGET} html_header)
 

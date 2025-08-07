@@ -1,5 +1,6 @@
 #include "format.h"
 #include "html_template.h"
+#include "_html_template.h"
 #include "portfolio.h"
 #include "times.h"
 

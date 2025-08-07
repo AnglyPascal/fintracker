@@ -1,7 +1,5 @@
 #pragma once
 
-#include "_html_template.h"
-
 #include <string_view>
 
 inline constexpr std::string_view index_reload =

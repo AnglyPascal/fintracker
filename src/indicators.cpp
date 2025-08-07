@@ -430,7 +430,9 @@ StopLoss::StopLoss(const Metrics& m,
   auto max_price_seen = m.has_position() ? pos->max_price_seen : price;
 
   // trailing kicks in after ~1R move
-  is_trailing = m.has_position() && (max_price_seen > entry_price + atr);
+  is_trailing =
+      m.has_position() &&
+      (max_price_seen > entry_price + config.trailing_trigger_atr * atr);
 
   auto n = std::min((size_t)config.swing_low_window, ind.candles.size());
 
@@ -443,8 +445,7 @@ StopLoss::StopLoss(const Metrics& m,
 
   // Initial Stop
   if (!is_trailing) {
-    auto buffer = config.ema_stop_buffer * price;
-    ema_stop = ind.ema21(-1) - buffer;
+    ema_stop = ind.ema21(-1) * (1.0 - config.ema_stop_pct);
     auto best = std::min(swing_low, ema_stop) * 0.999;
 
     atr_stop = entry_price - config.stop_atr_multiplier * atr;
@@ -456,8 +457,8 @@ StopLoss::StopLoss(const Metrics& m,
 
   // Trailing Stop
   else {
-    atr_stop = max_price_seen - config.stop_atr_multiplier * atr;
-    hard_stop = max_price_seen * (1.0 - config.stop_pct);
+    atr_stop = max_price_seen - config.trailing_atr_multiplier * atr;
+    hard_stop = max_price_seen * (1.0 - config.trailing_stop_pct);
 
     final_stop = std::max({swing_low, atr_stop, hard_stop});
     stop_pct = (price - final_stop) / price;

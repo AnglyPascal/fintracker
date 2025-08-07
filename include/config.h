@@ -7,17 +7,20 @@
 struct PositionSizingConfig {
   double capital = 4000.0;
   std::string capital_currency = "GBP";
-  mutable double capital_usd = -1.0;
+  double max_risk_pct = 0.015;
 
   double max_capital_per_position = 0.25;
 
-  double max_risk_pct = 0.015;
-  double stop_pct = 0.03;
+  double stop_pct = 0.025;
   double stop_atr_multiplier = 3.0;
+
+  double trailing_trigger_atr = 1.5;
+  double trailing_atr_multiplier = 3.0;
+  double trailing_stop_pct = 0.035;
 
   int swing_low_window = 30;
   double swing_low_buffer = 0.002;
-  double ema_stop_buffer = 0.015;
+  double ema_stop_pct = 0.02;
 
   double entry_score_cutoff = 0.6;
   double entry_risk_cutoff = 6.0;
@@ -27,6 +30,8 @@ struct PositionSizingConfig {
   int max_hold_days = 15;
 
   int earnings_volatility_buffer = 3;
+
+  mutable double capital_usd = -1.0;
 
   double max_risk_amount() const { return capital_usd * max_risk_pct; }
 

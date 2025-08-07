@@ -274,7 +274,7 @@ function createPlotlyLayout({
     }));
 
     return {
-        height: 950,
+        height: 890,
         width: 1500,
         autosize: false,
         showlegend: true,
@@ -307,7 +307,7 @@ function createPlotlyLayout({
             }
         },
         plot_bgcolor: NORD.best_black,
-        paper_bgcolor: NORD.best_black,
+        paper_bgcolor: "rgba(23, 23, 28, 0)",
         font: {
             size: 13,
             color: NORD.white,
@@ -316,7 +316,7 @@ function createPlotlyLayout({
             domain: [0, 1],
             anchor: 'y4',
             range: zoomRange,
-            tickangle: 45,
+            tickangle: 60,
             nticks: 50,
             type: 'category',
             color: NORD.white

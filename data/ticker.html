@@ -6,23 +6,25 @@
     <link rel="stylesheet" href="css/ticker.css">
   </head>
   <body>
-    <h2>PLACEHOLDER</h2>
-    <div>PLACEHOLDER</div>
+    <div id="title">
+      <div id="title_text">PLACEHOLDER</div>
+      <div class="button-container">
+        <button id="btn1h" class="active">1H</button>
+        <button id="btn4h">4H</button>
+        <button id="btn1d">1D</button>
+      </div>
+    </div>
 
-    <h3>Statistics</h3>
-  <div class="button-container">
-      <button id="btn1h" class="active">1H</button>
-      <button id="btn4h">4H</button>
-      <button id="btn1d">1D</button>
-  </div>
+    <div id="body">
+      <div id="chart"></div>
 
-    <div id="content"></div>
-    <div id="break"><div>
-    <div id="chart"></div>
+      <div id="initial">PLACEHOLDER</div>
+      <div id="content"></div>
+    </div>
 
     <script> let ticker = 'PLACEHOLDER'; </script>
     <script type="module">
-      import { loadContent } from "./js/plot.js";
+    import { loadContent } from "./js/plot.js";
     </script>
     <script src="http://localhost:35729/livereload.js?snipver=1"></script>
 
