@@ -17,6 +17,7 @@
 struct Ticker {
   const std::string symbol;
   const int priority;
+  const Config config;
 
   TimePoint last_polled;
 
@@ -24,7 +25,6 @@ struct Ticker {
   CombinedSignal signal;
 
   StopLoss stop_loss;
-  PositionSizingConfig sizing_config;
   PositionSizing position_sizing;
 
   Event ev;
@@ -34,16 +34,16 @@ struct Ticker {
 
   Ticker(const std::string& symbol,
          int priority,
+         const Config& config,
          std::vector<Candle>&& candles,
          minutes update_interval,
          const Position* position,
-         const PositionSizingConfig& config,
          const Event& ev) noexcept
       : symbol{symbol},
         priority{priority},
+        config{config},
         last_polled{Clock::now()},
-        metrics{std::move(candles), update_interval, position},
-        sizing_config{config},
+        metrics{std::move(candles), update_interval, position, config},
         ev{ev}  //
   {
     calculate_signal();
@@ -69,9 +69,10 @@ struct Ticker {
   }
 
   void calculate_signal() {
-    stop_loss = StopLoss(metrics, sizing_config);
+    stop_loss = StopLoss(metrics, config.sizing_config);
     signal = gen_signal(-1);
-    position_sizing = PositionSizing(metrics, signal, stop_loss, sizing_config);
+    position_sizing =
+        PositionSizing(metrics, signal, stop_loss, config.sizing_config);
   }
 };
 
@@ -89,7 +90,6 @@ inline constexpr int max_concurrency = 32;
 class Portfolio {
  public:
   const Config config;
-  const PositionSizingConfig sizing_config;
 
  private:
   std::vector<SymbolInfo> symbols;
@@ -113,7 +113,7 @@ class Portfolio {
   const minutes update_interval;
 
  public:
-  Portfolio(Config config, PositionSizingConfig sizing_config) noexcept;
+  Portfolio(Config config) noexcept;
   void run();
   void update_trades();
 

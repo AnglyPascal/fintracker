@@ -301,7 +301,7 @@ CombinedSignal Ticker::gen_signal(int idx) const {
 
     // disqualify if earnings is near
     if (ev.is_earnings() && ev.days_until() >= 0 &&
-        ev.days_until() < sizing_config.earnings_volatility_buffer)
+        ev.days_until() < config.sizing_config.earnings_volatility_buffer)
       sig.type = Rating::Watchlist;
   }
 

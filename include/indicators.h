@@ -1,6 +1,7 @@
 #pragma once
 
 #include "backtest.h"
+#include "config.h"
 #include "positions.h"
 #include "prediction.h"
 #include "signals.h"
@@ -134,8 +135,8 @@ struct Indicators {
   std::map<ReasonType, SignalStats> reason_stats;
   std::map<HintType, SignalStats> hint_stats;
 
-  Support support;
-  Resistance resistance;
+  SupportResistance<SR::Support> support;
+  SupportResistance<SR::Resistance> resistance;
 
  private:
   void get_stats();
@@ -143,7 +144,9 @@ struct Indicators {
   friend struct Metrics;
 
  public:
-  Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
+  Indicators(std::vector<Candle>&& candles,
+             minutes interval,
+             const Config& config) noexcept;
 
   void add(const Candle& candle) noexcept;
   void pop_back() noexcept;
@@ -161,6 +164,8 @@ struct Indicators {
   double price(int idx) const { return candles[sanitize(idx)].price(); }
   double low(int idx) const { return candles[sanitize(idx)].low; }
   double high(int idx) const { return candles[sanitize(idx)].high; }
+  int volume(int idx) const { return candles[sanitize(idx)].volume; }
+
   LocalTimePoint time(int idx) const { return candles[sanitize(idx)].time(); }
 
   double ema9(int idx) const { return _ema9.values[sanitize(idx)]; }
@@ -223,11 +228,13 @@ struct Metrics {
   const minutes interval;
   Indicators ind_1h, ind_4h, ind_1d;
   const Position* position;
+  const Config& config;
 
  public:
   Metrics(std::vector<Candle>&& candles,
           minutes interval,
-          const Position* position) noexcept;
+          const Position* position,
+          const Config& config) noexcept;
 
   bool add(const Candle& candle, const Position* position) noexcept;
   Candle rollback() noexcept;

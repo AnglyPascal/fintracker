@@ -8,7 +8,7 @@
 #include <vector>
 
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
-enum class Source { Price, Stop, EMA, RSI, MACD, Trend, None };
+enum class Source { Price, Stop, EMA, RSI, MACD, Trend, SR, None };
 enum class SignalClass { None, Entry, Exit };
 
 struct Meta {
@@ -40,6 +40,9 @@ enum class ReasonType {
   EmaCrossdown,
   RsiOverbought,
   MacdBearishCross,
+
+  BrokeSupport,
+  BrokeResistance,
 };
 
 enum class HintType {
@@ -60,6 +63,10 @@ enum class HintType {
   RsiDropFromOverbought,
   MacdPeaked,
   Ema9Flattening,
+
+  // SR
+  NearSupport,
+  NearResistance,
 
   // Trends:
 

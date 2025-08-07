@@ -1,27 +1,31 @@
 #pragma once
 
+#include "config.h"
+
 #include <vector>
 
 struct Indicators;
 
 struct Zone {
-  double lower_bound;
-  double upper_bound;
-  int confidence = 0;
+  double lo;
+  double hi;
+  double confidence = 0.0;
 
-  bool contains(double price) const {
-    return price >= lower_bound && price <= upper_bound;
-  }
+  bool contains(double price) const { return price >= lo && price <= hi; }
 };
 
-struct Support {
+enum class SR {
+  Support,
+  Resistance,
+};
+
+template <SR sr>
+struct SupportResistance {
   std::vector<Zone> zones;
-  Support(const Indicators& m, int lookback = 250) noexcept;
+  SupportResistance(const Indicators& m,
+                    const SupportResistanceConfig& config) noexcept;
   bool is_near(double price) const;
 };
 
-struct Resistance {
-  std::vector<Zone> zones;
-  Resistance(const Indicators& m, int lookback = 250) noexcept;
-  bool is_near(double price) const;
-};
+template struct SupportResistance<SR::Support>;
+template struct SupportResistance<SR::Resistance>;

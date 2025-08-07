@@ -68,9 +68,9 @@ LocalTimePoint Indicators::plot(const std::string& sym,
   std::ofstream sr(csv_fname(sym, time, "support_resistance"));
   sr << "support,lower,upper,confidence\n";
   for (auto [lo, hi, conf] : support.zones)
-    sr << std::format("0,{:.2f},{:.2f},{}\n", lo, hi, conf);
+    sr << std::format("0,{:.2f},{:.2f},{:.2f}\n", lo, hi, conf);
   for (auto [lo, hi, conf] : resistance.zones)
-    sr << std::format("1,{:.2f},{:.2f},{}\n", lo, hi, conf);
+    sr << std::format("1,{:.2f},{:.2f},{:.2f}\n", lo, hi, conf);
   sr.flush();
   sr.close();
 
@@ -486,15 +486,16 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
       return to_str<FormatTarget::HTML>(sig_1h, src);
     };
 
-    body += std::format(index_row_template,  //
-                        row_class, symbol,
-                        hide(m, sig.type) ? "display:none;" : "", symbol,
-                        to_str<FormatTarget::HTML>(sig),  //
-                        symbol, symbol, event_str,        //
-                        str(Source::Price) + stop_str, str(Source::EMA),
-                        str(Source::RSI), str(Source::MACD),  //
-                        pos_str, stop_loss_str                //
-    );
+    body +=
+        std::format(index_row_template,                                     //
+                    row_class, symbol,                                      //
+                    hide(m, sig.type) ? "display:none;" : "", symbol,       //
+                    to_str<FormatTarget::HTML>(sig),                        //
+                    symbol, symbol, event_str,                              //
+                    str(Source::Price) + stop_str + str(Source::SR),        //
+                    str(Source::EMA), str(Source::RSI), str(Source::MACD),  //
+                    pos_str, stop_loss_str                                  //
+        );
 
     std::string mem_str = "";
     int n = 1;

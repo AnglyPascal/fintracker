@@ -50,6 +50,9 @@ Config::Config(int argc, char* argv[]) {
   debug_en = program.get<bool>("--debug");
   continuous_en = program.get<bool>("--continuous");
   speed = program.get<double>("--speed");
+
+  sizing_config = PositionSizingConfig{"private/sizing.json"};
+  sr_config = SupportResistanceConfig{"private/support_resistance.json"};
 }
 
 #define GET_FROM_JSON(name)                                           \
@@ -95,17 +98,41 @@ PositionSizingConfig::PositionSizingConfig(const std::string& path) {
     GET_FROM_JSON(max_hold_days);
 
     GET_FROM_JSON(earnings_volatility_buffer);
-
-    spdlog::info(
-        "[pos] Config: cap={} max_cap_pos={} risk_pct={} stop_pct={} "
-        "stop_atr={} swing_win={} swing_buf={} ema_buf={} score_cutoff={} "
-        "risk_cutoff={} conf_cutoff={} min_days={} max_days={}",
-        capital, max_capital_per_position, max_risk_pct, stop_pct,
-        stop_atr_multiplier, swing_low_window, swing_low_buffer,
-        ema_stop_buffer, entry_score_cutoff, entry_risk_cutoff,
-        entry_confidence_cutoff, min_hold_days, max_hold_days);
   } catch (const std::exception& e) {
-    spdlog::warn("[pos] error parsing positing sizing config file {}: {}",
+    spdlog::error("[pos] error parsing positing sizing config file {}: {}",
+                 path.c_str(), e.what());
+  }
+}
+
+SupportResistanceConfig::SupportResistanceConfig(const std::string& path) {
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    spdlog::warn("[pos] failed to open positing sizing config file {}",
+                 path.c_str());
+    return;
+  }
+
+  try {
+    nlohmann::json j;
+    file >> j;
+
+    GET_FROM_JSON(lookback_days);
+    GET_FROM_JSON(n_zones);
+    GET_FROM_JSON(min_zone_confidence);
+
+    GET_FROM_JSON(swing_window_1h);
+    GET_FROM_JSON(zone_width_1h);
+    GET_FROM_JSON(n_candles_in_zone_1h);
+
+    GET_FROM_JSON(swing_window_4h);
+    GET_FROM_JSON(zone_width_4h);
+    GET_FROM_JSON(n_candles_in_zone_4h);
+
+    GET_FROM_JSON(swing_window_1d);
+    GET_FROM_JSON(zone_width_1d);
+    GET_FROM_JSON(n_candles_in_zone_1d);
+  } catch (const std::exception& e) {
+    spdlog::error("[pos] error parsing positing sizing config file {}: {}",
                  path.c_str(), e.what());
   }
 }

@@ -187,7 +187,9 @@ void ATR::add(const Candle& candle) noexcept {
   prev_close = candle.close;
 }
 
-Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
+Indicators::Indicators(std::vector<Candle>&& candles,
+                       minutes interval,
+                       const Config& config) noexcept
     : candles{std::move(candles)},
       interval{interval},
       _ema9{this->candles, 9},
@@ -197,8 +199,8 @@ Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
       _macd{this->candles},
       _atr{this->candles},
       trends{*this},
-      support{*this},
-      resistance{*this}  //
+      support{*this, config.sr_config},
+      resistance{*this, config.sr_config}  //
 {
   get_stats();
   signal = gen_signal(-1);
@@ -314,12 +316,14 @@ std::vector<Candle> downsample(std::vector<Candle>& candles,
 
 Metrics::Metrics(std::vector<Candle>&& candles,
                  minutes interval,
-                 const Position* position) noexcept
+                 const Position* position,
+                 const Config& config) noexcept
     : candles{std::move(candles)},
       interval{interval},
-      ind_1h{downsample(this->candles, interval, H_1), H_1},  //
-      ind_4h{downsample(this->candles, interval, H_4), H_4},  //
-      ind_1d{downsample(this->candles, interval, D_1), D_1}   //
+      ind_1h{downsample(this->candles, interval, H_1), H_1, config},  //
+      ind_4h{downsample(this->candles, interval, H_4), H_4, config},  //
+      ind_1d{downsample(this->candles, interval, D_1), D_1, config},
+      config{config}  //
 {
   update_position(position);
 }

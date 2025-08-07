@@ -31,9 +31,8 @@ inline std::vector<SymbolInfo> read_symbols() {
   return symbols;
 }
 
-Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
+Portfolio::Portfolio(Config config) noexcept
     : config{config},
-      sizing_config{sizing_config},
       symbols{read_symbols()},
 
       // APIs
@@ -49,8 +48,8 @@ Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
       last_updated{},
       update_interval{td.interval}  //
 {
-  sizing_config.capital_usd =
-      td.to_usd(sizing_config.capital, sizing_config.capital_currency);
+  config.sizing_config.capital_usd = td.to_usd(
+      config.sizing_config.capital, config.sizing_config.capital_currency);
 
   std::counting_semaphore<max_concurrency> sem(
       std::thread::hardware_concurrency() / 2);
@@ -71,9 +70,9 @@ Portfolio::Portfolio(Config config, PositionSizingConfig sizing_config) noexcept
           return;
         }
 
-        Ticker ticker(symbol, priority,                               //
-                      std::move(candles), H_1,                        //
-                      positions.get_position(symbol), sizing_config,  //
+        Ticker ticker(symbol, priority, config,  //
+                      std::move(candles), H_1,   //
+                      positions.get_position(symbol),
                       calendar.next_event(symbol));
         {
           auto _ = writer_lock();

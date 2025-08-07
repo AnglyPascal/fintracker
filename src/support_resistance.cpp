@@ -2,49 +2,42 @@
 #include "indicators.h"
 
 #include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <set>
 
-constexpr double PERCENT(double x) {
-  return x / 100.0;
-}
+template <SR sr>
+inline bool is_swing(auto& ind, int i, int window = 3) {
+  auto val = [&ind](int idx) {
+    return sr == SR::Support ? ind.low(idx) : ind.high(idx);
+  };
 
-inline bool is_swing_low(auto& ind, int i, int window = 3) {
-  double cur = ind.low(i);
+  double cur = val(i);
+
+  auto test = [cur, val](int idx) {
+    return sr == SR::Support ? (val(idx) <= cur) : (val(idx) >= cur);
+  };
+
   for (int j = 1; j <= window; ++j) {
-    if (ind.low(i - j) <= cur || ind.low(i + j) <= cur)
+    if (test(i - j) || test(i + j))
       return false;
   }
   return true;
 }
 
-inline bool is_swing_high(auto& ind, int i, int window = 3) {
-  double cur = ind.high(i);
-  for (int j = 1; j <= window; ++j) {
-    if (ind.high(i - j) >= cur || ind.high(i + j) >= cur)
-      return false;
-  }
-  return true;
-}
+template <SR sr>
+auto count_bounces(auto& ind, double lower, double upper, auto& config) {
+  constexpr bool is_support = sr == SR::Support;
 
-// FIXME: also fix count_bounces
-template <bool is_support>
-int count_bounces(auto& ind, double lower, double upper) {
-  int count = 0;
-  constexpr size_t max_inside = 3;
+  double conf = 0;
+  size_t max_inside = config.n_candles_in_zone(ind.interval);
 
   auto N = ind.candles.size();
-  for (size_t i = 3; i < N - max_inside - 1; ++i) {
+  for (size_t i = 3; i < N; ++i) {
     double prev_close = ind.price(i - 1);
     double curr_close = ind.price(i);
 
-    bool entered = is_support ? (prev_close < lower && curr_close >= lower &&
-                                 curr_close <= upper)
-                              : (prev_close > upper && curr_close <= upper &&
-                                 curr_close >= lower);
+    bool crossed = is_support ? (prev_close > upper && curr_close <= upper)
+                              : (prev_close < lower && curr_close >= lower);
 
-    if (!entered)
+    if (!crossed)
       continue;
 
     bool clean_exit = false;
@@ -52,141 +45,157 @@ int count_bounces(auto& ind, double lower, double upper) {
     size_t j = 0;
     for (; j < max_inside; ++j) {
       auto idx = i + j;
+      if (idx >= N)
+        break;
+
       double close = ind.price(idx);
+      double next_close = ind.price(idx + 1);
       double low = ind.low(idx);
       double high = ind.high(idx);
 
-      if (is_support && low < lower) {
-        broken = true;
-        break;
-      }
-      if (!is_support && high > upper) {
-        broken = true;
-        break;
-      }
-
-      if (is_support && close > upper) {
-        clean_exit = true;
-        break;
-      }
-      if (!is_support && close < lower) {
-        clean_exit = true;
-        break;
+      if constexpr (is_support) {
+        if (low < lower) {
+          broken = true;
+          break;
+        }
+        if (close < upper && next_close > upper) {
+          clean_exit = true;
+          break;
+        }
+      } else {
+        if (high > upper) {
+          broken = true;
+          break;
+        }
+        if (close > lower && next_close < lower) {
+          clean_exit = true;
+          break;
+        }
       }
     }
 
     if (clean_exit && !broken) {
-      count++;
+      conf += (double)i * 2 / N;
       i += j + 1;
     }
   }
 
-  return count;
+  return conf;
 }
 
-// FIXME fix the clustering code
-template <bool is_support>
-auto cluster_into_zones(auto& ind, auto& points, double percent_width) {
+auto merge_zones(auto raw) {
+  if (raw.empty())
+    return raw;
+
+  std::sort(raw.begin(), raw.end(),
+            [](auto& l, auto& r) { return l.lo < r.lo; });
+
   std::vector<Zone> zones;
-  if (points.empty())
-    return zones;
+  zones.push_back(raw[0]);
 
-  auto add_zone = [&](auto lo, auto hi) {
-    auto mid = (lo + hi) / 2;
-    lo = mid * (1 - percent_width / 2);
-    hi = mid * (1 + percent_width / 2);
-    auto conf = count_bounces<is_support>(ind, lo, hi);
-    zones.emplace_back(lo, hi, conf);
-  };
-
-  std::vector<double> sorted = points;
-  std::sort(sorted.begin(), sorted.end());
-
-  double start = sorted[0];
-  double end = sorted[0];
-
-  for (size_t i = 1; i < sorted.size(); ++i) {
-    if ((sorted[i] - end) / end <= percent_width) {
-      end = sorted[i];
+  for (size_t i = 1; i < raw.size(); i++) {
+    auto next = raw[i];
+    auto& prev = zones.back();
+    if (next.lo <= prev.hi) {
+      prev.hi = std::max(next.hi, prev.hi);
+      prev.confidence += next.confidence;
     } else {
-      add_zone(start, end);
-      start = end = sorted[i];
+      zones.push_back(next);
     }
   }
 
-  add_zone(start, end);
   return zones;
 }
 
-inline auto find_support_zones(auto& ind, int lookback, int window = 3) {
-  std::vector<double> swing_lows;
-
-  for (int i = -lookback; i < -window - 1; ++i) {
-    if (is_swing_low(ind, i, window))
-      swing_lows.push_back(ind.low(i));
-  }
-
-  return cluster_into_zones<true>(ind, swing_lows, 0.02);  // 0.5% zone width
+double get_adaptive_zone_width(auto interval) {
+  if (interval == H_1)
+    return 0.004;  // 0.4%
+  if (interval == H_4)
+    return 0.008;  // 0.8%
+  if (interval == D_1)
+    return 0.015;  // 1.5%
+  return 0.004;
 }
 
-inline auto find_resistance_zones(auto& ind, int lookback, int window = 3) {
-  std::vector<double> swing_highs;
-
-  for (int i = -lookback; i < -window - 1; ++i) {
-    if (is_swing_high(ind, i, window))
-      swing_highs.push_back(ind.high(i));
-  }
-
-  return cluster_into_zones<false>(ind, swing_highs, 0.005);  // 0.5% zone width
-}
-
-inline auto find_ema_bounces(auto& ind) {
-  std::vector<double> bounces;
-  for (size_t i = 1; i < ind.candles.size(); ++i) {
-    if (ind.price(i - 1) < ind.ema21(i - 1) && ind.price(i) > ind.ema21(i))
-      bounces.push_back(ind.low(i));
-  }
-  return bounces;
-}
-
-inline auto find_ema_rejections(auto& ind) {
-  std::vector<double> rejections;
-  for (size_t i = 1; i < ind.candles.size(); ++i) {
-    if (ind.price(i - 1) > ind.ema21(i - 1) && ind.price(i) < ind.ema21(i))
-      rejections.push_back(ind.low(i));
-  }
-  return rejections;
-}
-
-inline auto confirm_levels(auto& lv1, auto& lv2, double tolerance_pct = 0.3) {
-  std::set<double> confirmed;
-  for (auto a : lv1) {
-    for (auto b : lv2) {
-      auto diff_pct = std::abs(a - b) / std::max(std::abs(a), std::abs(b));
-      if (diff_pct < PERCENT(tolerance_pct))
-        confirmed.insert((a + b) / 2.0);
+double get_atr_based_zone_width(auto& ind, int lookback_periods = 14) {
+    double avg_atr = 0;
+    int count = 0;
+    
+    for (int i = -1; i >= -lookback_periods; --i) {
+        avg_atr += ind.atr(i);
+        count++;
     }
-  }
-  return std::vector<double>(confirmed.begin(), confirmed.end());
+    avg_atr /= count;
+    
+    double atr_multiplier = 0.5; // Adjust this based on testing
+    return (avg_atr / ind.price(-1)) * atr_multiplier;
 }
 
-Support::Support(const Indicators& ind, int lookback) noexcept
-    : zones{find_support_zones(ind, lookback)} {}
-
-bool Support::is_near(double price) const {
-  for (const auto& zone : zones) {
-    if (zone.contains(price) && zone.confidence >= 2)
-      return true;
-  }
-  return false;
+double confidence_multiplier(auto& ind) {
+  if (ind.interval == H_1)
+    return 1.0; 
+  if (ind.interval == H_4) 
+    return 3.0;
+  if (ind.interval == D_1)
+    return 6.0;
+  return 0;
 }
 
-Resistance::Resistance(const Indicators& ind, int lookback) noexcept
-    : zones{find_resistance_zones(ind, lookback)} {}
+template <SR sr>
+inline auto find_zones(auto& ind, auto& config) {
+  std::vector<double> swings;
 
-bool Resistance::is_near(double price) const {
+  auto lookback =
+      config.lookback_days * ((D_1 + ind.interval - minutes{1}) / ind.interval);
+  if (ind.interval == H_4)
+    lookback *= 1.5;
+  if (ind.interval == D_1)
+    lookback *= 2.5;
+
+  auto window = config.swing_window(ind.interval);
+
+  for (int i = -lookback; i < -window - 1; ++i) {
+    if (is_swing<sr>(ind, i, window))
+      swings.push_back(ind.low(i));
+  }
+
+  std::vector<Zone> zones;
+  if (swings.empty())
+    return zones;
+
+  auto width = get_atr_based_zone_width(ind, lookback);
+  auto min_conf = config.min_zone_confidence;
+  auto conf_mult = confidence_multiplier(ind);
+
+  for (auto lvl : swings) {
+    auto lo = lvl * (1 - width / 2);
+    auto hi = lvl * (1 + width / 2);
+    auto conf = count_bounces<sr>(ind, lo, hi, config);
+    conf *= conf_mult;
+    if (conf >= min_conf)
+      zones.emplace_back(lo, hi, conf);
+  }
+
+  zones = merge_zones(zones);
+
+  std::sort(zones.begin(), zones.end(),
+            [](auto& l, auto& r) { return l.confidence > r.confidence; });
+
+  zones.resize(std::min((size_t)config.n_zones, zones.size()));
+
+  return zones;
+}
+
+template <SR sr>
+SupportResistance<sr>::SupportResistance(
+    const Indicators& ind,
+    const SupportResistanceConfig& config) noexcept
+    : zones{find_zones<sr>(ind, config)} {}
+
+template <SR sr>
+bool SupportResistance<sr>::is_near(double price) const {
   for (const auto& zone : zones) {
-    if (zone.contains(price) && zone.confidence >= 2)
+    if (zone.contains(price))
       return true;
   }
   return false;

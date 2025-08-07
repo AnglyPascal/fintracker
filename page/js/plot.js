@@ -392,14 +392,17 @@ async function plotChart(symbol) {
         const dt = data.map(row => row.datetime);
 
         const sr = await loadDF(symbol, timeframeMapped, 'support_resistance');
+        const maxConfidence = Math.max(...sr.map(row => row.confidence));
 
         const srShapes = sr.map(row => {
-            const isSupport = row.support === 0;
-            console.log(isSupport);
-            const color = 
-                isSupport 
-                    ? 'rgba(0, 128, 0, 0.2)' 
-                    : 'rgba(255, 0, 0, 0.2)'; 
+            const stretchEnds = (x, l, r) => {
+                const t = (x - l) / (r - l); // normalize to [0, 1]
+                const scaled = 1.5 * (t - 0.5); // map to [-1, 1]
+                const stretched = Math.sign(scaled) * Math.pow(Math.abs(scaled), 0.4);
+                return 0.5 + 0.5 * stretched; // map back to [0, 1]
+            }
+            const confidence = row.confidence;
+            const stretched = stretchEnds(confidence, 1, maxConfidence);
 
             return {
                 type: 'rect',
@@ -409,8 +412,8 @@ async function plotChart(symbol) {
                 x1: dt[dt.length - 1],
                 y0: row.lower,
                 y1: row.upper,
-                fillcolor: color,
-                opacity: 0.5,
+                fillcolor: row.support === 0 ? NORD.green : NORD.red,
+                opacity: stretched * .5,
                 line: {
                     width: 0,
                 },

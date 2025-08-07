@@ -20,6 +20,11 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
      {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi↱70"}},
     {ReasonType::MacdBearishCross,  //
      {Severity::High, Source::MACD, SignalClass::Exit, "macd⤰"}},
+    // SR:
+    {ReasonType::BrokeSupport,  //
+     {Severity::High, Source::SR, SignalClass::Exit, "S⤰"}},
+    {ReasonType::BrokeResistance,  //
+     {Severity::Medium, Source::SR, SignalClass::Entry, "R⤯"}},
 };
 
 inline const std::unordered_map<StopHitType, Meta> stop_hit_meta = {
@@ -93,6 +98,12 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
      {Severity::Medium, Source::Trend, SignalClass::Exit, "r↘"}},
     {HintType::RsiDownStrongly,  //
      {Severity::Medium, Source::Trend, SignalClass::Exit, "r⇘"}},
+
+    // SR:
+    {HintType::NearSupport,
+     {Severity::Low, Source::SR, SignalClass::Entry, "near⊥"}},
+    {HintType::NearResistance,
+     {Severity::Low, Source::SR, SignalClass::Exit, "near⊤"}},
 };
 
 template <>
@@ -315,15 +326,70 @@ inline Reason macd_bearish_cross_exit(const Indicators& ind, int idx) {
   return ReasonType::None;
 }
 
+// SR breaks
+//
+// Support/Resistance Reasons (actual signals)
+inline Reason broke_support_exit(const Indicators& ind, int idx) {
+  double current_close = ind.price(idx);
+  double prev_close = ind.price(idx - 1);
+
+  for (const auto& zone : ind.support.zones) {
+    // Previous candle was above/in the zone
+    if (prev_close >= zone.lo) {
+      double break_threshold = zone.lo * (1 - 0.01);  // FIXME with config
+
+      // Current candle closed below zone with minimum penetration
+      if (current_close < break_threshold) {
+        // Zone confidence filter - only signal on stronger zones
+        // Volume confirmation (if available) - break should have higher
+        // volume
+        // if (ind.volume(idx) > ind.avg_volume(idx, 10)) {
+        //   // 10-period avg volume
+        //   return ReasonType::BrokeSupport;
+        // }
+        // If no volume data, still signal based on price action
+        return ReasonType::BrokeSupport;
+      }
+    }
+  }
+  return ReasonType::None;
+}
+
+inline Reason broke_resistance_entry(const Indicators& ind, int idx) {
+  double current_close = ind.price(idx);
+  double prev_close = ind.price(idx - 1);
+
+  for (const auto& zone : ind.resistance.zones) {
+    // Previous candle was below/in the zone
+    if (prev_close <= zone.hi) {
+      double break_threshold = zone.hi * (1 + 0.01);  // FIXME
+
+      // Current candle closed above zone with minimum penetration
+      if (current_close > break_threshold) {
+        // Zone confidence filter
+        // Volume confirmation - breakout should have higher volume
+        // if (ind.volume(idx) > ind.avg_volume(idx, 10)) {
+        //   return ReasonType::BrokeResistance;
+        // }
+        // If no volume data, still signal
+        return ReasonType::BrokeResistance;
+      }
+    }
+  }
+  return ReasonType::None;
+}
+
 inline constexpr signal_f reason_funcs[] = {
     // Entry
     ema_crossover_entry,
     rsi_cross_50_entry,
     pullback_bounce_entry,
     macd_histogram_cross_entry,
+    broke_resistance_entry,
     // Exit
     ema_crossdown_exit,
     macd_bearish_cross_exit,
+    broke_support_exit,
 };
 
 std::vector<Reason> reasons(const Indicators& ind, int idx) {
@@ -479,6 +545,53 @@ inline Hint rsi_trending(const Indicators& m, int idx) {
   return HintType::None;
 }
 
+// SR Proximity
+
+// Support/Resistance Hints (early warnings)
+inline Hint near_support_hint(const Indicators& ind, int idx) {
+  double current_price = ind.price(idx);
+
+  for (const auto& zone : ind.support.zones) {
+    if (zone.contains(current_price)) {
+      // Weight hint by zone confidence - stronger zones get priority
+      // Price should be moving towards or testing the zone
+      if (ind.price(idx) <= ind.price(idx - 1)) {  // Declining or stable
+        return HintType::NearSupport;
+      }
+    }
+    // Also hint when approaching zone (within 2x break_buffer distance)
+    else if (current_price > zone.hi &&
+             current_price <= zone.hi * (1 + 2 * 0.01)) {  // FIXME
+      if (ind.price(idx) < ind.price(idx - 1)) {  // Moving towards zone
+        return HintType::NearSupport;
+      }
+    }
+  }
+  return HintType::None;
+}
+
+inline Hint near_resistance_hint(const Indicators& ind, int idx) {
+  double current_price = ind.price(idx);
+
+  for (const auto& zone : ind.resistance.zones) {
+    if (zone.contains(current_price)) {
+      // Weight hint by zone confidence
+      // Price should be moving towards or testing the zone
+      if (ind.price(idx) >= ind.price(idx - 1)) {  // Rising or stable
+        return HintType::NearResistance;
+      }
+    }
+    // Also hint when approaching zone
+    else if (current_price < zone.lo &&
+             current_price >= zone.lo * (1 + 2 * 0.01)) {  // FIXME
+      if (ind.price(idx) > ind.price(idx - 1)) {  // Moving towards zone
+        return HintType::NearResistance;
+      }
+    }
+  }
+  return HintType::None;
+}
+
 inline constexpr hint_f hint_funcs[] = {
     // Entry
     ema_converging_hint,
@@ -501,6 +614,10 @@ inline constexpr hint_f hint_funcs[] = {
     price_trending,
     ema21_trending,
     rsi_trending,
+
+    // SR
+    near_support_hint,
+    near_resistance_hint,
 };
 
 std::vector<Hint> hints(const Indicators& ind, int idx) {
@@ -523,8 +640,8 @@ inline bool volume_above_ma(const std::vector<Candle>& candles) {
 
 inline Confirmation entry_confirmation_15m(const Metrics& m) {
   Indicators ind{
-      std::vector<Candle>{m.candles.end() - 10 * 8 * 4, m.candles.end()},
-      M_15  //
+      std::vector<Candle>{m.candles.end() - 10 * 8 * 4, m.candles.end()}, M_15,
+      m.config  //
   };
 
   auto& candles = ind.candles;
