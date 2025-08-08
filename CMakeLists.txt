@@ -76,13 +76,13 @@ add_executable(${TARGET}
   src/portfolio.cpp
   src/position_sizing.cpp
   src/positions.cpp
-  src/prediction.cpp
   src/replay.cpp
   src/signal_funcs.cpp
   src/signal_meta.cpp
   src/signals.cpp
   src/support_resistance.cpp
   src/times.cpp
+  src/trendlines.cpp
   src/webpage.cpp
 )
 

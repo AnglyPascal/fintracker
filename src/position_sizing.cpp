@@ -86,7 +86,7 @@ TimeframeRisk::TimeframeRisk(const Indicators& ind) {
   signal_strength = ind.signal.type;
 
   double atr = ind.atr(-1);
-  double price = ind.candles.back().close;
+  double price = ind.price(-1);
   volatility_score = (atr / price) * 100.0;
 
   double ema9 = ind.ema9(-1);

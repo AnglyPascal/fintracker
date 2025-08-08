@@ -85,9 +85,6 @@ inline int severity_weight(Severity s) {
   return static_cast<int>(s);
 }
 
-template <typename T>
-std::string to_str(const T& t);
-
 inline double signal_score(double entry_w, double exit_w, double past_score) {
   auto raw = sig_config.score_entry_weight * entry_w - exit_w;
   double curr_score = std::tanh(raw / 3.0);  // squashes to [-1,1]
@@ -107,7 +104,7 @@ Signal Indicators::gen_signal(int idx) const {
       s.reasons.emplace_back(r);
 
       auto importance = 0.0;
-      if (auto it = reason_stats.find(r.type); it != reason_stats.end())
+      if (auto it = stats.reason.find(r.type); it != stats.reason.end())
         importance = it->second.importance;
       if (r.source() == Source::Stop)
         importance = sig_config.stop_reason_importance;
@@ -130,7 +127,7 @@ Signal Indicators::gen_signal(int idx) const {
         continue;
 
       auto importance = 0.0;
-      if (auto it = hint_stats.find(h.type); it != hint_stats.end())
+      if (auto it = stats.hint.find(h.type); it != stats.hint.end())
         importance = it->second.importance;
       if (h.source() == Source::Stop)
         importance = sig_config.stop_hint_importance;
@@ -317,9 +314,7 @@ double SignalMemory::score() const {
   return weight > 0.0 ? scr / weight : 0.0;
 }
 
-Forecast::Forecast(const Signal& sig,
-                   const std::map<ReasonType, SignalStats>& reason_stats,
-                   const std::map<HintType, SignalStats>& hint_stats) {
+Forecast::Forecast(const Signal& sig, const Stats& stats) {
   double ret_sum = 0.0, dd_sum = 0.0;
   double ret_weight = 0.0, dd_weight = 0.0;
 
@@ -361,9 +356,9 @@ Forecast::Forecast(const Signal& sig,
   };
 
   for (const auto& r : sig.reasons)
-    process(r, reason_stats);
+    process(r, stats.reason);
   for (const auto& h : sig.hints)
-    process(h, hint_stats);
+    process(h, stats.hint);
 
   if (ret_weight > 0.0)
     expected_return = ret_sum / ret_weight;

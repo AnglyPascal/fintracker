@@ -1,6 +1,9 @@
 #pragma once
 
+#include "signals.h"
+
 #include <cstdlib>
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -25,6 +28,11 @@ struct SignalStats {
               size_t wins,
               bool entry,
               size_t n_candles) noexcept;
+};
+
+struct Stats {
+  std::map<ReasonType, SignalStats> reason;
+  std::map<HintType, SignalStats> hint;
 };
 
 struct Indicators;

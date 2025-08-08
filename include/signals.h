@@ -1,10 +1,8 @@
 #pragma once
 
-#include "backtest.h"
 #include "times.h"
 
 #include <deque>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -206,15 +204,15 @@ struct SignalMemory {
   double score() const;
 };
 
+struct Stats;
+
 struct Forecast {
   double expected_return = 0.0;
   double expected_drawdown = 0.0;
   double confidence = 0.0;
 
   Forecast() = default;
-  Forecast(const Signal& sig,
-           const std::map<ReasonType, SignalStats>& reason_stats,
-           const std::map<HintType, SignalStats>& hint_stats);
+  Forecast(const Signal& sig, const Stats& stats);
 };
 
 struct CombinedSignal {

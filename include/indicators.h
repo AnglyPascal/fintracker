@@ -3,14 +3,13 @@
 #include "backtest.h"
 #include "candle.h"
 #include "positions.h"
-#include "prediction.h"
 #include "signals.h"
 #include "support_resistance.h"
 #include "times.h"
+#include "trendlines.h"
 
 #include <cassert>
 #include <deque>
-#include <map>
 #include <string>
 #include <vector>
 
@@ -106,8 +105,10 @@ struct Pullback {
 };
 
 struct Indicators {
-  std::vector<Candle> candles;
   const minutes interval;
+
+ private:
+  std::vector<Candle> candles;
 
   EMA _ema9, _ema21, _ema50;
   RSI _rsi;
@@ -116,17 +117,15 @@ struct Indicators {
 
   Trends trends;
 
-  Signal signal;
-  SignalMemory memory;
-
-  std::map<ReasonType, SignalStats> reason_stats;
-  std::map<HintType, SignalStats> hint_stats;
-
   SupportResistance<SR::Support> support;
   SupportResistance<SR::Resistance> resistance;
 
- private:
+ public:
+  Signal signal;
+  SignalMemory memory;
+
   void get_stats();
+  Stats stats;
 
   friend struct Metrics;
 
@@ -146,12 +145,13 @@ struct Indicators {
     return idx < 0 ? candles.size() + idx : idx;
   }
 
+  auto size() const { return candles.size(); }
+  LocalTimePoint time(int idx) const { return candles[sanitize(idx)].time(); }
+
   double price(int idx) const { return candles[sanitize(idx)].price(); }
   double low(int idx) const { return candles[sanitize(idx)].low; }
   double high(int idx) const { return candles[sanitize(idx)].high; }
   int volume(int idx) const { return candles[sanitize(idx)].volume; }
-
-  LocalTimePoint time(int idx) const { return candles[sanitize(idx)].time(); }
 
   double ema9(int idx) const { return _ema9.values[sanitize(idx)]; }
   double ema21(int idx) const { return _ema21.values[sanitize(idx)]; }
@@ -167,33 +167,15 @@ struct Indicators {
   double hist(int idx) const { return macd(idx) - macd_signal(idx); }
 
   TrendLine price_trend(int idx) const {
-    if (idx == -1) {
-      auto& top_trends = trends.price.top_trends;
-      return top_trends.empty() ? TrendLine{} : top_trends[0];
-    }
-
-    auto top_trends = Trends::price_trends(*this, idx).top_trends;
-    return top_trends.empty() ? TrendLine{} : top_trends[0];
+    return idx == -1 ? trends.price[0] : Trends::price_trends(*this, idx)[0];
   }
 
   TrendLine rsi_trend(int idx) const {
-    if (idx == -1) {
-      auto& top_trends = trends.rsi.top_trends;
-      return top_trends.empty() ? TrendLine{} : top_trends[0];
-    }
-
-    auto top_trends = Trends::rsi_trends(*this, idx).top_trends;
-    return top_trends.empty() ? TrendLine{} : top_trends[0];
+    return idx == -1 ? trends.rsi[0] : Trends::rsi_trends(*this, idx)[0];
   }
 
   TrendLine ema21_trend(int idx) const {
-    if (idx == -1) {
-      auto& top_trends = trends.ema21.top_trends;
-      return top_trends.empty() ? TrendLine{} : top_trends[0];
-    }
-
-    auto top_trends = Trends::ema21_trends(*this, idx).top_trends;
-    return top_trends.empty() ? TrendLine{} : top_trends[0];
+    return idx == -1 ? trends.ema21[0] : Trends::ema21_trends(*this, idx)[0];
   }
 
   Pullback pullback(size_t lookback = 360) const {
@@ -206,11 +188,15 @@ struct Indicators {
 
     return {high, (high - price(-1)) / high * 100.0};
   }
+
+  auto& support_zones() const { return support.zones; }
+  auto& resistance_zones() const { return resistance.zones; }
 };
 
 struct Metrics {
   std::vector<Candle> candles;
   const minutes interval;
+
   Indicators ind_1h, ind_4h, ind_1d;
   const Position* position;
 

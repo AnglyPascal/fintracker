@@ -33,23 +33,28 @@ struct TrendLine {
   bool operator<(const TrendLine& other) const;
 };
 
-class TrendLines {
- public:
+struct Indicators;
+
+struct TrendLines {
   std::vector<TrendLine> top_trends;
 
   TrendLines() noexcept = default;
 
-  template <template <typename...> class Container,
-            typename T,
-            typename Func = decltype([](const T& t) -> double { return t; })>
-  TrendLines(const Container<T>& series,
-             size_t min_period = 10,
-             size_t max_period = 60,
-             size_t top_n = 3,
-             int last_idx = -1,
-             Func f = {}) noexcept;
+  template <typename Func>
+  TrendLines(const Indicators& ind,
+             Func f,
+             int last_idx,
+             size_t min_period,
+             size_t max_period,
+             size_t top_n) noexcept;
 
   std::string to_str() const;
+
+  TrendLine operator[](size_t idx) const {
+    if (!top_trends.empty() && idx < top_trends.size())
+      return top_trends[idx];
+    return {};
+  }
 
  private:
   template <template <typename...> class Container>
@@ -57,26 +62,13 @@ class TrendLines {
                           const LinearRegression& lr);
 };
 
-struct Indicators;
-struct Metrics;
-
 struct Trends {
-  TrendLines price, ema21, rsi, macd, histogram;
-
+  TrendLines price, ema21, rsi;
   Trends() noexcept = default;
   Trends(const Indicators& ind, int last_idx = -1) noexcept;
 
-  static TrendLines price_trends(const Indicators& ind,
-                                 int last_idx = -1) noexcept;
-  static TrendLines rsi_trends(const Indicators& ind,
-                               int last_idx = -1) noexcept;
-  static TrendLines ema21_trends(const Indicators& ind,
-                                 int last_idx = -1) noexcept;
-};
-
-enum class ForecastType {
-  NEUTRAL,
-  PROMISING,
-  ALARMING,
+  static TrendLines price_trends(const Indicators& ind, int last_idx) noexcept;
+  static TrendLines ema21_trends(const Indicators& ind, int last_idx) noexcept;
+  static TrendLines rsi_trends(const Indicators& ind, int last_idx) noexcept;
 };
 

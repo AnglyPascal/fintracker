@@ -1092,3 +1092,5 @@ include/gen_html_template.h
 .ninja_deps 
 .ninja_log 
 build.ninja
+
+.ccls-cache

@@ -4,19 +4,18 @@
 #include <cmath>
 
 Backtest::Backtest(const Indicators& _ind, size_t max_candles) : ind{_ind} {
-  auto& candles = ind.candles;
-  size_t n = candles.size();
+  size_t n = ind.size();
   lookahead.reserve(n);
 
   for (size_t i = 0; i < n; ++i) {
-    double entry = candles[i].close;
+    double entry = ind.price(i);
     double best = 0.0;
     int best_n_candles = 0;
     double worst = 0.0;
     int worst_n_candles = 0;
 
     for (size_t j = i + 1; j <= std::min(n - 1, i + max_candles); ++j) {
-      double ret = (candles[j].close - entry) / entry;
+      double ret = (ind.price(j) - entry) / entry;
       if (ret > 0 && ret > best) {
         best = ret;
         best_n_candles = j - i;
@@ -65,8 +64,6 @@ inline constexpr bool ignore_backtest(Source src) {
 // unified handle for signal_f or hint_f
 template <typename T, typename Func>
 std::pair<T, SignalStats> Backtest::get_stats(Func fn) const {
-  auto& candles = ind.candles;
-
   size_t count = 0;
   double sum_ret = 0.0;
   double sum_dd = 0.0;
@@ -75,7 +72,7 @@ std::pair<T, SignalStats> Backtest::get_stats(Func fn) const {
 
   T r0 = {};
   bool entry = true;
-  for (size_t i = 0; i < candles.size(); ++i) {
+  for (size_t i = 0; i < ind.size(); ++i) {
     auto r = fn(ind, i);
     if (!r.exists() || ignore_backtest(r.source()))
       continue;

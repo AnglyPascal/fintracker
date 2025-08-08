@@ -32,7 +32,7 @@ auto count_bounces(auto& ind, double lower, double upper) {
   double conf = 0;
   size_t max_inside = sr_config.n_candles_in_zone(ind.interval);
 
-  auto N = ind.candles.size();
+  auto N = ind.size();
   auto l = N - 1.5 * sr_config.n_lookback_candles(ind.interval);
   for (size_t i = l; i < N; ++i) {
     double prev_close = ind.price(i - 1);

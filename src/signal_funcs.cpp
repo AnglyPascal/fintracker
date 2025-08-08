@@ -84,7 +84,7 @@ Filter potential_base(const Indicators& ind_4h) {
   // No lower lows (support holding)
   bool higher_lows = true;
   for (int i = start + 1; i < -1; ++i) {
-    if (ind_4h.candles[i].low < ind_4h.candles[i - 1].low) {
+    if (ind_4h.low(i) < ind_4h.low(i - 1)) {
       higher_lows = false;
       break;
     }
@@ -211,7 +211,7 @@ inline Reason broke_support_exit(const Indicators& ind, int idx) {
   double current_close = ind.price(idx);
   double prev_close = ind.price(idx - 1);
 
-  for (const auto& zone : ind.support.zones) {
+  for (const auto& zone : ind.support_zones()) {
     // Previous candle was above/in the zone
     if (prev_close >= zone.lo) {
       double break_threshold = zone.lo * (1 - 0.01);  // FIXME with config
@@ -237,7 +237,7 @@ inline Reason broke_resistance_entry(const Indicators& ind, int idx) {
   double current_close = ind.price(idx);
   double prev_close = ind.price(idx - 1);
 
-  for (const auto& zone : ind.resistance.zones) {
+  for (const auto& zone : ind.resistance_zones()) {
     // Previous candle was below/in the zone
     if (prev_close <= zone.hi) {
       double break_threshold = zone.hi * (1 + 0.01);  // FIXME
@@ -429,7 +429,7 @@ inline Hint rsi_trending(const Indicators& m, int idx) {
 inline Hint near_support_hint(const Indicators& ind, int idx) {
   double current_price = ind.price(idx);
 
-  for (const auto& zone : ind.support.zones) {
+  for (const auto& zone : ind.support_zones()) {
     if (zone.contains(current_price)) {
       if (ind.price(idx) <= ind.price(idx - 1)) {
         return zone.confidence > sig_config.sr_strong_confidence
@@ -451,7 +451,7 @@ inline Hint near_support_hint(const Indicators& ind, int idx) {
 inline Hint near_resistance_hint(const Indicators& ind, int idx) {
   double current_price = ind.price(idx);
 
-  for (const auto& zone : ind.resistance.zones) {
+  for (const auto& zone : ind.resistance_zones()) {
     if (zone.contains(current_price)) {
       if (ind.price(idx) >= ind.price(idx - 1)) {
         return zone.confidence > sig_config.sr_strong_confidence
@@ -540,12 +540,12 @@ void Indicators::get_stats() {
 
   for (auto& f : reason_funcs) {
     auto [r, s] = bt.get_stats<ReasonType>(f);
-    reason_stats.try_emplace(r, s);
+    stats.reason.try_emplace(r, s);
   }
 
   for (auto& f : hint_funcs) {
     auto [r, s] = bt.get_stats<HintType>(f);
-    hint_stats.try_emplace(r, s);
+    stats.hint.try_emplace(r, s);
   }
 }
 

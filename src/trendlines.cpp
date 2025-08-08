@@ -1,4 +1,5 @@
-#include "prediction.h"
+#include "trendlines.h"
+#include "config.h"
 #include "indicators.h"
 #include "signals.h"
 
@@ -40,22 +41,24 @@ bool TrendLine::operator<(const TrendLine& other) const {
   return r2 > other.r2;  // higher R² is better
 }
 
-template <template <typename...> class Container, typename T, typename Func>
-TrendLines::TrendLines(const Container<T>& series,
+template <typename Func>
+TrendLines::TrendLines(const Indicators& ind,
+                       Func f,
+                       int last_idx,
                        size_t min_period,
                        size_t max_period,
-                       size_t top_n,
-                       int last_idx,
-                       Func f) noexcept  //
+                       size_t top_n) noexcept  //
 {
   std::vector<TrendLine> candidates;
-  auto len = last_idx < 0 ? series.size() + last_idx + 1 : last_idx + 1;
+
+  auto N = ind.size();
+  auto len = last_idx < 0 ? N + last_idx + 1 : last_idx + 1;
 
   max_period = std::min(len, max_period);
 
   std::deque<Point> window;
   for (size_t i = len - max_period; i < len; i++)
-    window.emplace_back((double)i, f(series[i]));
+    window.emplace_back((double)i, f(ind, i));
 
   for (size_t p = max_period; p >= min_period; p--, window.pop_front()) {
     LinearRegression lr{window};
@@ -115,25 +118,30 @@ double TrendLines::r_squared(const Container<Point>& points,
   return (ss_tot == 0.0) ? 0.0 : (1.0 - ss_res / ss_tot);
 }
 
+const auto& ind_config = config.ind_config;
+
 TrendLines Trends::price_trends(const Indicators& ind, int last_idx) noexcept {
-  return TrendLines(ind.candles, 10, 60, 3, last_idx,
-                    [](const Candle& cdl) { return cdl.close; });
+  return TrendLines(
+      ind, [](auto& ind, int idx) { return ind.price(idx); }, last_idx,  //
+      ind_config.price_trend_min_candles, ind_config.price_trend_min_candles,
+      ind_config.n_top_trends);
 }
 
 TrendLines Trends::rsi_trends(const Indicators& ind, int last_idx) noexcept {
-  return TrendLines(ind._rsi.values, 5, 30, 3, last_idx);
+  return TrendLines(
+      ind, [](auto& ind, int idx) { return ind.rsi(idx); }, last_idx,  //
+      ind_config.rsi_trend_min_candles, ind_config.rsi_trend_min_candles,
+      ind_config.n_top_trends);
 }
 
 TrendLines Trends::ema21_trends(const Indicators& ind, int last_idx) noexcept {
-  return TrendLines(ind._ema21.values, 15, 75, 3, last_idx);
+  return TrendLines(
+      ind, [](auto& ind, int idx) { return ind.ema21(idx); }, last_idx,  //
+      ind_config.ema21_trend_min_candles, ind_config.ema21_trend_min_candles,
+      ind_config.n_top_trends);
 }
 
-Trends::Trends(const Indicators& ind, int last_idx) noexcept {
-  price = price_trends(ind, last_idx);
-  ema21 = ema21_trends(ind, last_idx);
-  rsi = rsi_trends(ind, last_idx);
-
-  macd = TrendLines(ind._macd.macd_line, 10, 60, 3, last_idx);
-  histogram = TrendLines(ind._macd.histogram, 5, 30, 3, last_idx);
-}
-
+Trends::Trends(const Indicators& ind, int last_idx) noexcept
+    : price{price_trends(ind, last_idx)},
+      ema21{ema21_trends(ind, last_idx)},
+      rsi{rsi_trends(ind, last_idx)} {}

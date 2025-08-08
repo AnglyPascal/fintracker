@@ -1,9 +1,0 @@
-CompileFlags:
-  Add: [-std=c++26]
-
----
-
-If:
-  PathMatch: .*\.(h|hpp)$
-CompileFlags:
-  Add: [-xc++-header]

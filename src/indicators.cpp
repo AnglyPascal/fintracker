@@ -187,17 +187,19 @@ void ATR::add(const Candle& candle) noexcept {
   prev_close = candle.close;
 }
 
-Indicators::Indicators(std::vector<Candle>&& candles,
-                       minutes interval) noexcept
-    : candles{std::move(candles)},
-      interval{interval},
+Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
+    : interval{interval},
+      candles{std::move(candles)},
+
       _ema9{this->candles, 9},
       _ema21{this->candles, 21},
       _ema50{this->candles, 50},
       _rsi{this->candles},
       _macd{this->candles},
       _atr{this->candles},
+
       trends{*this},
+
       support{*this},
       resistance{*this}  //
 {
@@ -430,7 +432,7 @@ StopLoss::StopLoss(const Metrics& m,
       m.has_position() &&
       (max_price_seen > entry_price + config.trailing_trigger_atr * atr);
 
-  auto n = std::min((size_t)config.swing_low_window, ind.candles.size());
+  auto n = std::min((size_t)config.swing_low_window, ind.size());
 
   swing_low = std::numeric_limits<double>::max();
   for (int i = -n; i <= -1; ++i)
@@ -467,5 +469,5 @@ StopLoss::StopLoss(const Metrics& m,
 }
 
 Forecast Indicators::gen_forecast(int) const {
-  return Forecast(signal, reason_stats, hint_stats);  // FIX ME
+  return Forecast(signal, stats);
 }

@@ -243,13 +243,13 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
 template <>
 std::string to_str<FormatTarget::HTML>(const Signal& s, const Indicators& ind) {
   auto a = reason_list("▲", s.reasons, SignalClass::Entry,  //
-                       ind.reason_stats);
+                       ind.stats.reason);
   auto b = reason_list("△", s.hints, SignalClass::Entry,  //
-                       ind.hint_stats);
+                       ind.stats.hint);
   auto c = reason_list("▼", s.reasons, SignalClass::Exit,  //
-                       ind.reason_stats);
+                       ind.stats.reason);
   auto d = reason_list("▽", s.hints, SignalClass::Exit,  //
-                       ind.hint_stats);
+                       ind.stats.hint);
   auto e = a + b + c + d;
 
   return std::format(index_signal_entry_template,  //
@@ -571,8 +571,8 @@ std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
 
   return std::format(indicators_template,
                      to_str<FormatTarget::HTML>(sig, ind),    //
-                     stats_html(ind.reason_stats, Reason{}),  //
-                     stats_html(ind.hint_stats, Hint{}),      //
+                     stats_html(ind.stats.reason, Reason{}),  //
+                     stats_html(ind.stats.hint, Hint{}),      //
                      mem_html                                 //
   );
 }

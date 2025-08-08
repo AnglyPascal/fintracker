@@ -4,6 +4,22 @@
 
 #include <string>
 
+struct IndicatorsConfig {
+  size_t n_top_trends = 3;
+
+  size_t price_trend_min_candles = 10;
+  size_t price_trend_max_candles = 60;
+
+  size_t rsi_trend_min_candles = 5;
+  size_t rsi_trend_max_candles = 30;
+
+  size_t ema21_trend_min_candles = 15;
+  size_t ema21_trend_max_candles = 75;
+
+  IndicatorsConfig() noexcept = default;
+  IndicatorsConfig(const std::string& path);
+};
+
 struct PositionSizingConfig {
   double capital = 4000.0;
   std::string capital_currency = "GBP";
@@ -153,6 +169,7 @@ struct Config {
   double speed = 1.0;
 
   APIConfig api_config;
+  IndicatorsConfig ind_config;
   PositionSizingConfig sizing_config;
   SupportResistanceConfig sr_config;
   SignalConfig sig_config;

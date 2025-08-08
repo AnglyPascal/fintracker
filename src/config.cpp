@@ -206,3 +206,29 @@ APIConfig::APIConfig(const std::string& path) {
     spdlog::error("[api] error parsing API config file {}: {}", path, e.what());
   }
 }
+
+IndicatorsConfig::IndicatorsConfig(const std::string& path) {
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    spdlog::warn("[api] failed to open API config file {}", path);
+    return;
+  }
+
+  try {
+    nlohmann::json j;
+    file >> j;
+
+    GET_FROM_JSON(n_top_trends);
+
+    GET_FROM_JSON(price_trend_min_candles);
+    GET_FROM_JSON(price_trend_max_candles);
+
+    GET_FROM_JSON(rsi_trend_min_candles);
+    GET_FROM_JSON(rsi_trend_max_candles);
+
+    GET_FROM_JSON(ema21_trend_min_candles);
+    GET_FROM_JSON(ema21_trend_max_candles);
+  } catch (const std::exception& e) {
+    spdlog::error("[api] error parsing API config file {}: {}", path, e.what());
+  }
+}
