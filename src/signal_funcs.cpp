@@ -1,134 +1,9 @@
 #include "backtest.h"
+#include "signals.h"
+#include "config.h"
 #include "indicators.h"
 
-inline const std::unordered_map<ReasonType, Meta> reason_meta = {
-    {ReasonType::None,  //
-     {Severity::Low, Source::EMA, SignalClass::Entry, ""}},
-    // Entry:
-    {ReasonType::EmaCrossover,  //
-     {Severity::High, Source::EMA, SignalClass::Entry, "ema⤯"}},
-    {ReasonType::RsiCross50,  //
-     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi↗50"}},
-    {ReasonType::PullbackBounce,  //
-     {Severity::Urgent, Source::Price, SignalClass::Entry, "bounce"}},
-    {ReasonType::MacdHistogramCross,  //
-     {Severity::Medium, Source::MACD, SignalClass::Entry, "macd⤯"}},
-    // Exit:
-    {ReasonType::EmaCrossdown,  //
-     {Severity::High, Source::EMA, SignalClass::Exit, "ema⤰"}},
-    {ReasonType::RsiOverbought,  //
-     {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi↱70"}},
-    {ReasonType::MacdBearishCross,  //
-     {Severity::High, Source::MACD, SignalClass::Exit, "macd⤰"}},
-    // SR:
-    {ReasonType::BrokeSupport,  //
-     {Severity::High, Source::SR, SignalClass::Exit, "S⤰"}},
-    {ReasonType::BrokeResistance,  //
-     {Severity::Medium, Source::SR, SignalClass::Entry, "R⤯"}},
-};
-
-inline const std::unordered_map<StopHitType, Meta> stop_hit_meta = {
-    {StopHitType::StopLossHit,  //
-     {Severity::Urgent, Source::Stop, SignalClass::Exit, "stop⤰"}},
-    {StopHitType::TimeExit,  //
-     {Severity::Urgent, Source::Stop, SignalClass::Exit, "time⨯"}},
-    {StopHitType::StopProximity,  //
-     {Severity::High, Source::Stop, SignalClass::Exit, "stop⨯"}},
-    {StopHitType::StopInATR,  //
-     {Severity::High, Source::Stop, SignalClass::Exit, "stop!"}},
-    {StopHitType::None,  //
-     {Severity::Low, Source::None, SignalClass::None, ""}},
-};
-
-inline const std::unordered_map<HintType, Meta> hint_meta = {
-    {HintType::None,  //
-     {Severity::Low, Source::None, SignalClass::None, ""}},
-    // Entry
-    {HintType::Ema9ConvEma21,  //
-     {Severity::Low, Source::EMA, SignalClass::Entry, "ema9↗21"}},
-    {HintType::RsiConv50,  //
-     {Severity::Low, Source::RSI, SignalClass::Entry, "rsi↝50"}},
-    {HintType::MacdRising,  //
-     {Severity::Medium, Source::MACD, SignalClass::Entry, "macd↗"}},
-    {HintType::Pullback,  //
-     {Severity::Medium, Source::Price, SignalClass::Entry, "pullback"}},
-
-    {HintType::RsiBullishDiv,  //
-     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤯"}},
-    {HintType::RsiBearishDiv,  //
-     {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤰"}},
-    {HintType::MacdBullishDiv,  //
-     {Severity::Medium, Source::MACD, SignalClass::Entry, "macd⤯"}},
-
-    // Exit
-    {HintType::Ema9DivergeEma21,  //
-     {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↘21"}},
-    {HintType::RsiDropFromOverbought,  //
-     {Severity::Medium, Source::RSI, SignalClass::Exit, "rsi⭛"}},
-    {HintType::MacdPeaked,  //
-     {Severity::Medium, Source::MACD, SignalClass::Exit, "macd▲"}},
-    {HintType::Ema9Flattening,  //
-     {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↝21"}},
-
-    // Trends:
-
-    // Entry
-    {HintType::PriceUp,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "p↗"}},
-    {HintType::PriceUpStrongly,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "p⇗"}},
-    {HintType::Ema21Up,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "e21↗"}},
-    {HintType::Ema21UpStrongly,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "e21⇗"}},
-    {HintType::RsiUp,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "r↗"}},
-    {HintType::RsiUpStrongly,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "r⇗"}},
-    // Exit
-    {HintType::PriceDown,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "p↘"}},
-    {HintType::PriceDownStrongly,  //
-     {Severity::Medium, Source::Trend, SignalClass::Entry, "p⇘"}},
-    {HintType::Ema21Down,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "e21↘"}},
-    {HintType::Ema21DownStrongly,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "e21⇘"}},
-    {HintType::RsiDown,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "r↘"}},
-    {HintType::RsiDownStrongly,  //
-     {Severity::Medium, Source::Trend, SignalClass::Exit, "r⇘"}},
-
-    // SR:
-    {HintType::NearSupport,
-     {Severity::Low, Source::SR, SignalClass::Entry, "near⊥"}},
-    {HintType::NearResistance,
-     {Severity::Low, Source::SR, SignalClass::Exit, "near⊤"}},
-    {HintType::NearStrongSupport,
-     {Severity::High, Source::SR, SignalClass::Entry, "near⊥"}},
-    {HintType::NearStrongResistance,
-     {Severity::High, Source::SR, SignalClass::Exit, "near⊤"}},
-};
-
-template <>
-SignalType<ReasonType, ReasonType::None>::SignalType(ReasonType type)
-    : type{type} {
-  auto it = reason_meta.find(type);
-  meta = it == reason_meta.end() ? nullptr : &it->second;
-}
-
-template <>
-SignalType<HintType, HintType::None>::SignalType(HintType type) : type{type} {
-  auto it = hint_meta.find(type);
-  meta = it == hint_meta.end() ? nullptr : &it->second;
-}
-
-template <>
-SignalType<StopHitType, StopHitType::None>::SignalType(StopHitType type)
-    : type{type} {
-  auto it = stop_hit_meta.find(type);
-  meta = it == stop_hit_meta.end() ? nullptr : &it->second;
-}
+const SignalConfig& sig_config = config.sig_config;
 
 // Filters
 
@@ -558,14 +433,16 @@ inline Hint near_support_hint(const Indicators& ind, int idx) {
   for (const auto& zone : ind.support.zones) {
     if (zone.contains(current_price)) {
       if (ind.price(idx) <= ind.price(idx - 1)) {
-        return zone.confidence > 15 ? HintType::NearStrongSupport
-                                    : HintType::NearSupport;
+        return zone.confidence > sig_config.sr_strong_confidence
+                   ? HintType::NearStrongSupport
+                   : HintType::NearWeakSupport;
       }
     } else if (current_price > zone.hi &&
                current_price <= zone.hi * (1 + 0.008)) {
       if (ind.price(idx) < ind.price(idx - 1)) {
-        return zone.confidence > 15 ? HintType::NearStrongSupport
-                                    : HintType::NearSupport;
+        return zone.confidence > sig_config.sr_strong_confidence
+                   ? HintType::NearStrongSupport
+                   : HintType::NearWeakSupport;
       }
     }
   }
@@ -578,14 +455,16 @@ inline Hint near_resistance_hint(const Indicators& ind, int idx) {
   for (const auto& zone : ind.resistance.zones) {
     if (zone.contains(current_price)) {
       if (ind.price(idx) >= ind.price(idx - 1)) {
-        return zone.confidence > 15 ? HintType::NearStrongResistance
-                                    : HintType::NearResistance;
+        return zone.confidence > sig_config.sr_strong_confidence
+                   ? HintType::NearStrongResistance
+                   : HintType::NearWeakResistance;
       }
     } else if (current_price < zone.lo &&
                current_price >= zone.lo * (1 - 0.008)) {
       if (ind.price(idx) > ind.price(idx - 1)) {
-        return zone.confidence > 15 ? HintType::NearStrongResistance
-                                    : HintType::NearResistance;
+        return zone.confidence > sig_config.sr_strong_confidence
+                   ? HintType::NearStrongResistance
+                   : HintType::NearWeakResistance;
       }
     }
   }
@@ -630,55 +509,6 @@ std::vector<Hint> hints(const Indicators& ind, int idx) {
 
 // Entry confirmations
 
-inline bool volume_above_ma(const std::vector<Candle>& candles) {
-  double sum = 0;
-  for (size_t i = candles.size() - 21; i < candles.size() - 1; ++i)
-    sum += candles[i].volume;
-  double ma21 = sum / 21.0;
-  return candles.back().volume > ma21 * 1.25;  // +25% above 21‑period MA
-}
-
-inline Confirmation entry_confirmation_15m(const Metrics& m) {
-  Indicators ind{
-      std::vector<Candle>{m.candles.end() - 10 * 8 * 4, m.candles.end()}, M_15,
-      m.config  //
-  };
-
-  auto& candles = ind.candles;
-  auto n = candles.size();
-
-  if (!volume_above_ma(candles))
-    return "low volume";
-
-  // Overextension above EMA21
-  if ((ind.price(-1) - ind.ema21(-1)) / ind.ema21(-1) > 0.0125) {
-    return "over ema21";  // Over 1.25% above EMA21
-  }
-
-  // Multiple strong candles in a row
-  int green_count = 0;
-  for (size_t i = n - 4; i < n; ++i) {
-    if (candles[i].close > candles[i].open)
-      ++green_count;
-  }
-  if (green_count >= 3)
-    return "green run";
-
-  // RSI quick spike (momentum fading)
-  if (ind.rsi(-1) > 60 && (ind.rsi(-1) - ind.rsi(-2)) > 15)
-    return "rsi quick spike";
-
-  // MACD early crossover
-  if (ind.macd(-2) < ind.macd_signal(-2) && ind.macd(-1) > ind.macd_signal(-1))
-    return "macd early crossover";  // Crossover just happened
-
-  // RSI weakening or divergence (advanced)
-  if (ind._rsi.rising() == false && ind.rsi(-1) < 60)
-    return "rsi divergence or weak";
-
-  return "ok";
-}
-
 Confirmation higher_timeframe_alignment_confirmation(const Metrics& metrics) {
   auto sig_1h = metrics.get_signal(H_1, -1);
   auto sig_4h = metrics.get_signal(H_4, -1);
@@ -696,7 +526,6 @@ Confirmation higher_timeframe_alignment_confirmation(const Metrics& metrics) {
 }
 
 inline constexpr conf_f confirmation_funcs[] = {
-    entry_confirmation_15m,
     higher_timeframe_alignment_confirmation,
 };
 
@@ -729,7 +558,7 @@ StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
   auto days_held =
       std::chrono::floor<days>(std::chrono::floor<days>(now_ny_time()) -
                                std::chrono::floor<days>(m.position->tp));
-  if (days_held.count() > 20)
+  if (days_held.count() > sig_config.stop_max_holding_days)
     return StopHitType::TimeExit;
 
   auto price = m.last_price();
@@ -738,9 +567,10 @@ StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
 
   auto dist = price - stop_loss.final_stop;
 
-  if (dist < m.ind_1h.atr(-1) * 0.75)
+  if (dist > 0 && dist < m.ind_1h.atr(-1) * sig_config.stop_atr_proximity)
     return StopHitType::StopProximity;
 
+  // FIXME what's this?
   if (dist < 1.0 * stop_loss.atr_stop - stop_loss.final_stop)
     return StopHitType::StopInATR;
 

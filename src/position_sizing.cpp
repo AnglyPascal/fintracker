@@ -1,7 +1,10 @@
 #include "position_sizing.h"
+#include "config.h"
 #include "format.h"
 
 #include <spdlog/spdlog.h>
+
+const PositionSizingConfig& sizing_config = config.sizing_config;
 
 inline double round_to(double x, int n = 2) {
   double factor = std::pow(10.0, n);
@@ -10,8 +13,7 @@ inline double round_to(double x, int n = 2) {
 
 PositionSizing::PositionSizing(const Metrics& metrics,
                                const CombinedSignal& signal,
-                               const StopLoss& stop_loss,
-                               const PositionSizingConfig& config) {
+                               const StopLoss& stop_loss) {
   current_price = metrics.last_price();
 
   risk_1h = TimeframeRisk{metrics.ind_1h};
@@ -33,7 +35,7 @@ PositionSizing::PositionSizing(const Metrics& metrics,
   }
 
   // Calculate base position size based on max risk
-  double max_risk_amount = config.max_risk_amount();
+  double max_risk_amount = sizing_config.max_risk_amount();
   double base_shares = max_risk_amount / risk_per_share;
 
   // Apply size multiplier based on signal quality and risk
@@ -42,22 +44,24 @@ PositionSizing::PositionSizing(const Metrics& metrics,
 
   // Ensure we don't exceed capital constraints: max 25% of capital per position
   recommended_capital = recommended_shares * current_price;
-  if (recommended_capital > config.capital_usd * config.max_capital_per_position) {
-    auto total_capital = config.capital_usd * config.max_capital_per_position;
+  if (recommended_capital >
+      sizing_config.capital_usd * sizing_config.max_capital_per_position) {
+    auto total_capital =
+        sizing_config.capital_usd * sizing_config.max_capital_per_position;
     recommended_shares = round_to(total_capital / current_price, 2);
     recommended_capital = recommended_shares * current_price;
   }
 
   // Calculate actual risk with final position size
   actual_risk_amount = recommended_shares * risk_per_share;
-  actual_risk_pct = actual_risk_amount / config.capital_usd;
+  actual_risk_pct = actual_risk_amount / sizing_config.capital_usd;
 
   bool possible_entry = signal.type == Rating::Entry ||
                         (signal.type == Rating::Watchlist &&
-                         signal.score > config.entry_score_cutoff);
-  bool maybe_buy = possible_entry &&
-                   overall_risk_score <= config.entry_risk_cutoff &&
-                   signal.forecast.confidence > config.entry_confidence_cutoff;
+                         signal.score > sizing_config.entry_score_cutoff);
+  bool maybe_buy =
+      possible_entry && overall_risk_score <= sizing_config.entry_risk_cutoff &&
+      signal.forecast.confidence > sizing_config.entry_confidence_cutoff;
 
   if (maybe_buy) {
     if (size_multiplier >= 0.9)

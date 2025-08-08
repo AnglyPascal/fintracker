@@ -1,6 +1,5 @@
 #pragma once
 
-#include "config.h"
 #include "indicators.h"
 
 struct TimeframeRisk {
@@ -19,8 +18,6 @@ enum class Recommendation {
   Caution,    // 25% of max size
   Avoid       // No position
 };
-
-struct PositionSizingConfig;
 
 struct PositionSizing {
   double recommended_shares = 0.0;
@@ -41,8 +38,7 @@ struct PositionSizing {
   PositionSizing() = default;
   PositionSizing(const Metrics& metrics,
                  const CombinedSignal& signal,
-                 const StopLoss& stop_loss,
-                 const PositionSizingConfig& config);
+                 const StopLoss& stop_loss);
 
   // Helper methods
   bool meets_minimum_criteria() const;

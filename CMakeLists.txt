@@ -79,6 +79,7 @@ add_executable(${TARGET}
   src/prediction.cpp
   src/replay.cpp
   src/signal_funcs.cpp
+  src/signal_meta.cpp
   src/signals.cpp
   src/support_resistance.cpp
   src/times.cpp
@@ -111,24 +112,6 @@ add_custom_command(
 
 add_custom_target(html_header DEPENDS ${OUTPUT_HEADER})
 add_dependencies(${TARGET} html_header)
-
-function(add_env_vars TARGET)
-    # Remaining args are the list of environment variable names
-    foreach(VAR_NAME IN LISTS ARGN)
-        if(DEFINED ENV{${VAR_NAME}})
-            set(VAR_VALUE "$ENV{${VAR_NAME}}")
-            target_compile_definitions(${TARGET} PRIVATE ${VAR_NAME}="${VAR_VALUE}")
-        else()
-            message(WARNING "Environment variable ${VAR_NAME} is not defined.")
-        endif()
-    endforeach()
-endfunction()
-
-add_env_vars(${TARGET} 
-             TD_API_KEY_1 TD_API_KEY_2 TD_API_KEY_3 TD_API_KEY_4 TD_API_KEY_5
-             TG_TOKEN TG_CHAT_ID TG_USER
-             PATH HOME)
-
 
 set(CALENDAR get_calendar)
 

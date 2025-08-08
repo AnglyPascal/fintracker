@@ -1,4 +1,5 @@
 #include "portfolio.h"
+#include "config.h"
 #include "format.h"
 #include "raw_mode.h"
 #include "times.h"
@@ -31,9 +32,8 @@ inline std::vector<SymbolInfo> read_symbols() {
   return symbols;
 }
 
-Portfolio::Portfolio(Config config) noexcept
-    : config{config},
-      symbols{read_symbols()},
+Portfolio::Portfolio() noexcept
+    : symbols{read_symbols()},
 
       // APIs
       tg{config.tg_en},
@@ -70,7 +70,7 @@ Portfolio::Portfolio(Config config) noexcept
           return;
         }
 
-        Ticker ticker(symbol, priority, config,  //
+        Ticker ticker(symbol, priority, //
                       std::move(candles), H_1,   //
                       positions.get_position(symbol),
                       calendar.next_event(symbol));

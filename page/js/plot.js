@@ -390,21 +390,9 @@ async function plotChart(symbol) {
 
         // Extract datetime series
         const dt = data.map(row => row.datetime);
-
         const sr = await loadDF(symbol, timeframeMapped, 'support_resistance');
-        const maxConfidence = Math.max(...sr.map(row => row.confidence));
 
         const srShapes = sr.map(row => {
-            const stretchEnds = (x, l, r) => {
-                const t = (x - l) / (r - l); // normalize to [0, 1]
-                const scaled = 1.5 * (t - 0.5); // map to [-1, 1]
-                const stretched = Math.sign(scaled) * Math.pow(Math.abs(scaled), 0.4);
-                // return 0.5 + 0.5 * stretched; // map back to [0, 1]
-                return t;
-            }
-            const confidence = row.confidence;
-            const stretched = stretchEnds(confidence, 1, maxConfidence);
-
             return {
                 type: 'rect',
                 xref: 'x',
@@ -414,7 +402,7 @@ async function plotChart(symbol) {
                 y0: row.lower,
                 y1: row.upper,
                 fillcolor: row.support === 0 ? NORD.green : NORD.red,
-                opacity: stretched * .7,
+                opacity: row.confidence * .7,
                 line: {
                     width: 0,
                 },

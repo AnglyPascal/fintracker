@@ -22,8 +22,7 @@ enum class SR {
 template <SR sr>
 struct SupportResistance {
   std::vector<Zone> zones;
-  SupportResistance(const Indicators& m,
-                    const SupportResistanceConfig& config) noexcept;
+  SupportResistance(const Indicators& m) noexcept;
   bool is_near(double price) const;
 };
 

@@ -71,6 +71,3 @@ bool wait_for_file(const std::string& path,
                    seconds timeout = seconds{30},
                    milliseconds poll_interval = milliseconds{500});
 
-extern std::string plot_daemon_port;
-void notify_plot_daemon(const std::vector<std::string>& tickers);
-

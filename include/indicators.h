@@ -1,7 +1,6 @@
 #pragma once
 
 #include "backtest.h"
-#include "config.h"
 #include "positions.h"
 #include "prediction.h"
 #include "signals.h"
@@ -145,8 +144,7 @@ struct Indicators {
 
  public:
   Indicators(std::vector<Candle>&& candles,
-             minutes interval,
-             const Config& config) noexcept;
+             minutes interval) noexcept;
 
   void add(const Candle& candle) noexcept;
   void pop_back() noexcept;
@@ -228,13 +226,12 @@ struct Metrics {
   const minutes interval;
   Indicators ind_1h, ind_4h, ind_1d;
   const Position* position;
-  const Config& config;
 
  public:
   Metrics(std::vector<Candle>&& candles,
           minutes interval,
-          const Position* position,
-          const Config& config) noexcept;
+          const Position* position
+          ) noexcept;
 
   bool add(const Candle& candle, const Position* position) noexcept;
   Candle rollback() noexcept;

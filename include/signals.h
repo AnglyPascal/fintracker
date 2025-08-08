@@ -11,6 +11,7 @@ enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
 enum class Source { Price, Stop, EMA, RSI, MACD, Trend, SR, None };
 enum class SignalClass { None, Entry, Exit };
 
+
 struct Meta {
   Severity sev;
   Source src;
@@ -65,9 +66,9 @@ enum class HintType {
   Ema9Flattening,
 
   // SR
-  NearSupport,
+  NearWeakSupport,
   NearStrongSupport,
-  NearResistance,
+  NearWeakResistance,
   NearStrongResistance,
 
   // Trends:

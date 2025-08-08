@@ -35,7 +35,7 @@ struct PositionSizingConfig {
 
   double max_risk_amount() const { return capital_usd * max_risk_pct; }
 
-  PositionSizingConfig() = default;
+  PositionSizingConfig() noexcept = default;
   PositionSizingConfig(const std::string& path);
 };
 
@@ -60,7 +60,7 @@ struct SupportResistanceConfig {
   int n_candles_in_zone_1d = 2;
 
  public:
-  SupportResistanceConfig() = default;
+  SupportResistanceConfig() noexcept = default;
   SupportResistanceConfig(const std::string& path);
 
   auto swing_window(minutes interval) const {
@@ -96,6 +96,51 @@ struct SupportResistanceConfig {
   }
 };
 
+struct SignalConfig {
+  double entry_min = 1.0;
+  double exit_min = 1.0;
+  double entry_threshold = 3.5;
+  double exit_threshold = 3.0;
+  double mixed_min = 1.2;
+  double watchlist_threshold = 3.5;
+
+  double score_entry_weight = 1.2;
+  double score_curr_alpha = 0.7;
+  double score_hint_weight = 0.7;
+
+  double stop_reason_importance = 0.8;
+  double stop_hint_importance = 0.8;
+
+  double entry_4h_score_confirmation = 7;
+  double entry_1d_score_confirmation = 7;
+  double exit_4h_score_confirmation = -5;
+  double exit_1d_score_confirmation = -5;
+
+  double score_mod_4h_1d_agree = 1.2;
+  double score_mod_4h_1d_align = 1.1;
+  double score_mod_4h_1d_conflict = 0.7;
+
+  double memory_score_decay = 0.5;
+  double sr_strong_confidence = 0.6;
+
+  int stop_max_holding_days = 20;
+  double stop_atr_proximity = 0.75;
+
+  SignalConfig() noexcept = default;
+  SignalConfig(const std::string& path);
+};
+
+struct APIConfig {
+  std::vector<std::string> td_api_keys = {};
+
+  std::string tg_token;
+  std::string tg_chat_id;
+  std::string tg_user;
+
+  APIConfig() noexcept = default;
+  APIConfig(const std::string& path);
+};
+
 struct Config {
   bool debug_en = false;
 
@@ -107,8 +152,13 @@ struct Config {
   bool continuous_en = false;
   double speed = 1.0;
 
+  APIConfig api_config;
   PositionSizingConfig sizing_config;
   SupportResistanceConfig sr_config;
+  SignalConfig sig_config;
 
+  Config() noexcept = default;
   Config(int argc, char* argv[]);
 };
+
+extern Config config;

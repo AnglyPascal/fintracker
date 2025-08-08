@@ -2,7 +2,6 @@
 
 #include "api.h"
 #include "calendar.h"
-#include "config.h"
 #include "indicators.h"
 #include "position_sizing.h"
 #include "positions.h"
@@ -17,7 +16,6 @@
 struct Ticker {
   const std::string symbol;
   const int priority;
-  const Config config;
 
   TimePoint last_polled;
 
@@ -34,16 +32,14 @@ struct Ticker {
 
   Ticker(const std::string& symbol,
          int priority,
-         const Config& config,
          std::vector<Candle>&& candles,
          minutes update_interval,
          const Position* position,
          const Event& ev) noexcept
       : symbol{symbol},
         priority{priority},
-        config{config},
         last_polled{Clock::now()},
-        metrics{std::move(candles), update_interval, position, config},
+        metrics{std::move(candles), update_interval, position},
         ev{ev}  //
   {
     calculate_signal();
@@ -71,8 +67,7 @@ struct Ticker {
   void calculate_signal() {
     stop_loss = StopLoss(metrics, config.sizing_config);
     signal = gen_signal(-1);
-    position_sizing =
-        PositionSizing(metrics, signal, stop_loss, config.sizing_config);
+    position_sizing = PositionSizing(metrics, signal, stop_loss);
   }
 };
 
@@ -88,9 +83,6 @@ enum class FormatTarget;
 inline constexpr int max_concurrency = 32;
 
 class Portfolio {
- public:
-  const Config config;
-
  private:
   std::vector<SymbolInfo> symbols;
   mutable std::shared_mutex mtx;
@@ -113,7 +105,7 @@ class Portfolio {
   const minutes update_interval;
 
  public:
-  Portfolio(Config config) noexcept;
+  Portfolio() noexcept;
   void run();
   void update_trades();
 

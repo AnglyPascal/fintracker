@@ -1,5 +1,6 @@
 #include "notifier.h"
 #include "api.h"
+#include "config.h"
 #include "format.h"
 #include "portfolio.h"
 #include "times.h"
@@ -53,7 +54,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
 
     if (symbol == "") {
       tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
-      auto fname = portfolio.config.replay_en ? "page/public/index_replay.html"
+      auto fname = config.replay_en ? "page/public/index_replay.html"
                                               : "page/public/index.html";
       tg.send_doc(fname, "portfolio.html", "");
     } else {

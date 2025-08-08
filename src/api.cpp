@@ -1,4 +1,5 @@
 #include "api.h"
+#include "config.h"
 #include "indicators.h"
 #include "times.h"
 
@@ -13,41 +14,13 @@
 using nlohmann::json;
 namespace fs = std::filesystem;
 
-#ifndef TD_API_KEY_1
-#define TD_API_KEY_1 ""
-#endif
-
-#ifndef TD_API_KEY_2
-#define TD_API_KEY_2 ""
-#endif
-
-#ifndef TD_API_KEY_3
-#define TD_API_KEY_3 ""
-#endif
-
-#ifndef TD_API_KEY_4
-#define TD_API_KEY_4 ""
-#endif
-
-#ifndef TD_API_KEY_5
-#define TD_API_KEY_5 ""
-#endif
-
-#ifndef TG_TOKEN
-#define TG_TOKEN ""
-#endif
-
-#ifndef TG_CHAT_ID
-#define TG_CHAT_ID ""
-#endif
-
-#ifndef TG_USER
-#define TG_USER ""
-#endif
-
 /******************
  ** Telegram API **
  ******************/
+
+inline const auto& TG_TOKEN = config.api_config.tg_token;
+inline const auto& TG_CHAT_ID = config.api_config.tg_chat_id;
+inline const auto& TG_USER = config.api_config.tg_user;
 
 int TG::send(const std::string& text) const {
   spdlog::debug("[tg] send: {}...", text.substr(0, 20).c_str());
@@ -247,9 +220,7 @@ inline constexpr minutes get_interval(size_t n_tickers) {
 }
 
 TD::TD(size_t n_tickers) : interval{get_interval(n_tickers)} {
-  constexpr char const* api_keys[] = {TD_API_KEY_1, TD_API_KEY_2, TD_API_KEY_3,
-                                      TD_API_KEY_4, TD_API_KEY_5};
-  for (auto key : api_keys)
+  for (auto key : config.api_config.td_api_keys)
     keys.emplace_back(key);
   spdlog::info("[td] initiated with {} api keys", keys.size());
 }
@@ -421,19 +392,4 @@ bool wait_for_file(const std::string& path,
 
   return false;
 }
-
-void notify_plot_daemon(const std::vector<std::string>& tickers) {
-  zmq::context_t ctx(1);
-  zmq::socket_t socket(ctx, zmq::socket_type::push);
-  socket.connect(std::format("tcp://127.0.0.1:{}", plot_daemon_port));
-
-  json j;
-  j["tickers"] = tickers;
-  std::string payload = j.dump();
-
-  zmq::message_t msg(payload.begin(), payload.end());
-  socket.send(msg, zmq::send_flags::none);
-}
-
-std::string plot_daemon_port = "5555";
 

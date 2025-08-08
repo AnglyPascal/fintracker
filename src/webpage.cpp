@@ -1,6 +1,7 @@
+#include "_html_template.h"
+#include "config.h"
 #include "format.h"
 #include "html_template.h"
-#include "_html_template.h"
 #include "portfolio.h"
 #include "times.h"
 
@@ -226,7 +227,7 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
       std::string stat_str = "";
       auto it = stats.find(r.type);
       if (it != stats.end()) {
-        auto [_, ret, dd, w, _] = it->second;
+        auto [_, ret, dd, w, _, _] = it->second;
         stat_str = ": " + colored_stats(ret, dd, w);
       }
       body += std::format("<li>{}<span class=\"stats-details\">{}</span></li>",
@@ -519,7 +520,7 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 
   auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated);
   auto subtitle = std::format(index_subtitle_template, datetime);
-  auto reload = (p.config.replay_en && p.config.debug_en) ? index_reload : "";
+  auto reload = (config.replay_en && config.debug_en) ? index_reload : "";
 
   return std::format(index_template, reload, subtitle, body);
 }
@@ -533,7 +534,7 @@ std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
     for (const auto& [rtype, stat] : stats) {
       if (rtype == S::none)
         continue;
-      auto [_, ret, dd, winrate, _] = stat;
+      auto [_, ret, dd, winrate, _, _] = stat;
 
       S r{rtype};
       auto ret_str = colored("green", ret);

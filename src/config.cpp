@@ -51,8 +51,10 @@ Config::Config(int argc, char* argv[]) {
   continuous_en = program.get<bool>("--continuous");
   speed = program.get<double>("--speed");
 
+  api_config = APIConfig("private/api.json");
   sizing_config = PositionSizingConfig{"private/sizing.json"};
   sr_config = SupportResistanceConfig{"private/support_resistance.json"};
+  sig_config = SignalConfig("private/signal.json");
 }
 
 #define GET_FROM_JSON(name)                                           \
@@ -137,5 +139,70 @@ SupportResistanceConfig::SupportResistanceConfig(const std::string& path) {
   } catch (const std::exception& e) {
     spdlog::error("[pos] error parsing positing sizing config file {}: {}",
                   path.c_str(), e.what());
+  }
+}
+
+SignalConfig::SignalConfig(const std::string& path) {
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    spdlog::warn("[signal] failed to open signal config file {}", path);
+    return;
+  }
+
+  try {
+    nlohmann::json j;
+    file >> j;
+
+    GET_FROM_JSON(entry_min);
+    GET_FROM_JSON(exit_min);
+    GET_FROM_JSON(entry_threshold);
+    GET_FROM_JSON(exit_threshold);
+    GET_FROM_JSON(mixed_min);
+    GET_FROM_JSON(watchlist_threshold);
+
+    GET_FROM_JSON(score_entry_weight);
+    GET_FROM_JSON(score_curr_alpha);
+    GET_FROM_JSON(score_hint_weight);
+
+    GET_FROM_JSON(stop_reason_importance);
+    GET_FROM_JSON(stop_hint_importance);
+
+    GET_FROM_JSON(entry_4h_score_confirmation);
+    GET_FROM_JSON(entry_1d_score_confirmation);
+    GET_FROM_JSON(exit_4h_score_confirmation);
+    GET_FROM_JSON(exit_1d_score_confirmation);
+
+    GET_FROM_JSON(score_mod_4h_1d_agree);
+    GET_FROM_JSON(score_mod_4h_1d_align);
+    GET_FROM_JSON(score_mod_4h_1d_conflict);
+
+    GET_FROM_JSON(memory_score_decay);
+    GET_FROM_JSON(sr_strong_confidence);
+
+    GET_FROM_JSON(stop_max_holding_days);
+    GET_FROM_JSON(stop_atr_proximity);
+  } catch (const std::exception& e) {
+    spdlog::error("[signal] error parsing signal config file {}: {}", path,
+                  e.what());
+  }
+}
+
+APIConfig::APIConfig(const std::string& path) {
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    spdlog::warn("[api] failed to open API config file {}", path);
+    return;
+  }
+
+  try {
+    nlohmann::json j;
+    file >> j;
+
+    GET_FROM_JSON(td_api_keys);
+    GET_FROM_JSON(tg_token);
+    GET_FROM_JSON(tg_chat_id);
+    GET_FROM_JSON(tg_user);
+  } catch (const std::exception& e) {
+    spdlog::error("[api] error parsing API config file {}: {}", path, e.what());
   }
 }

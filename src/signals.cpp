@@ -1,4 +1,5 @@
 #include "backtest.h"
+#include "config.h"
 #include "indicators.h"
 #include "portfolio.h"
 
@@ -19,12 +20,7 @@ bool Signal::is_interesting() const {
   return important(reasons) || important(hints);
 }
 
-inline constexpr double ENTRY_MIN = 1.0;  // ignore entry_w < 1.0 entirely
-inline constexpr double EXIT_MIN = 1.0;   // ignore exit_w  < 1.0 entirely
-inline constexpr double ENTRY_THRESHOLD = 3.5;
-inline constexpr double EXIT_THRESHOLD = 3.0;
-inline constexpr double MIXED_MIN = 1.2;  // require at least this on both sides
-inline constexpr double WATCHLIST_THRESHOLD = ENTRY_THRESHOLD;  // for symmetry
+inline const SignalConfig& sig_config = config.sig_config;
 
 inline Rating gen_rating(double entry_w,
                          double exit_w,
@@ -32,15 +28,17 @@ inline Rating gen_rating(double entry_w,
                          bool has_reason,
                          auto& hints) {
   // 1. Strong Entry
-  if (entry_w >= ENTRY_THRESHOLD && exit_w <= WATCHLIST_THRESHOLD && has_reason)
+  if (entry_w >= sig_config.entry_threshold &&
+      exit_w <= sig_config.watchlist_threshold && has_reason)
     return Rating::Entry;
 
   // 2. Strong Exit
-  if (exit_w >= EXIT_THRESHOLD && entry_w <= WATCHLIST_THRESHOLD && has_reason)
+  if (exit_w >= sig_config.exit_threshold &&
+      entry_w <= sig_config.watchlist_threshold && has_reason)
     return Rating::Exit;
 
   // 3. Mixed
-  if (entry_w >= MIXED_MIN && exit_w >= MIXED_MIN)
+  if (entry_w >= sig_config.mixed_min && exit_w >= sig_config.mixed_min)
     return Rating::Mixed;
 
   // 4. Moderate Exit or urgent exit hint
@@ -49,13 +47,13 @@ inline Rating gen_rating(double entry_w,
         return h.cls() == SignalClass::Exit && h.severity() == Severity::Urgent;
       });
 
-  if ((exit_w >= EXIT_MIN && exit_w < EXIT_THRESHOLD) ||
-      (exit_hints_block_watchlist && exit_w >= EXIT_MIN)) {
+  if ((exit_w >= sig_config.exit_min && exit_w < sig_config.exit_threshold) ||
+      (exit_hints_block_watchlist && exit_w >= sig_config.exit_min)) {
     return Rating::Caution;
   }
 
   // 5. Entry bias
-  if (entry_w >= ENTRY_MIN && entry_w < ENTRY_THRESHOLD)
+  if (entry_w >= sig_config.entry_min && entry_w < sig_config.entry_threshold)
     return Rating::Watchlist;
 
   // 6. Fallbacks
@@ -92,10 +90,10 @@ template <typename T>
 std::string to_str(const T& t);
 
 inline double signal_score(double entry_w, double exit_w, double past_score) {
-  auto raw = 1.2 * entry_w - exit_w;
-  double curr_score = std::tanh((raw) / 3.0);  // squashes to [-1,1]
-  constexpr double alpha = 0.7;
-  return curr_score * 0.7 + past_score * (1 - alpha);
+  auto raw = sig_config.score_entry_weight * entry_w - exit_w;
+  double curr_score = std::tanh(raw / 3.0);  // squashes to [-1,1]
+  return curr_score * sig_config.score_curr_alpha +
+         past_score * (1 - sig_config.score_curr_alpha);
 }
 
 Signal Indicators::gen_signal(int idx) const {
@@ -113,7 +111,7 @@ Signal Indicators::gen_signal(int idx) const {
       if (auto it = reason_stats.find(r.type); it != reason_stats.end())
         importance = it->second.importance;
       if (r.source() == Source::Stop)
-        importance = 0.8;
+        importance = sig_config.stop_reason_importance;
 
       auto severity = severity_weight(r.severity());
       auto w = weight(importance, severity);
@@ -136,11 +134,10 @@ Signal Indicators::gen_signal(int idx) const {
       if (auto it = hint_stats.find(h.type); it != hint_stats.end())
         importance = it->second.importance;
       if (h.source() == Source::Stop)
-        importance = 0.8;
+        importance = sig_config.stop_hint_importance;
 
       auto severity = severity_weight(h.severity());
-      // slightly lower weight than reasons
-      auto w = 0.7 * weight(importance, severity);
+      auto w = sig_config.score_hint_weight * weight(importance, severity);
 
       if (h.cls() == SignalClass::Exit)
         exit_w += w;
@@ -235,16 +232,20 @@ Rating contextual_rating(auto& sig_1h,
 
   // Upgrade to Entry if higher timeframes show strong entry signals
   if (base_rating == Rating::Watchlist) {
-    if (sig_4h.type == Rating::Watchlist && sig_4h.score > 7)
+    if (sig_4h.type == Rating::Watchlist &&
+        sig_4h.score > sig_config.entry_4h_score_confirmation)
       return Rating::Entry;
-    if (sig_1d.type == Rating::Watchlist && sig_1d.score > 7)
+    if (sig_1d.type == Rating::Watchlist &&
+        sig_1d.score > sig_config.entry_1d_score_confirmation)
       return Rating::Entry;
   }
 
   // Higher timeframe exits should be respected
   if (sig_4h.type == Rating::Exit || sig_1d.type == Rating::Exit ||
-      (sig_4h.type == Rating::HoldCautiously && sig_4h.score < -5) ||
-      (sig_1d.type == Rating::HoldCautiously && sig_1d.score < -5)) {
+      (sig_4h.type == Rating::HoldCautiously &&
+       sig_4h.score < sig_config.exit_4h_score_confirmation) ||
+      (sig_1d.type == Rating::HoldCautiously &&
+       sig_1d.score < sig_config.exit_1d_score_confirmation)) {
     if (base_rating == Rating::Entry || base_rating == Rating::Watchlist)
       return Rating::Mixed;  // Conflict requires caution
     if (base_rating == Rating::HoldCautiously)
@@ -259,20 +260,14 @@ inline double weighted_score(double score_1h,
                              double score_1d) {
   double base_score = score_1h;
 
-  // Amplify when higher timeframes agree
-  if ((score_1h > 0 && score_4h > 0) || (score_1h > 0 && score_1d > 0)) {
-    base_score *= 1.2;  // 20% boost for alignment
-  }
+  if ((score_1h > 0 && score_4h > 0) || (score_1h > 0 && score_1d > 0))
+    base_score *= sig_config.score_mod_4h_1d_agree;
 
-  // Further amplify when all timeframes align
-  if (score_1h > 0 && score_4h > 0 && score_1d > 0) {
-    base_score *= 1.1;  // Additional 10% boost
-  }
+  if (score_1h > 0 && score_4h > 0 && score_1d > 0)
+    base_score *= sig_config.score_mod_4h_1d_align;
 
-  // Dampen when higher timeframes conflict
-  if ((score_1h > 0 && score_4h < -0.5) || (score_1h > 0 && score_1d < -0.5)) {
-    base_score *= 0.7;  // 30% reduction for conflict
-  }
+  if ((score_1h > 0 && score_4h < -0.5) || (score_1h > 0 && score_1d < -0.5))
+    base_score *= sig_config.score_mod_4h_1d_conflict;
 
   return base_score;
 }
@@ -314,7 +309,7 @@ double SignalMemory::score() const {
   double scr = 0.0;
   double weight = 0.0;
 
-  double decay = 0.5;
+  double decay = sig_config.memory_score_decay;
   for (auto& sig : past) {
     scr = scr * decay + sig.score;
     weight = weight * decay + decay;
