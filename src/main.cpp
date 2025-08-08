@@ -42,7 +42,6 @@ void ensure_directories_exist(const std::vector<std::string>& dirs) {
   }
 }
 
-
 int main(int argc, char* argv[]) {
   ensure_directories_exist({"page", "page/src", "page/backup", "logs", "data"});
 

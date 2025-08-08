@@ -1,5 +1,5 @@
 CompileFlags:
-  Add: [-std=c++2c]
+  Add: [-std=c++26]
 
 ---
 

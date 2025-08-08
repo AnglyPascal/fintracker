@@ -1,5 +1,16 @@
 #include "format.h"
 #include "portfolio.h"
+#include "times.h"
+
+template <>
+std::string to_str(const SysTimePoint& datetime) {
+  return std::format("{:%F %T}", datetime);
+}
+
+template <>
+std::string to_str(const LocalTimePoint& datetime) {
+  return std::format("{:%F %T}", datetime);
+}
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const std::string& lang,

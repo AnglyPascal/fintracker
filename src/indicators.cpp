@@ -1,6 +1,5 @@
 #include "indicators.h"
 #include "config.h"
-#include "position_sizing.h"
 #include "positions.h"
 #include "times.h"
 

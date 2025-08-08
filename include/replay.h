@@ -25,9 +25,9 @@ class Replay {
          bool bt_enabled = false);
 
   std::vector<Candle> time_series(const std::string& symbol,
-                                  minutes timeframe = M_15);
+                                  minutes timeframe = H_1);
 
-  Candle real_time(const std::string& symbol, minutes timeframe = M_15);
+  Candle real_time(const std::string& symbol, minutes timeframe = H_1);
 
   void rollback(const std::string& symbol, const Candle& candle);
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "backtest.h"
 #include "times.h"
 
 #include <deque>
@@ -10,7 +11,6 @@
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
 enum class Source { Price, Stop, EMA, RSI, MACD, Trend, SR, None };
 enum class SignalClass { None, Entry, Exit };
-
 
 struct Meta {
   Severity sev;
@@ -205,8 +205,6 @@ struct SignalMemory {
 
   double score() const;
 };
-
-struct SignalStats;
 
 struct Forecast {
   double expected_return = 0.0;

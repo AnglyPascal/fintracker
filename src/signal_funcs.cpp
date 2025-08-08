@@ -1,7 +1,6 @@
-#include "backtest.h"
-#include "signals.h"
 #include "config.h"
 #include "indicators.h"
+#include "signals.h"
 
 const SignalConfig& sig_config = config.sig_config;
 

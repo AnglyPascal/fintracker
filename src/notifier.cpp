@@ -55,7 +55,7 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
     if (symbol == "") {
       tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
       auto fname = config.replay_en ? "page/public/index_replay.html"
-                                              : "page/public/index.html";
+                                    : "page/public/index.html";
       tg.send_doc(fname, "portfolio.html", "");
     } else {
       tg.send(to_str<FormatTarget::Telegram>(ELIXIR, str));

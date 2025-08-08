@@ -1,6 +1,6 @@
-#include "_html_template.h"
 #include "config.h"
 #include "format.h"
+#include "gen_html_template.h"
 #include "html_template.h"
 #include "portfolio.h"
 #include "times.h"

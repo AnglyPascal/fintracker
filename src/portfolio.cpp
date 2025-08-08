@@ -70,8 +70,8 @@ Portfolio::Portfolio() noexcept
           return;
         }
 
-        Ticker ticker(symbol, priority, //
-                      std::move(candles), H_1,   //
+        Ticker ticker(symbol, priority,         //
+                      std::move(candles), H_1,  //
                       positions.get_position(symbol),
                       calendar.next_event(symbol));
         {

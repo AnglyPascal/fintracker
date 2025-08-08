@@ -101,7 +101,7 @@ set(EMBED_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_str.py)
 set(INPUT_HTML 
     ${CMAKE_CURRENT_SOURCE_DIR}/data/index.html 
     ${CMAKE_CURRENT_SOURCE_DIR}/data/ticker.html)
-set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/_html_template.h)
+set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/gen_html_template.h)
 
 add_custom_command(
   OUTPUT ${OUTPUT_HEADER} 

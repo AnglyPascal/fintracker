@@ -1,5 +1,4 @@
 #include "times.h"
-#include "format.h"
 
 #include <spdlog/spdlog.h>
 #include <iostream>
@@ -71,16 +70,6 @@ std::string closest_nyse_aligned_time(const std::string& ny_time_str) {
     aligned = last_slot;
 
   return std::format("{:%F %T}", aligned);
-}
-
-template <>
-std::string to_str(const SysTimePoint& datetime) {
-  return std::format("{:%F %T}", datetime);
-}
-
-template <>
-std::string to_str(const LocalTimePoint& datetime) {
-  return std::format("{:%F %T}", datetime);
 }
 
 std::pair<bool, minutes> market_status(minutes interval) {

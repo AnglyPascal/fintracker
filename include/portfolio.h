@@ -2,6 +2,7 @@
 
 #include "api.h"
 #include "calendar.h"
+#include "config.h"
 #include "indicators.h"
 #include "position_sizing.h"
 #include "positions.h"

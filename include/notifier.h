@@ -1,5 +1,5 @@
 #pragma once
-#include "api.h"
+
 #include "times.h"
 
 #include <string>
@@ -8,6 +8,7 @@
 
 struct Portfolio;
 struct Signal;
+struct TG;
 
 class Notifier {
   const Portfolio& portfolio;

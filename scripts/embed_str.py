@@ -34,5 +34,5 @@ inline constexpr std::string_view indicators_template = R"(
 )";
 """
 
-output_path = Path("include/_html_template.h")
+output_path = Path("include/gen_html_template.h")
 output_path.write_text(output, encoding="utf-8")

@@ -1,6 +1,6 @@
 #include "api.h"
+#include "candle.h"
 #include "config.h"
-#include "indicators.h"
 #include "times.h"
 
 #include <cpr/cpr.h>

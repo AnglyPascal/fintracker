@@ -1,4 +1,3 @@
-#include "backtest.h"
 #include "config.h"
 #include "indicators.h"
 #include "portfolio.h"

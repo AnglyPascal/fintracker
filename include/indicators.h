@@ -1,6 +1,7 @@
 #pragma once
 
 #include "backtest.h"
+#include "candle.h"
 #include "positions.h"
 #include "prediction.h"
 #include "signals.h"
@@ -12,19 +13,6 @@
 #include <map>
 #include <string>
 #include <vector>
-
-struct Candle {
-  std::string datetime = "";
-  double open = 0.0;
-  double high = 0.0;
-  double low = 0.0;
-  double close = 0.0;
-  int volume = 0.0;
-
-  std::string day() const { return datetime.substr(0, 10); }
-  double price() const { return close; }
-  LocalTimePoint time() const { return datetime_to_local(datetime); }
-};
 
 std::vector<Candle> downsample(std::vector<Candle>& candles,
                                minutes source,
@@ -143,8 +131,7 @@ struct Indicators {
   friend struct Metrics;
 
  public:
-  Indicators(std::vector<Candle>&& candles,
-             minutes interval) noexcept;
+  Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
 
   void add(const Candle& candle) noexcept;
   void pop_back() noexcept;
@@ -230,8 +217,7 @@ struct Metrics {
  public:
   Metrics(std::vector<Candle>&& candles,
           minutes interval,
-          const Position* position
-          ) noexcept;
+          const Position* position) noexcept;
 
   bool add(const Candle& candle, const Position* position) noexcept;
   Candle rollback() noexcept;

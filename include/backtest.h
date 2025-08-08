@@ -1,6 +1,8 @@
 #pragma once
 
-#include "signals.h"
+#include <cstdlib>
+#include <utility>
+#include <vector>
 
 struct LookaheadStats {
   double max_return;
