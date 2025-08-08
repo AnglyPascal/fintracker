@@ -63,30 +63,13 @@ find_library(ZMQ_LIB zmq REQUIRED)
 find_path(ZMQ_INCLUDE_DIR zmq.hpp REQUIRED)
 
 
-# Add your source files
-add_executable(${TARGET}
-  src/api.cpp
-  src/backtest.cpp
-  src/calendar.cpp
-  src/config.cpp
-  src/format.cpp
-  src/indicators.cpp
-  src/main.cpp
-  src/notifier.cpp
-  src/portfolio.cpp
-  src/position_sizing.cpp
-  src/positions.cpp
-  src/replay.cpp
-  src/signal_funcs.cpp
-  src/signal_meta.cpp
-  src/signals.cpp
-  src/support_resistance.cpp
-  src/times.cpp
-  src/trendlines.cpp
-  src/webpage.cpp
+file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+list(REMOVE_ITEM SOURCES 
+ "${CMAKE_CURRENT_SOURCE_DIR}/src/get_calendar.cpp"
 )
+add_executable(${TARGET} ${SOURCES})
 
-target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/include)
+target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(${TARGET} SYSTEM PRIVATE ${ZMQ_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${SPDLOG_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
@@ -97,21 +80,21 @@ target_link_libraries(${TARGET}
   ${ZMQ_LIB}
 )
 
-set(EMBED_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/scripts/embed_str.py)
+set(EMBED_SCRIPT ${PROJECT_SOURCE_DIR}/scripts/embed_str.py)
 set(INPUT_HTML 
-    ${CMAKE_CURRENT_SOURCE_DIR}/data/index.html 
-    ${CMAKE_CURRENT_SOURCE_DIR}/data/ticker.html)
-set(OUTPUT_HEADER ${CMAKE_CURRENT_BINARY_DIR}/include/gen_html_template.h)
+    ${PROJECT_SOURCE_DIR}/data/index.html 
+    ${PROJECT_SOURCE_DIR}/data/ticker.html)
+set(OUTPUT_HEADER ${PROJECT_SOURCE_DIR}/include/gen_html_template.h)
 
 add_custom_command(
   OUTPUT ${OUTPUT_HEADER} 
   COMMAND python ${EMBED_SCRIPT}
-  DEPENDS ${INPUT_HTML} ${EMBED_SCRIPT} 
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  DEPENDS ${INPUT_HTML} ${EMBED_SCRIPT}
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  COMMENT "Generating ${OUTPUT_HEADER}"
 )
 
-add_custom_target(html_header DEPENDS ${OUTPUT_HEADER})
-add_dependencies(${TARGET} html_header)
+target_sources(${TARGET} PRIVATE ${OUTPUT_HEADER})
 
 set(CALENDAR get_calendar)
 

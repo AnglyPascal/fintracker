@@ -64,6 +64,7 @@ struct TrendLines {
 
 struct Trends {
   TrendLines price, ema21, rsi;
+
   Trends() noexcept = default;
   Trends(const Indicators& ind, int last_idx = -1) noexcept;
 

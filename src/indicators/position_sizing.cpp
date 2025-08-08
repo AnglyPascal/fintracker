@@ -4,7 +4,7 @@
 
 #include <spdlog/spdlog.h>
 
-const PositionSizingConfig& sizing_config = config.sizing_config;
+inline auto& sizing_config = config.sizing_config;
 
 inline double round_to(double x, int n = 2) {
   double factor = std::pow(10.0, n);

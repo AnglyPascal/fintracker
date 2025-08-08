@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-inline const SupportResistanceConfig& sr_config = config.sr_config;
+inline auto& sr_config = config.sr_config;
 
 template <SR sr>
 inline bool is_swing(auto& ind, int i, int window = 3) {

@@ -30,11 +30,6 @@ struct SignalStats {
               size_t n_candles) noexcept;
 };
 
-struct Stats {
-  std::map<ReasonType, SignalStats> reason;
-  std::map<HintType, SignalStats> hint;
-};
-
 struct Indicators;
 
 struct Backtest {

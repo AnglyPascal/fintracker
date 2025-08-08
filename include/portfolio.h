@@ -65,11 +65,7 @@ struct Ticker {
     return candle;
   }
 
-  void calculate_signal() {
-    stop_loss = StopLoss(metrics, config.sizing_config);
-    signal = gen_signal(-1);
-    position_sizing = PositionSizing(metrics, signal, stop_loss);
-  }
+  void calculate_signal();
 };
 
 using Tickers = std::map<std::string, Ticker>;

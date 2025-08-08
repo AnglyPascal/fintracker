@@ -5,7 +5,15 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-Config::Config(int argc, char* argv[]) {
+Config::Config() {
+  api_config = APIConfig{"private/api.json"};
+  ind_config = IndicatorsConfig{"private/indicators.json"};
+  sizing_config = PositionSizingConfig{"private/sizing.json"};
+  sr_config = SupportResistanceConfig{"private/support_resistance.json"};
+  sig_config = SignalConfig{"private/signal.json"};
+}
+
+void Config::read_args(int argc, char* argv[]) {
   argparse::ArgumentParser program("fin");
 
   program.add_argument("-d", "--debug")
@@ -50,11 +58,6 @@ Config::Config(int argc, char* argv[]) {
   debug_en = program.get<bool>("--debug");
   continuous_en = program.get<bool>("--continuous");
   speed = program.get<double>("--speed");
-
-  api_config = APIConfig("private/api.json");
-  sizing_config = PositionSizingConfig{"private/sizing.json"};
-  sr_config = SupportResistanceConfig{"private/support_resistance.json"};
-  sig_config = SignalConfig("private/signal.json");
 }
 
 #define GET_FROM_JSON(name)                                           \
@@ -163,6 +166,8 @@ SignalConfig::SignalConfig(const std::string& path) {
     GET_FROM_JSON(score_entry_weight);
     GET_FROM_JSON(score_curr_alpha);
     GET_FROM_JSON(score_hint_weight);
+    GET_FROM_JSON(score_squash_factor);
+    GET_FROM_JSON(score_memory_lambda);
 
     GET_FROM_JSON(stop_reason_importance);
     GET_FROM_JSON(stop_hint_importance);
@@ -176,7 +181,6 @@ SignalConfig::SignalConfig(const std::string& path) {
     GET_FROM_JSON(score_mod_4h_1d_align);
     GET_FROM_JSON(score_mod_4h_1d_conflict);
 
-    GET_FROM_JSON(memory_score_decay);
     GET_FROM_JSON(sr_strong_confidence);
 
     GET_FROM_JSON(stop_max_holding_days);
@@ -228,6 +232,8 @@ IndicatorsConfig::IndicatorsConfig(const std::string& path) {
 
     GET_FROM_JSON(ema21_trend_min_candles);
     GET_FROM_JSON(ema21_trend_max_candles);
+
+    GET_FROM_JSON(stats_importance_kappa);
   } catch (const std::exception& e) {
     spdlog::error("[api] error parsing API config file {}: {}", path, e.what());
   }

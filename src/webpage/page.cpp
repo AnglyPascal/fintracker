@@ -22,124 +22,15 @@ inline std::string colored(std::string_view color, double arg) {
                      color, arg);
 }
 
-inline constexpr std::string csv_fname(const std::string& symbol,
-                                       const std::string& time,
-                                       const std::string& fn) {
-  return std::format("page/src/{}{}_{}.csv", symbol, time, fn);
-}
-
-inline constexpr size_t n_days_plot = 90;
-
-LocalTimePoint Indicators::plot(const std::string& sym,
-                                const std::string& time) const {
-  std::ofstream f(csv_fname(sym, time, "data"));
-  f << "datetime,open,close,high,low,volume,ema9,ema21,rsi,macd,signal\n";
-
-  size_t n_candles_per_day = (D_1 + interval - minutes{1}) / interval;
-  size_t n = std::min(candles.size(), n_candles_per_day * n_days_plot);
-
-  for (size_t i = candles.size() - n; i < candles.size(); i++)
-    f << std::format(
-        "{},{:.2f},{:.2f},{:.2f},{:.2f},{},"
-        "{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n",
-        candles[i].datetime, candles[i].open, candles[i].close, candles[i].high,
-        candles[i].low, candles[i].volume, _ema9.values[i], _ema21.values[i],
-        _rsi.values[i], _macd.macd_line[i], _macd.signal_ema.values[i]);
-
-  f.flush();
-  f.close();
-
-  auto trends_to_csv = [this, n, &sym, &time](auto& top_trends, auto& name) {
-    for (size_t i = 0; i < top_trends.size(); i++) {
-      std::ofstream f(csv_fname(sym, time, std::format("{}_fit_{}", name, i)));
-      f << "datetime,value\n";
-
-      auto& top_trend = top_trends[i];
-      auto m = std::min((size_t)top_trend.period, n);
-      for (size_t j = candles.size() - m; j < candles.size(); j++)
-        f << std::format("{},{:.2f}\n", candles[j].datetime, top_trend.eval(j));
-
-      f.flush();
-      f.close();
-    }
-  };
-
-  trends_to_csv(trends.price.top_trends, "price");
-  trends_to_csv(trends.rsi.top_trends, "rsi");
-
-  std::ofstream sr(csv_fname(sym, time, "support_resistance"));
-  sr << "support,lower,upper,confidence\n";
-  for (auto [lo, hi, conf] : support.zones)
-    sr << std::format("0,{:.2f},{:.2f},{:.2f}\n", lo, hi, conf);
-  for (auto [lo, hi, conf] : resistance.zones)
-    sr << std::format("1,{:.2f},{:.2f},{:.2f}\n", lo, hi, conf);
-  sr.flush();
-  sr.close();
-
-  return candles[candles.size() - n].time();
-}
-
-LocalTimePoint Metrics::plot(const std::string& sym) const {
-  auto start_1h = ind_1h.plot(sym, "_1h");
-  auto start_4h = ind_4h.plot(sym, "_4h");
-  auto start_1d = ind_1d.plot(sym, "_1d");
-  return std::max({start_1h, start_4h, start_1d});
-}
-
 template <>
-std::string to_str(const Trade& t) {
-  return std::format(                              //
-      "{},{},{},{:.2f},{:.2f},{:.2f},{},{}",       //
-      closest_nyse_aligned_time(t.date),           //
-      t.ticker,                                    //
-      (t.action == Action::BUY ? "BUY" : "SELL"),  //
-      t.qty,                                       //
-      t.px,                                        //
-      t.total,                                     //
-      t.remark,                                    //
-      t.rating                                     //
-  );
-}
-
-void Portfolio::write_plot_data(const std::string& symbol) const {
-  if (!config.plot_en)
-    return;
-
-  auto it = tickers.find(symbol);
-  if (it == tickers.end())
-    return;
-
-  spdlog::trace("plotting {}", symbol.c_str());
-
-  auto start_time = it->second.metrics.plot(symbol);
-
-  std::ofstream f(csv_fname(symbol, "", "trades"));
-  f << "datetime,name,action,qty,price,total,remark,rating\n";
-
-  auto& all_trades = get_trades();
-  if (auto it = all_trades.find(symbol); it != all_trades.end()) {
-    for (auto& trade : it->second) {
-      if (trade.time() > start_time)
-        f << to_str(trade) << std::endl;
-    }
-  }
-  f.flush();
-  f.close();
-}
-
-/******************************
- * Webpage related formatting *
- ******************************/
-
-template <>
-std::string to_str<FormatTarget::HTML>(const Hint& h) {
+inline std::string to_str<FormatTarget::HTML>(const Hint& h) {
   if (h.severity() >= Severity::Urgent)
     return std::format("<b>{}</b>", to_str(h));
   return to_str(h);
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Reason& r) {
+inline std::string to_str<FormatTarget::HTML>(const Reason& r) {
   if (r.severity() >= Severity::Urgent)
     return std::format("<b>{}</b>", to_str(r));
   return to_str(r);
@@ -167,13 +58,13 @@ inline constexpr std::string index_row_class(Rating type) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Signal& s) {
+inline std::string to_str<FormatTarget::HTML>(const Signal& s) {
   return std::format(index_signal_div_template, index_row_class(s.type),
                      to_str(s.type), s.tp, (int)std::round(s.score * 10));
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
+inline std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
   std::string conf_str = "";
 
   if (s.type == Rating::Exit) {
@@ -193,7 +84,7 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Forecast& f) {
+inline std::string to_str<FormatTarget::HTML>(const Forecast& f) {
   return std::format("<b>Forecast</b>: <b>{} / {}</b>, {:.2f}",  //
                      colored("green", f.expected_return),        //
                      colored("red", f.expected_drawdown),        //
@@ -241,7 +132,8 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Signal& s, const Indicators& ind) {
+inline std::string to_str<FormatTarget::HTML>(const Signal& s,
+                                              const Indicators& ind) {
   auto a = reason_list("▲", s.reasons, SignalClass::Entry,  //
                        ind.stats.reason);
   auto b = reason_list("△", s.hints, SignalClass::Entry,  //
@@ -257,7 +149,7 @@ std::string to_str<FormatTarget::HTML>(const Signal& s, const Indicators& ind) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Recommendation& recom) {
+inline std::string to_str<FormatTarget::HTML>(const Recommendation& recom) {
   switch (recom) {
     case Recommendation::StrongBuy:
       return colored("green", "Strong Buy");
@@ -275,7 +167,7 @@ std::string to_str<FormatTarget::HTML>(const Recommendation& recom) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
+inline std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
   if (sizing.recommendation == Recommendation::Avoid)
     return std::format("<div><b>{}</b></div>",
                        to_str<FormatTarget::HTML>(sizing.recommendation));
@@ -309,7 +201,7 @@ std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Filter& f) {
+inline std::string to_str<FormatTarget::HTML>(const Filter& f) {
   auto str = f.str;
 
   if (str == "⇗")
@@ -325,8 +217,9 @@ std::string to_str<FormatTarget::HTML>(const Filter& f) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Filters& filters,
-                                       const std::vector<Hint>& trends_1h) {
+inline std::string to_str<FormatTarget::HTML>(
+    const Filters& filters,
+    const std::vector<Hint>& trends_1h) {
   std::string trend_1h, trend_1d, trend_4h;
 
   for (auto& h : trends_1h)
@@ -335,9 +228,9 @@ std::string to_str<FormatTarget::HTML>(const Filters& filters,
   if (!trend_1h.empty())
     trend_1h = std::format("<li><b>1h</b>: {}</li>", trend_1h);
 
-  for (auto& f : filters.trends_4h)
+  for (auto& f : filters.at(H_4.count()))
     trend_4h += to_str<FormatTarget::HTML>(f) + " ";
-  for (auto& f : filters.trends_1d)
+  for (auto& f : filters.at(D_1.count()))
     trend_1d += to_str<FormatTarget::HTML>(f) + " ";
 
   constexpr std::string_view trend_html = R"(
@@ -353,7 +246,7 @@ std::string to_str<FormatTarget::HTML>(const Filters& filters,
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
+inline std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
   if (sl.final_stop == 0.0)
     return "";
   return std::format("<b>Stops</b>: {:.2f}, {:.2f}, <b>{}</b>",  //
@@ -361,8 +254,8 @@ std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
-                                       const Ticker& ticker) {
+inline std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
+                                              const Ticker& ticker) {
   auto& ind_1h = ticker.metrics.ind_1h;
   auto& sig_1h = ind_1h.signal;
 
@@ -395,7 +288,8 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
+inline std::string to_str<FormatTarget::HTML>(const Signal& s,
+                                              const Source& src) {
   std::string interesting;
   auto add = [&interesting, src](auto& iter) {
     for (auto& a : iter) {
@@ -414,14 +308,14 @@ std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
 }
 
 template <>
-std::string to_str(const StopLoss& sl) {
+inline std::string to_str(const StopLoss& sl) {
   if (sl.final_stop == 0.0)
     return "";
   return std::format("{:.2f}", sl.final_stop);
 }
 
 template <>
-std::string to_str(const Event& ev) {
+inline std::string to_str(const Event& ev) {
   if (ev.type == '\0')
     return "";
 
@@ -432,8 +326,8 @@ std::string to_str(const Event& ev) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Position* const& pos,
-                                       const double& price) {
+inline std::string to_str<FormatTarget::HTML>(const Position* const& pos,
+                                              const double& price) {
   if (pos == nullptr || pos->qty == 0)
     return "";
   return std::format("{} ({:+.2f}%)", to_str(*pos), pos->pct(price));
@@ -447,7 +341,7 @@ inline bool hide(auto& m, auto& type) {
 };
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
+inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   std::string body;
 
   std::vector<std::pair<const std::string*, const Ticker*>> sorted;
@@ -526,7 +420,7 @@ std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
+inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
   auto& sig = ind.signal;
 
   auto stats_html = []<typename S>(auto& stats, S) {
@@ -578,7 +472,7 @@ std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
+inline std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
   auto& m = ticker.metrics;
   auto& forecast = ticker.signal.forecast;
 

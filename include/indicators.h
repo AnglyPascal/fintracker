@@ -104,6 +104,14 @@ struct Pullback {
   double pb;
 };
 
+struct Stats {
+  std::map<ReasonType, SignalStats> reason;
+  std::map<HintType, SignalStats> hint;
+
+  void get_reason_stats(const Backtest& bt);
+  void get_hint_stats(const Backtest& bt);
+};
+
 struct Indicators {
   const minutes interval;
 
@@ -230,5 +238,5 @@ struct StopLoss {
   bool is_trailing = false;
 
   StopLoss() noexcept = default;
-  StopLoss(const Metrics& m, const PositionSizingConfig& config) noexcept;
+  StopLoss(const Metrics& m) noexcept;
 };

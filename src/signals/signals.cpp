@@ -19,21 +19,21 @@ bool Signal::is_interesting() const {
   return important(reasons) || important(hints);
 }
 
-inline const SignalConfig& sig_config = config.sig_config;
+auto& sig_config = config.sig_config;
 
 inline Rating gen_rating(double entry_w,
                          double exit_w,
                          double /* past_score */,
-                         bool has_reason,
+                         auto& reasons,
                          auto& hints) {
   // 1. Strong Entry
   if (entry_w >= sig_config.entry_threshold &&
-      exit_w <= sig_config.watchlist_threshold && has_reason)
+      exit_w <= sig_config.watchlist_threshold && !reasons.empty())
     return Rating::Entry;
 
   // 2. Strong Exit
   if (exit_w >= sig_config.exit_threshold &&
-      entry_w <= sig_config.watchlist_threshold && has_reason)
+      entry_w <= sig_config.watchlist_threshold && !reasons.empty())
     return Rating::Exit;
 
   // 3. Mixed
@@ -77,19 +77,22 @@ inline Rating gen_rating(double entry_w,
   return Rating::None;
 }
 
-inline constexpr double weight(double importance, double severity) {
-  return importance * severity;
-}
+inline double gen_score(double entry_w, double exit_w, double past_score) {
+  auto weight = sig_config.score_entry_weight;
+  auto raw = [=]() {
+    if (entry_w == 0)
+      return -exit_w * 0.5;
+    if (exit_w == 0)
+      return entry_w * 0.5;
+    return entry_w * weight - exit_w * (1 - weight);
+  }();
 
-inline int severity_weight(Severity s) {
-  return static_cast<int>(s);
-}
+  // larger gives more dichotomy between smaller raw and larger raw
+  auto squash_factor = sig_config.score_squash_factor;
+  auto curr_score = std::tanh(raw * squash_factor);  // squashes to [-1,1]
 
-inline double signal_score(double entry_w, double exit_w, double past_score) {
-  auto raw = sig_config.score_entry_weight * entry_w - exit_w;
-  double curr_score = std::tanh(raw / 3.0);  // squashes to [-1,1]
-  return curr_score * sig_config.score_curr_alpha +
-         past_score * (1 - sig_config.score_curr_alpha);
+  auto alpha = sig_config.score_curr_alpha;
+  return curr_score * alpha + past_score * (1 - alpha);
 }
 
 Signal Indicators::gen_signal(int idx) const {
@@ -97,49 +100,52 @@ Signal Indicators::gen_signal(int idx) const {
   s.tp = time(idx);
 
   double entry_w = 0.0, exit_w = 0.0;
+  auto add_w = [&](auto cls, auto w) {
+    (cls == SignalClass::Entry) ? entry_w += w : exit_w += w;
+  };
+
+  auto weight = [](auto imp, auto sev) {
+    auto sev_w = [](Severity s) {
+      static_assert(Severity::Urgent > Severity::Low);
+      return static_cast<int>(s);
+    };
+    return imp * sev_w(sev);
+  };
 
   // Hard signals
   for (auto r : reasons(*this, idx)) {
-    if (r.type != ReasonType::None && r.cls() != SignalClass::None) {
-      s.reasons.emplace_back(r);
+    if (r.type == ReasonType::None || r.cls() == SignalClass::None)
+      continue;
 
-      auto importance = 0.0;
-      if (auto it = stats.reason.find(r.type); it != stats.reason.end())
-        importance = it->second.importance;
-      if (r.source() == Source::Stop)
-        importance = sig_config.stop_reason_importance;
+    s.reasons.emplace_back(r);
 
-      auto severity = severity_weight(r.severity());
-      auto w = weight(importance, severity);
+    auto imp = 0.0;  // in [0, 1]
+    if (auto it = stats.reason.find(r.type); it != stats.reason.end())
+      imp = it->second.importance;
+    if (r.source() == Source::Stop)
+      imp = sig_config.stop_reason_importance;
 
-      if (r.cls() == SignalClass::Exit)
-        exit_w += w;
-      else
-        entry_w += w;
-    }
+    auto w = weight(imp, r.severity());
+    add_w(r.cls(), w);
   }
 
   // Hints
   for (auto h : hints(*this, idx)) {
-    if (h.type != HintType::None && h.cls() != SignalClass::None) {
-      s.hints.emplace_back(h);
-      if (h.severity() < Severity::High)
-        continue;
+    if (h.type == HintType::None || h.cls() == SignalClass::None)
+      continue;
 
-      auto importance = 0.0;
-      if (auto it = stats.hint.find(h.type); it != stats.hint.end())
-        importance = it->second.importance;
-      if (h.source() == Source::Stop)
-        importance = sig_config.stop_hint_importance;
+    s.hints.emplace_back(h);
+    if (h.severity() < Severity::High)
+      continue;
 
-      auto severity = severity_weight(h.severity());
-      auto w = sig_config.score_hint_weight * weight(importance, severity);
+    auto imp = 0.0;
+    if (auto it = stats.hint.find(h.type); it != stats.hint.end())
+      imp = it->second.importance;
+    if (h.source() == Source::Stop)
+      imp = sig_config.stop_hint_importance;
 
-      if (h.cls() == SignalClass::Exit)
-        exit_w += w;
-      else
-        entry_w += w;
-    }
+    auto w = sig_config.score_hint_weight * weight(imp, h.severity());
+    add_w(h.cls(), w);
   }
 
   auto sort = [](auto& v) {
@@ -152,8 +158,8 @@ Signal Indicators::gen_signal(int idx) const {
   sort(s.hints);
 
   auto past_score = memory.score();
-  s.type = gen_rating(entry_w, exit_w, past_score, s.has_reasons(), s.hints);
-  s.score = signal_score(entry_w, exit_w, past_score);
+  s.type = gen_rating(entry_w, exit_w, past_score, s.reasons, s.hints);
+  s.score = gen_score(entry_w, exit_w, past_score);
 
   return s;
 }
@@ -173,7 +179,7 @@ inline bool disqualify(auto& filters) {
   int weakBearish1D = 0;
   int bearish4H = 0;
 
-  for (const auto& f : filters.trends_1d) {
+  for (auto& f : filters.at(D_1.count())) {
     if (f.trend == Trend::Bearish) {
       if (f.confidence == Confidence::High)
         ++strongBearish1D;
@@ -182,7 +188,7 @@ inline bool disqualify(auto& filters) {
     }
   }
 
-  for (const auto& f : filters.trends_4h) {
+  for (auto& f : filters.at(H_4.count())) {
     if (f.trend == Trend::Bearish)
       ++bearish4H;
   }
@@ -305,10 +311,10 @@ double SignalMemory::score() const {
   double scr = 0.0;
   double weight = 0.0;
 
-  double decay = sig_config.memory_score_decay;
+  double lambda = sig_config.score_memory_lambda;
   for (auto& sig : past) {
-    scr = scr * decay + sig.score;
-    weight = weight * decay + decay;
+    scr = scr * lambda + sig.score;
+    weight = weight * lambda + lambda;
   }
 
   return weight > 0.0 ? scr / weight : 0.0;

@@ -1,4 +1,5 @@
 #include "backtest.h"
+#include "config.h"
 #include "indicators.h"
 
 #include <cmath>
@@ -40,18 +41,22 @@ SignalStats::SignalStats(size_t count,
   avg_drawdown = count ? sum_dd / count : 0.0;
   win_rate = count ? double(wins) / count : 0.0;
 
-  constexpr double EPS = 1e-6;
-  constexpr double kappa = 0.2;
+  auto eps = config.ind_config.eps;
+  auto kappa = config.ind_config.stats_importance_kappa;
 
   double raw = 0.0;
   if (entry) {
-    double dd = std::max(avg_drawdown, EPS);
+    double dd = std::max(avg_drawdown, eps);
     raw = win_rate * (avg_return / dd) * std::sqrt(double(trigger_count));
   } else {
-    double ret = std::max(avg_return, EPS);
+    double ret = std::max(avg_return, eps);
     raw = (1 - win_rate) * (avg_drawdown / ret) *
           std::sqrt(double(trigger_count));
   }
+
+  /** Smaller kappa means more restrictive importance,
+   *  where larger kappa gives a looser, more uniform importance
+   */
   importance = 1.0 - std::exp(-kappa * raw);
 
   avg_ret_n_candles = n_candles;
@@ -61,7 +66,6 @@ inline constexpr bool ignore_backtest(Source src) {
   return src == Source::Stop || src == Source::Trend || src == Source::SR;
 }
 
-// unified handle for signal_f or hint_f
 template <typename T, typename Func>
 std::pair<T, SignalStats> Backtest::get_stats(Func fn) const {
   size_t count = 0;

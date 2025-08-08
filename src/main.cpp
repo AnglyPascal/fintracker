@@ -10,8 +10,6 @@
 
 namespace fs = std::filesystem;
 
-Config config;
-
 void init_logging() {
   auto pwd = fs::current_path().generic_string();
   auto log_name = std::format("{}/logs/{:%F_%R}.log", pwd, SysClock::now());
@@ -45,7 +43,7 @@ void ensure_directories_exist(const std::vector<std::string>& dirs) {
 int main(int argc, char* argv[]) {
   ensure_directories_exist({"page", "page/src", "page/backup", "logs", "data"});
 
-  config = Config{argc, argv};
+  config.read_args(argc, argv);
   init_logging();
 
   Portfolio portfolio{};
@@ -53,4 +51,3 @@ int main(int argc, char* argv[]) {
   portfolio.run();
   return 0;
 }
-

@@ -4,6 +4,7 @@
 
 #include <deque>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
@@ -148,9 +149,8 @@ struct Filter {
       : trend{t}, confidence{c}, str{desc} {}
 };
 
-struct Filters {
-  std::vector<Filter> trends_4h, trends_1d;
-};
+using Filters = std::unordered_map<decltype(std::declval<minutes>().count()),
+                                   std::vector<Filter>>;
 
 struct Confirmation {
   std::string str;

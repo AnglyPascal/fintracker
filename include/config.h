@@ -5,6 +5,8 @@
 #include <string>
 
 struct IndicatorsConfig {
+  double eps = 1e-6;
+
   size_t n_top_trends = 3;
 
   size_t price_trend_min_candles = 10;
@@ -15,6 +17,8 @@ struct IndicatorsConfig {
 
   size_t ema21_trend_min_candles = 15;
   size_t ema21_trend_max_candles = 75;
+
+  double stats_importance_kappa = 0.25;
 
   IndicatorsConfig() noexcept = default;
   IndicatorsConfig(const std::string& path);
@@ -120,9 +124,11 @@ struct SignalConfig {
   double mixed_min = 1.2;
   double watchlist_threshold = 3.5;
 
-  double score_entry_weight = 1.2;
+  double score_entry_weight = 0.6;
   double score_curr_alpha = 0.7;
   double score_hint_weight = 0.7;
+  double score_squash_factor = 0.3;
+  double score_memory_lambda = 0.5;
 
   double stop_reason_importance = 0.8;
   double stop_hint_importance = 0.8;
@@ -136,7 +142,6 @@ struct SignalConfig {
   double score_mod_4h_1d_align = 1.1;
   double score_mod_4h_1d_conflict = 0.7;
 
-  double memory_score_decay = 0.5;
   double sr_strong_confidence = 0.6;
 
   int stop_max_holding_days = 20;
@@ -174,8 +179,8 @@ struct Config {
   SupportResistanceConfig sr_config;
   SignalConfig sig_config;
 
-  Config() noexcept = default;
-  Config(int argc, char* argv[]);
+  Config();
+  void read_args(int argc, char* argv[]);
 };
 
-extern Config config;
+inline Config config;
