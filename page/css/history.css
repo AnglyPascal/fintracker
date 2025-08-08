@@ -1,0 +1,218 @@
+:root {
+  --font-size: 16px;
+  --padding-cell: 0.25em 0.4em;
+  --padding-mobile: 0.2em 0.3em;
+  --row-gap: 0.4em;
+
+  --color-bg: #17171c;
+  --color-alt-bg: #23232a;
+  --color-fg: #eceff4;
+  --color-border: #4c566a;
+  --color-header: #3b4252;
+  --color-hover: #434c5e;
+
+  --color-buy: #cadabd;
+  --color-sell: #d5979d;
+
+  --color-signal-entry-bg: #a3be8c;
+  --color-signal-exit-bg: #bf616a;
+  --color-signal-watchlist-bg: #88c0d0;
+  --color-signal-caution-bg: #ebcb8b;
+  --color-signal-mixed-bg: #d8dee9;
+  --color-signal-none-bg: #4c566a;
+
+  --color-black: #2e3440;
+  --color-green: #a3be8c;
+  --color-red: #bf616a;
+  --color-yellow: #ebcb8b;
+
+  --color-link: #8fbcbb;
+}
+
+body {
+  font-family: "Share Tech Mono", monospace;
+  font-size: var(--font-size);
+  margin: 0.5em;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border: 1px solid var(--color-border);
+  padding: var(--padding-cell);
+  text-align: left;
+  overflow: hidden;
+  word-break: break-word;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.history-th {
+  padding: 8px !important;
+  width: 28%;
+}
+
+.history-th-time {
+  padding: 8px !important;
+  width: 16%;
+}
+
+div.signal-type {
+  display: flex; 
+  justify-content: space-between;
+  padding: 5px;
+  vertical-align: top;
+}
+
+td.signal-td {
+  padding: 5px;
+  vertical-align: top;
+}
+
+td.history-tr-time {
+  text-align: center;
+  vertical-align: middle;
+}
+
+
+.signal-entry { background-color: var(--color-signal-entry-bg); }
+.signal-exit { background-color: var(--color-signal-exit-bg); }
+.signal-watchlist{ background-color: var(--color-signal-watchlist-bg); }
+.signal-caution,
+.signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
+.signal-none { background-color: var(--color-signal-none-bg); }
+.signal-mixed { background-color: var(--color-signal-mixed-bg); }
+
+.signal-entry,
+.signal-exit,
+.signal-watchlist,
+.signal-caution,
+.signal-holdcautiously,
+.signal-mixed {
+  color: #000 !important;
+}
+
+.ticker-list > ul {
+  column-count: 3;       /* Number of columns */
+  column-gap: 20px;      /* Space between columns */
+  list-style-position: inside; /* Keeps bullets aligned nicely */
+}
+
+.symbol-entry {
+  position: absolute; /* So the absolute-positioned content is scoped here */
+  display: inline-block;
+}
+
+.symbol-details {
+  display: none;
+  position: absolute;
+
+  top: 100%;
+  left: 0;
+
+  border: 1px solid #ccc;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+
+  padding: 10px;
+  min-width: 400px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+
+  z-index: 10;
+}
+
+.symbol-entry:hover .symbol-details {
+  display: block; /* Show on hover */
+}
+
+.symbol-forecast {
+  padding: 10px;
+}
+
+.signal {
+  display: flex !important;
+  justify-content: space-between;
+  padding: 6px;
+  margin-bottom: 6px;
+}
+
+.signal-time {
+  display: none !important;
+}
+
+.subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  margin-bottom: 1em;
+}
+
+.signal-list ul {
+  padding-left: 1.5em;
+}
+
+.signal-list ul ul {
+  padding-left: 2.5em; 
+}
+
+.signal-list > ul > li {
+  margin-bottom: 0.5em; 
+}
+
+button {
+  padding: 4px 8px;
+  margin-right: 10px;
+  border: 2px solid var(--color-border);
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+button.active {
+  background-color: var(--color-fg);
+  color: var(--color-bg);
+}
+
+button:hover {
+  opacity: 0.6;
+}
+
+.button-container {
+  margin-bottom: 20px;
+  z-index: 2; 
+}
+
+#title_text {
+  font-size: 27px; 
+  font-weight: bold;
+  margin-right: 1em;
+  margin-left: 1em;
+}
+
+#title {
+  display: flex !important;
+  vertical-align: middle;
+  margin-top: 1em;
+}
+
+#body {
+  display: grid !important;
+}
+
+#initial {
+  margin-top: 2em;
+  margin-left: 2em;
+}
+
+#content-1h,
+#content-4h,
+#content-1d
+{
+  margin: 2em;
+}

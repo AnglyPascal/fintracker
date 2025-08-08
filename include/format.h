@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include <string>
 
 // Reset code
@@ -62,6 +63,9 @@ std::string to_str(const T& t);
 template <FormatTarget target, typename T, typename S>
 std::string to_str(const T& t, const S& s);
 
+template <FormatTarget target, typename T, typename S, typename R>
+std::string to_str(const T& t, const S& s, const R& r);
+
 template <typename T>
 std::string to_str(const T& t);
 
@@ -82,4 +86,13 @@ inline std::string join(It start, It end, std::string sep = ",") {
   return result;
 }
 
+template <typename Arg>
+inline std::string colored(std::string_view color, Arg&& arg) {
+  return std::format("<span style='color: var(--color-{});'>{}</span>",  //
+                     color, std::forward<Arg>(arg));
+}
 
+inline std::string colored(std::string_view color, double arg) {
+  return std::format("<span style='color: var(--color-{});'>{:.2f}</span>",  //
+                     color, arg);
+}

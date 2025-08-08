@@ -12,16 +12,13 @@ const NORD = {
     green: "#A3BE8C",
     teal: "#8fbcbb",
     blue: "#5E81AC",
+    dark_blue: "#2c4057",
     orange: "#D08770",
+    dark_yellow: "#84724e",
     yellow: "#ebcb8b",
     purple: "#B48EAD",
     cyan: "#88C0D0"
 };
-
-const nord_colorway = [
-    "#88C0D0", "#A3BE8C", "#BF616A",
-    "#D08770", "#B48EAD", "#5E81AC"
-];
 
 // Global variables
 let currentTimeframe = '1h';
@@ -401,8 +398,8 @@ async function plotChart(symbol) {
                 x1: dt[dt.length - 1],
                 y0: row.lower,
                 y1: row.upper,
-                fillcolor: row.support === 0 ? NORD.green : NORD.red,
-                opacity: row.confidence * .7,
+                fillcolor: row.support === 0 ? NORD.dark_blue : NORD.dark_yellow,
+                opacity: row.confidence * .5,
                 line: {
                     width: 0,
                 },

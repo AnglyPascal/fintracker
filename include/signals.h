@@ -188,11 +188,13 @@ struct Signal {
 
 struct SignalMemory {
   std::deque<Signal> past;
-  static constexpr size_t MEMORY_LENGTH = 8;
+  int memory_length = 0;
+
+  SignalMemory(minutes interval) noexcept;
 
   void add(const Signal& sig) {
     past.push_back(sig);
-    if (past.size() > MEMORY_LENGTH)
+    if (past.size() > (size_t)memory_length)
       past.pop_front();
   }
 
@@ -209,6 +211,8 @@ struct Stats;
 struct Forecast {
   double expected_return = 0.0;
   double expected_drawdown = 0.0;
+  int n_min_candles = 0;
+  int n_max_candles = 0;
   double confidence = 0.0;
 
   Forecast() = default;

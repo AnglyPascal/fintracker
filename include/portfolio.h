@@ -161,5 +161,14 @@ class Portfolio {
   friend std::string to_str(const T& t, const S& s);
 
   void write_plot_data(const std::string& symbol) const;
-  void write_page() const;
+
+  void write_history() const;
+  void write_tickers() const;
+  void write_index() const;
+
+  void write_page() const {
+    write_index();
+    write_tickers();
+    write_history();
+  }
 };

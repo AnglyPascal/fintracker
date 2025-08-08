@@ -145,3 +145,4 @@ Trends::Trends(const Indicators& ind, int last_idx) noexcept
     : price{price_trends(ind, last_idx)},
       ema21{ema21_trends(ind, last_idx)},
       rsi{rsi_trends(ind, last_idx)} {}
+

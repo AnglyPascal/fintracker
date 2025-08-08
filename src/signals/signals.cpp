@@ -41,19 +41,20 @@ inline Rating gen_rating(double entry_w,
     return Rating::Mixed;
 
   // 4. Moderate Exit or urgent exit hint
-  bool exit_hints_block_watchlist =
+  bool has_urgent_exit_hint =
       std::any_of(hints.begin(), hints.end(), [](auto& h) {
         return h.cls() == SignalClass::Exit && h.severity() == Severity::Urgent;
       });
 
-  if ((exit_w >= sig_config.exit_min && exit_w < sig_config.exit_threshold) ||
-      (exit_hints_block_watchlist && exit_w >= sig_config.exit_min)) {
+  if (has_urgent_exit_hint)
     return Rating::Caution;
-  }
 
   // 5. Entry bias
-  if (entry_w >= sig_config.entry_min && entry_w < sig_config.entry_threshold)
+  if (entry_w >= sig_config.entry_min)
     return Rating::Watchlist;
+
+  if (exit_w >= sig_config.exit_min)
+    return Rating::Caution;
 
   // 6. Fallbacks
   bool strong_entry_hint =
@@ -164,15 +165,6 @@ Signal Indicators::gen_signal(int idx) const {
   return s;
 }
 
-Signal Metrics::get_signal(minutes interval, int idx) const {
-  if (interval == H_1)
-    return idx == -1 ? ind_1h.signal : ind_1h.gen_signal(idx);
-  else if (interval == H_4)
-    return idx == -1 ? ind_4h.signal : ind_4h.gen_signal(idx);
-  else if (interval == D_1)
-    return idx == -1 ? ind_1d.signal : ind_1d.gen_signal(idx);
-  return {};
-}
 
 inline bool disqualify(auto& filters) {
   int strongBearish1D = 0;
@@ -202,12 +194,12 @@ inline bool disqualify(auto& filters) {
   return false;
 }
 
-Rating contextual_rating(auto& sig_1h,
-                         auto& sig_4h,
-                         auto& sig_1d,
-                         auto& filters,
-                         bool has_position,
-                         auto& stop_hit) {
+inline Rating contextual_rating(auto& sig_1h,
+                                auto& sig_4h,
+                                auto& sig_1d,
+                                auto& filters,
+                                bool has_position,
+                                auto& stop_hit) {
   Rating base_rating = sig_1h.type;
 
   if (disqualify(filters))
@@ -307,6 +299,15 @@ CombinedSignal Ticker::gen_signal(int idx) const {
   return sig;
 }
 
+SignalMemory::SignalMemory(minutes interval) noexcept {
+  if (interval == H_1)
+    memory_length = 16;
+  else if (interval == H_4)
+    memory_length = 10;
+  else
+    memory_length = 6;
+}
+
 double SignalMemory::score() const {
   double scr = 0.0;
   double weight = 0.0;
@@ -320,57 +321,78 @@ double SignalMemory::score() const {
   return weight > 0.0 ? scr / weight : 0.0;
 }
 
+inline double simple_confidence(const Signal& sig, const Stats& stats) {
+  double total_importance = 0.0;
+  double min_trigger_count = std::numeric_limits<double>::max();
+  double avg_win_rate = 0.0;
+  size_t signal_count = 0;
+
+  auto process_signals = [&](auto& vec, auto& map) {
+    for (auto& r : vec) {
+      auto it = map.find(r.type);
+      if (it == map.end())
+        continue;
+
+      auto& stats = it->second;
+      total_importance += stats.importance;
+      min_trigger_count =
+          std::min(min_trigger_count, double(stats.trigger_count));
+      avg_win_rate += stats.win_rate;
+      signal_count++;
+    }
+  };
+
+  process_signals(sig.reasons, stats.reason);
+  process_signals(sig.hints, stats.hint);
+
+  if (signal_count == 0)
+    return 0.0;
+
+  avg_win_rate /= signal_count;
+
+  double importance_factor = std::min(1.0, total_importance * 2.0);
+  double sample_factor = std::min(1.0, std::sqrt(min_trigger_count) / 20.0);
+
+  return importance_factor * sample_factor * avg_win_rate;
+}
+
 Forecast::Forecast(const Signal& sig, const Stats& stats) {
   double ret_sum = 0.0, dd_sum = 0.0;
-  double ret_weight = 0.0, dd_weight = 0.0;
+  double weighted_min_candles = 0.0, weighted_max_candles = 0.0;
+  double total_imp = 0.0;
 
   auto process = [&](auto& obj, auto& stats_map) {
     auto it = stats_map.find(obj.type);
     if (it == stats_map.end())
       return;
 
-    const SignalStats& stats = it->second;
-    const bool is_entry = obj.cls() == SignalClass::Entry;
-    const double imp = stats.importance;
+    auto& stats = it->second;
+    auto imp = stats.importance;
 
-    // Forecast return
-    if (is_entry) {
-      // Use importance as-is
-      ret_sum += stats.avg_return * imp;
-      ret_weight += imp;
-    } else {
-      // High importance = bad exit -> suppress expected return
-      // So weight by 1/importance or similar
-      if (imp > 0) {
-        double w = 1.0 / imp;
-        ret_sum += stats.avg_return * w;
-        ret_weight += w;
-      }
-    }
+    ret_sum += stats.avg_return * imp;
+    total_imp += imp;
+    dd_sum += stats.avg_drawdown * imp;
+    total_imp += imp;
 
-    // Forecast drawdown
-    if (is_entry) {
-      // Low drawdown is good -> low importance -> suppress contribution
-      // So only mildly weight these
-      dd_sum += stats.avg_drawdown * (imp * 0.5);  // or just skip them entirely
-      dd_weight += imp * 0.5;
-    } else {
-      // High drawdown = high importance -> weight directly
-      dd_sum += stats.avg_drawdown * imp;
-      dd_weight += imp;
-    }
+    weighted_min_candles = 0.7 * stats.avg_ret_n_candles * imp;
+    weighted_max_candles = 1.5 * stats.avg_ret_n_candles * imp;
   };
 
-  for (const auto& r : sig.reasons)
+  for (auto& r : sig.reasons)
     process(r, stats.reason);
-  for (const auto& h : sig.hints)
+  for (auto& h : sig.hints)
     process(h, stats.hint);
 
-  if (ret_weight > 0.0)
-    expected_return = ret_sum / ret_weight;
-  if (dd_weight > 0.0)
-    expected_drawdown = dd_sum / dd_weight;
+  if (total_imp == 0.0)
+    return;
 
-  confidence =
-      std::max(ret_weight, dd_weight);  // Or average both if you prefer
+  expected_return = ret_sum / total_imp;
+  expected_drawdown = dd_sum / total_imp;
+
+  n_min_candles =
+      static_cast<int>(std::round(weighted_min_candles / total_imp));
+  n_max_candles =
+      static_cast<int>(std::round(weighted_max_candles / total_imp));
+
+  confidence = simple_confidence(sig, stats);
 }

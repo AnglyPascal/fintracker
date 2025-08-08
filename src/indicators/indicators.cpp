@@ -197,16 +197,17 @@ Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
       trends{*this},
 
       support{*this},
-      resistance{*this}  //
+      resistance{*this},
+
+      memory{interval}  //
 {
   get_stats();
   signal = gen_signal(-1);
-  for (int i = -1 - (int)SignalMemory::MEMORY_LENGTH; i < -1; i++)
+  for (int i = -1 - memory.memory_length; i < -1; i++)
     memory.add(gen_signal(i));
 }
 
-void Indicators::add(const Candle& candle) noexcept {
-  bool new_candle = candles.back().time() != candle.time();
+void Indicators::add(const Candle& candle, bool new_candle) noexcept {
   if (new_candle)
     memory.add(signal);
 
@@ -250,4 +251,14 @@ void Indicators::get_stats() {
   Backtest bt{*this};
   stats.get_reason_stats(bt);
   stats.get_hint_stats(bt);
+}
+
+Signal Indicators::get_signal(int idx) const {
+  if (idx == -1)
+    return signal;
+
+  if (idx < -1 && idx + 1 + memory.memory_length)
+    return memory.past[idx + 1 + memory.memory_length];
+
+  return gen_signal(idx);
 }

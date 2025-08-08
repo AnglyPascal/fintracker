@@ -114,7 +114,7 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
     // Exit
     {
         HintType::Ema9DivergeEma21,                                 //
-        {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↘21"}  //
+        {Severity::Low, Source::EMA, SignalClass::Exit, "ema9⤢21"}  //
     },
     {
         HintType::RsiDropFromOverbought,                            //

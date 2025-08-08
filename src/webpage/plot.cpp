@@ -4,7 +4,6 @@
 #include <spdlog/spdlog.h>
 #include <fstream>
 
-
 inline constexpr std::string csv_fname(const std::string& symbol,
                                        const std::string& time,
                                        const std::string& fn) {

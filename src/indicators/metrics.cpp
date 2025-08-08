@@ -22,15 +22,13 @@ inline Candle combine(auto start, auto end) {
   return out;
 }
 
-std::vector<Candle> downsample(std::vector<Candle>& candles,
-                               minutes source,
-                               minutes target) {
+inline auto downsample(auto& candles, minutes source, minutes target) {
+  std::vector<Candle> out;
+
   if (candles.empty())
-    return {};
+    return out;
 
   assert(target.count() % source.count() == 0);
-
-  std::vector<Candle> out;
 
   if (source == target) {
     out.insert(out.end(), candles.cbegin(), candles.cend());
@@ -79,7 +77,8 @@ Metrics::Metrics(std::vector<Candle>&& candles,
       interval{interval},
       ind_1h{downsample(this->candles, interval, H_1), H_1},  //
       ind_4h{downsample(this->candles, interval, H_4), H_4},  //
-      ind_1d{downsample(this->candles, interval, D_1), D_1} {
+      ind_1d{downsample(this->candles, interval, D_1), D_1}   //
+{
   update_position(position);
 }
 
@@ -99,9 +98,7 @@ void Metrics::update_position(const Position* pos) {
   }
 }
 
-Candle latest_candle(std::vector<Candle>& candles,
-                     minutes source,
-                     minutes target) {
+inline Candle latest_candle(auto& candles, minutes source, minutes target) {
   if (candles.empty())
     return {};
 
@@ -125,17 +122,16 @@ bool Metrics::add(const Candle& candle, const Position* pos) noexcept {
   candles.push_back(candle);
 
   auto add_to_ind = [&](auto& ind) {
-    auto prev_time = ind.candles.back().time();
+    auto prev_time = ind.time(-1);
     auto curr_time = candle.time();
 
     auto target = ind.interval;
-    bool new_candle = start_of_interval(prev_time, target) !=
-                      start_of_interval(curr_time, target);
+    bool new_candle = prev_time != start_of_interval(curr_time, target);
 
     if (!new_candle)
       ind.pop_back();
 
-    ind.add(latest_candle(candles, interval, ind.interval));
+    ind.add(latest_candle(candles, interval, ind.interval), new_candle);
     return new_candle;
   };
 
@@ -163,7 +159,7 @@ Candle Metrics::rollback() noexcept {
       return;
     }
 
-    ind.add(latest_candle(candles, interval, ind.interval));
+    ind.add(latest_candle(candles, interval, ind.interval), false);
   };
 
   pop_from_ind(ind_1h);

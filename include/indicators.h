@@ -13,14 +13,6 @@
 #include <string>
 #include <vector>
 
-std::vector<Candle> downsample(std::vector<Candle>& candles,
-                               minutes source,
-                               minutes target);
-
-Candle latest_candle(std::vector<Candle>& candles,
-                     minutes source,
-                     minutes target);
-
 struct EMA {
   std::vector<double> values;
 
@@ -140,7 +132,7 @@ struct Indicators {
  public:
   Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
 
-  void add(const Candle& candle) noexcept;
+  void add(const Candle& candle, bool new_candle) noexcept;
   void pop_back() noexcept;
   void pop_memory() noexcept;
 
@@ -199,6 +191,8 @@ struct Indicators {
 
   auto& support_zones() const { return support.zones; }
   auto& resistance_zones() const { return resistance.zones; }
+
+  Signal get_signal(int idx) const;
 };
 
 struct Metrics {
@@ -220,7 +214,15 @@ struct Metrics {
   auto last_updated() const {
     return datetime_to_local(candles.back().datetime);
   }
-  Signal get_signal(minutes interval, int idx) const;
+
+  const Indicators& get_indicators(minutes interval) const {
+    return interval == H_1 ? ind_1h : (interval == H_4 ? ind_4h : ind_1d);
+  }
+
+  Signal get_signal(minutes interval, int idx) const {
+    return get_indicators(interval).get_signal(idx);
+  }
+
   bool has_position() const;
   void update_position(const Position* pos);
 
