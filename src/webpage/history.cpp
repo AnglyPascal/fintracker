@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <thread>
+#include <set>
 
 constexpr std::string_view history_template = R"(
 <!DOCTYPE html>
@@ -18,9 +19,9 @@ constexpr std::string_view history_template = R"(
     <div id="title">
       <div id="title_text">History</div>
       <div class="button-container">
-        <button id="btn1h" class="active">1H</button>
-        <button id="btn4h">4H</button>
-        <button id="btn1d">1D</button>
+        <button class="time" id="btn1h" class="active">1H</button>
+        <button class="time" id="btn4h">4H</button>
+        <button class="time" id="btn1d">1D</button>
       </div>
     </div>
 
@@ -61,36 +62,32 @@ constexpr std::string_view history_tr_template = R"(
 constexpr std::string_view history_td_template = R"(
 <div class="history-td-div">
   <div class="ticker-list">
-    <ul>
       {}
-    </ul>
   </div>
 </div>
 )";
 
 constexpr std::string_view history_ticker_template = R"(
-  <li>
     <div class="symbol-entry">
-      <div class="symbol">
-        {}
-      </div>
+      <button class="symbol sym_{0}">
+        {0}
+      </button>
       <div class="symbol-details">
-        {}
-        <div class="symbol-forecast"> {} </div>
+        {1}
+        <div class="symbol-forecast"> {2} </div>
       </div>
     </div>
-  </li>
 )";
 
-template <>
-inline std::string to_str<FormatTarget::HTML>(const Tickers& tickers,
-                                              const minutes& interval,
-                                              const int& idx) {
+inline std::pair<std::string, std::set<std::string>>
+table_row(const Tickers& tickers, const minutes& interval, const int& idx) {
   if (tickers.empty())
-    return "";
+    return {};
 
   auto& m = tickers.rbegin()->second.metrics;
   auto time = m.get_indicators(interval).time(idx);
+
+  std::set<std::string> symbols;
 
   std::string entry, watchlist, caution;
   for (auto& [symbol, ticker] : tickers) {
@@ -100,6 +97,8 @@ inline std::string to_str<FormatTarget::HTML>(const Tickers& tickers,
     auto str = std::format(history_ticker_template, symbol,
                            to_str<FormatTarget::HTML>(sig, ind),
                            to_str<FormatTarget::HTML>(ind.gen_forecast(idx)));
+
+    symbols.insert(symbol);
 
     switch (sig.type) {
       case Rating::Entry:
@@ -114,6 +113,7 @@ inline std::string to_str<FormatTarget::HTML>(const Tickers& tickers,
         caution += str;
         break;
       default:
+        symbols.erase(symbol);
         break;
     }
   }
@@ -123,10 +123,9 @@ inline std::string to_str<FormatTarget::HTML>(const Tickers& tickers,
   make_td(watchlist);
   make_td(caution);
 
-  // std::cout << entry << " " << watchlist << " " << caution << std::end;
-
-  return std::format(history_tr_template, time,  //
-                     entry, watchlist, caution);
+  return {std::format(history_tr_template, time,  //
+                      entry, watchlist, caution),
+          symbols};
 }
 
 template <>
@@ -138,12 +137,21 @@ inline std::string to_str<FormatTarget::HTML>(const Tickers& tickers,
   auto& m = tickers.rbegin()->second.metrics;
   auto memory_length = m.get_indicators(interval).memory.memory_length;
 
+  std::set<std::string> symbols;
+
   std::string tbl_body = "";
   for (int i = -1; i >= -1 - memory_length; i--) {
-    tbl_body += to_str<FormatTarget::HTML>(tickers, interval, i);
+    auto [row, syms] = table_row(tickers, interval, i);
+    tbl_body += row;
+    symbols.insert(syms.begin(), syms.end());
   }
 
-  return std::format(history_tbl_template,
+  // std::string buttons = "";
+  // for (auto& symbol : symbols)
+  //   buttons += std::format(history_ticker_button, symbol);
+  // buttons = std::format(history_ticker_button_group, buttons);
+
+  return std::format(history_tbl_template, 
                      to_str<FormatTarget::HTML>(Rating::Entry),
                      to_str<FormatTarget::HTML>(Rating::Watchlist),
                      to_str<FormatTarget::HTML>(Rating::Caution), tbl_body);

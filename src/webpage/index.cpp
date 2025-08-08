@@ -22,6 +22,9 @@ inline constexpr std::string_view index_subtitle_template = R"(
         <a href="trades.html" target="_blank"><b>Trades</b></a>
       </div>
       <div class="update-block">
+        <a href="history.html" target="_blank"><b>History</b></a>
+      </div>
+      <div class="update-block">
         <b>Earnings:</b> 
           <a href="https://finance.yahoo.com/calendar/earnings/" target="_blank">Yahoo</a>
           <a href="calendar.html">Calendar</a>

@@ -63,9 +63,6 @@ std::string to_str(const T& t);
 template <FormatTarget target, typename T, typename S>
 std::string to_str(const T& t, const S& s);
 
-template <FormatTarget target, typename T, typename S, typename R>
-std::string to_str(const T& t, const S& s, const R& r);
-
 template <typename T>
 std::string to_str(const T& t);
 

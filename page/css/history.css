@@ -96,20 +96,35 @@ td.history-tr-time {
   color: #000 !important;
 }
 
-.ticker-list > ul {
-  column-count: 3;       /* Number of columns */
-  column-gap: 20px;      /* Space between columns */
-  list-style-position: inside; /* Keeps bullets aligned nicely */
+
+.symbol {
+  padding: 4px;
+  margin: 8px;
+  cursor: pointer;
+}
+
+.highlighted {
+  margin: 6px;
+
+  border: 2px solid var(--color-border);
+  border-radius: 4px;
+
+  cursor: pointer;
+}
+
+.ticker-list {
+  display: flex;
+  flex-wrap: wrap;
 }
 
 .symbol-entry {
-  position: absolute; /* So the absolute-positioned content is scoped here */
+  position: relative; /* So the absolute-positioned content is scoped here */
   display: inline-block;
 }
 
 .symbol-details {
   display: none;
-  position: absolute;
+  position: fixed;
 
   top: 100%;
   left: 0;
@@ -163,20 +178,49 @@ td.history-tr-time {
   margin-bottom: 0.5em; 
 }
 
-button {
+button.symbol {
   padding: 4px 8px;
   margin-right: 10px;
-  border: 2px solid var(--color-border);
-  background-color: var(--color-bg);
-  color: var(--color-fg);
+  border: none;
+  background-color: inherit !important;
+  color: inherit !important;
   cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
+  font-family: inherit !important; 
 }
 
-button.active {
-  background-color: var(--color-fg);
-  color: var(--color-bg);
+.history-entry button.symbol.active {
+  background-color: var(--color-signal-entry-bg) !important;
+}
+.history-watchlist button.symbol.active {
+  background-color: var(--color-signal-watchlist-bg) !important;
+}
+.history-caution button.symbol.active {
+  background-color: var(--color-signal-caution-bg) !important;
+}
+
+button.symbol.active {
+  color: var(--color-bg) !important;
+  font-weight: bold;
+}
+
+button.time {
+  padding: 4px 8px;
+  margin-right: 10px;
+  border: 2px solid var(--color-border);
+  background-color: inherit !important;
+  color: inherit !important;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit !important; 
+}
+
+button.time.active {
+  background-color: var(--color-fg) !important;
+  color: var(--color-bg) !important;
+  font-weight: bold;
 }
 
 button:hover {
