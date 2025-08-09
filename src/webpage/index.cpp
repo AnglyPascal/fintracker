@@ -10,13 +10,10 @@ inline constexpr std::string_view index_reload =
     R"(<meta http-equiv="refresh" content="1">)";
 
 inline constexpr std::string_view index_subtitle_template = R"(
-    <div class="subtitle">
+    <div id="title">Portfolio Overview</div>
+    <div id="subtitle">
       <div class="update-block">
         <b>Updated</b>: {}
-      </div>
-      <div class="update-block">
-        <b>Analyst Updates:</b> 
-          <a href="https://www.marketbeat.com/ratings/us/" target="_blank">MarketBeat</a>
       </div>
       <div class="update-block">
         <a href="trades.html" target="_blank"><b>Trades</b></a>
@@ -28,6 +25,10 @@ inline constexpr std::string_view index_subtitle_template = R"(
         <b>Earnings:</b> 
           <a href="https://finance.yahoo.com/calendar/earnings/" target="_blank">Yahoo</a>
           <a href="calendar.html">Calendar</a>
+      </div>
+      <div class="update-block">
+        <b>Analyst Updates:</b> 
+          <a href="https://www.marketbeat.com/ratings/us/" target="_blank">MarketBeat</a>
       </div>
     </div>
 )";

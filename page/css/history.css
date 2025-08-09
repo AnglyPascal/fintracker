@@ -48,7 +48,15 @@ th, td {
   text-align: left;
   overflow: hidden;
   word-break: break-word;
-  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.history-header {
+  border-bottom: 3px solid var(--color-border) !important;
+}
+
+.history-th-time,
+.history-tr-time {
+  border-right: 3px solid var(--color-border) !important;
 }
 
 .history-th {
@@ -96,8 +104,9 @@ td.history-tr-time {
   color: #000 !important;
 }
 
-
 .symbol {
+  width: 4em;
+  text-align: left;
   padding: 4px;
   margin: 8px;
   cursor: pointer;

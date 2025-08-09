@@ -243,10 +243,6 @@ void Indicators::pop_memory() noexcept {
   memory.remove();
 }
 
-Forecast Indicators::gen_forecast(int) const {
-  return Forecast(signal, stats);
-}
-
 void Indicators::get_stats() {
   Backtest bt{*this};
   stats.get_reason_stats(bt);

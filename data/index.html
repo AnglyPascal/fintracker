@@ -3,34 +3,35 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Portfolio</title>
     <link rel="stylesheet" href="css/index.css">
     PLACEHOLDER
   </head>
 
   <body>
-    <h2>Portfolio Overview</h2>
-    PLACEHOLDER
-
-    <div id="signal-filters" style="margin-bottom: 0.5em;">
-      <button class="filter-btn active" 
-              data-type="entry" onclick="toggleSignal(this) ">Entry</button>
-      <button class="filter-btn active" 
-              data-type="exit" onclick="toggleSignal(this) ">Exit</button>
-      <button class="filter-btn active" 
-              data-type="watchlist" onclick="toggleSignal(this) ">Watchlist</button>
-      <button class="filter-btn" 
-              data-type="caution" onclick="toggleSignal(this) ">Caution</button>
-      <button class="filter-btn active" 
-              data-type="holdcautiously" 
-              onclick="toggleSignal(this) ">Hold Cautiously</button>
-      <button class="filter-btn" 
-              data-type="mixed" onclick="toggleSignal(this) ">Mixed</button>
-      <button class="filter-btn" 
-              data-type="none" onclick="toggleSignal(this) ">None</button>
-      <button class="filter-btn" 
-              data-type="skip" onclick="toggleSignal(this) ">Skip</button>
-      <button onclick="showAllSignals() ">Show All</button>
-      <button class="stats-details-button" onclick="toggleStats() ">Show Details</button>
+    <div id="header">
+      PLACEHOLDER
+      <div id="signal-filters">
+        <button class="filter-btn active" 
+          data-type="entry" onclick="toggleSignal(this) ">Entry</button>
+        <button class="filter-btn active" 
+          data-type="exit" onclick="toggleSignal(this) ">Exit</button>
+        <button class="filter-btn active" 
+          data-type="watchlist" onclick="toggleSignal(this) ">Watchlist</button>
+        <button class="filter-btn" 
+          data-type="caution" onclick="toggleSignal(this) ">Caution</button>
+        <button class="filter-btn active" 
+          data-type="holdcautiously" 
+          onclick="toggleSignal(this) ">Hold Cautiously</button>
+        <button class="filter-btn" 
+          data-type="mixed" onclick="toggleSignal(this) ">Mixed</button>
+        <button class="filter-btn" 
+          data-type="none" onclick="toggleSignal(this) ">None</button>
+        <button class="filter-btn" 
+          data-type="skip" onclick="toggleSignal(this) ">Skip</button>
+        <button onclick="showAllSignals() ">Show All</button>
+        <button class="stats-details-button" onclick="toggleStats() ">Show Details</button>
+      </div>
     </div>
 
     <div class="table-wrapper">

@@ -165,7 +165,6 @@ Signal Indicators::gen_signal(int idx) const {
   return s;
 }
 
-
 inline bool disqualify(auto& filters) {
   int strongBearish1D = 0;
   int weakBearish1D = 0;
@@ -319,80 +318,4 @@ double SignalMemory::score() const {
   }
 
   return weight > 0.0 ? scr / weight : 0.0;
-}
-
-inline double simple_confidence(const Signal& sig, const Stats& stats) {
-  double total_importance = 0.0;
-  double min_trigger_count = std::numeric_limits<double>::max();
-  double avg_win_rate = 0.0;
-  size_t signal_count = 0;
-
-  auto process_signals = [&](auto& vec, auto& map) {
-    for (auto& r : vec) {
-      auto it = map.find(r.type);
-      if (it == map.end())
-        continue;
-
-      auto& stats = it->second;
-      total_importance += stats.importance;
-      min_trigger_count =
-          std::min(min_trigger_count, double(stats.trigger_count));
-      avg_win_rate += stats.win_rate;
-      signal_count++;
-    }
-  };
-
-  process_signals(sig.reasons, stats.reason);
-  process_signals(sig.hints, stats.hint);
-
-  if (signal_count == 0)
-    return 0.0;
-
-  avg_win_rate /= signal_count;
-
-  double importance_factor = std::min(1.0, total_importance * 2.0);
-  double sample_factor = std::min(1.0, std::sqrt(min_trigger_count) / 20.0);
-
-  return importance_factor * sample_factor * avg_win_rate;
-}
-
-Forecast::Forecast(const Signal& sig, const Stats& stats) {
-  double ret_sum = 0.0, dd_sum = 0.0;
-  double weighted_min_candles = 0.0, weighted_max_candles = 0.0;
-  double total_imp = 0.0;
-
-  auto process = [&](auto& obj, auto& stats_map) {
-    auto it = stats_map.find(obj.type);
-    if (it == stats_map.end())
-      return;
-
-    auto& stats = it->second;
-    auto imp = stats.importance;
-
-    ret_sum += stats.avg_return * imp;
-    total_imp += imp;
-    dd_sum += stats.avg_drawdown * imp;
-    total_imp += imp;
-
-    weighted_min_candles = 0.7 * stats.avg_ret_n_candles * imp;
-    weighted_max_candles = 1.5 * stats.avg_ret_n_candles * imp;
-  };
-
-  for (auto& r : sig.reasons)
-    process(r, stats.reason);
-  for (auto& h : sig.hints)
-    process(h, stats.hint);
-
-  if (total_imp == 0.0)
-    return;
-
-  expected_return = ret_sum / total_imp;
-  expected_drawdown = dd_sum / total_imp;
-
-  n_min_candles =
-      static_cast<int>(std::round(weighted_min_candles / total_imp));
-  n_max_candles =
-      static_cast<int>(std::round(weighted_max_candles / total_imp));
-
-  confidence = simple_confidence(sig, stats);
 }
