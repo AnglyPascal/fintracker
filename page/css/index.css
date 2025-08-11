@@ -32,6 +32,7 @@
   --color-signal-entry-bg: #a3be8c;
   --color-signal-exit-bg: #bf616a;
   --color-signal-watchlist-bg: #88c0d0;
+  --color-signal-oldwatchlist-bg: #2a333a;
   --color-signal-caution-bg: #ebcb8b;
   --color-signal-none-bg: #202027;
   --color-signal-mixed-bg: #d8dee9;
@@ -154,6 +155,7 @@ td .inner-div {
 .signal-entry { background-color: var(--color-signal-entry-bg); }
 .signal-exit { background-color: var(--color-signal-exit-bg); }
 .signal-watchlist { background-color: var(--color-signal-watchlist-bg); }
+.signal-oldwatchlist { background-color: var(--color-signal-oldwatchlist-bg); }
 .signal-caution,
 .signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
 .signal-none { background-color: var(--color-signal-none-bg); }
@@ -178,6 +180,7 @@ td .inner-div {
 .signal-entry a,
 .signal-exit a,
 .signal-watchlist a,
+.signal-oldwatchlist a,
 .signal-caution a,
 .signal-holdcautiously a,
 .signal-none a,

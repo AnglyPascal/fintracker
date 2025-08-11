@@ -5,6 +5,9 @@
 #include <string>
 
 struct IndicatorsConfig {
+  static constexpr const char* name = "ind_config";
+  static constexpr bool debug = true;
+
   double eps = 1e-6;
 
   size_t n_top_trends = 3;
@@ -19,12 +22,12 @@ struct IndicatorsConfig {
   size_t ema21_trend_max_candles = 75;
 
   double stats_importance_kappa = 0.25;
-
-  IndicatorsConfig() noexcept = default;
-  IndicatorsConfig(const std::string& path);
 };
 
 struct PositionSizingConfig {
+  static constexpr const char* name = "pos_config";
+  static constexpr bool debug = true;
+
   double capital = 4000.0;
   std::string capital_currency = "GBP";
   double max_risk_pct = 0.015;
@@ -54,19 +57,18 @@ struct PositionSizingConfig {
   mutable double capital_usd = -1.0;
 
   double max_risk_amount() const { return capital_usd * max_risk_pct; }
-
-  PositionSizingConfig() noexcept = default;
-  PositionSizingConfig(const std::string& path);
 };
 
 struct SupportResistanceConfig {
+  static constexpr const char* name = "sr_config";
+  static constexpr bool debug = true;
+
   int lookback_days = 30;
   int n_zones = 6;
   double min_zone_confidence = 3.0;
 
   double break_buffer = 0.01;
 
- private:
   int swing_window_1h = 3;
   double zone_width_1h = 0.004;
   int n_candles_in_zone_1h = 5;
@@ -78,10 +80,6 @@ struct SupportResistanceConfig {
   int swing_window_1d = 2;
   double zone_width_1d = 0.015;
   int n_candles_in_zone_1d = 2;
-
- public:
-  SupportResistanceConfig() noexcept = default;
-  SupportResistanceConfig(const std::string& path);
 
   auto swing_window(minutes interval) const {
     if (interval == H_1)
@@ -117,6 +115,9 @@ struct SupportResistanceConfig {
 };
 
 struct SignalConfig {
+  static constexpr const char* name = "sig_config";
+  static constexpr bool debug = true;
+
   double entry_min = 1.0;
   double exit_min = 1.0;
   double entry_threshold = 3.5;
@@ -143,23 +144,21 @@ struct SignalConfig {
   double score_mod_4h_1d_conflict = 0.7;
 
   double sr_strong_confidence = 0.6;
+  double mem_strength_threshold = 0.75;
 
   int stop_max_holding_days = 20;
   double stop_atr_proximity = 0.75;
-
-  SignalConfig() noexcept = default;
-  SignalConfig(const std::string& path);
 };
 
 struct APIConfig {
+  static constexpr const char* name = "api_config";
+  static constexpr bool debug = false;
+
   std::vector<std::string> td_api_keys = {};
 
   std::string tg_token;
   std::string tg_chat_id;
   std::string tg_user;
-
-  APIConfig() noexcept = default;
-  APIConfig(const std::string& path);
 };
 
 struct Config {
@@ -184,3 +183,4 @@ struct Config {
 };
 
 inline Config config;
+

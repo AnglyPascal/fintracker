@@ -25,6 +25,8 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
       return "signal-exit";
     case Rating::Watchlist:
       return "signal-watchlist";
+    case Rating::OldWatchlist:
+      return "signal-oldwatchlist";
     case Rating::Caution:
       return "signal-caution";
     case Rating::HoldCautiously:
@@ -41,7 +43,7 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
 inline constexpr std::string_view signal_div_template = R"(
   <div class="signal {}">
     <div class="signal-text">{}</div> 
-    <div class="signal-time">{:%d-%m %H:%M}</div>
+    <div class="signal-time">{:%a, %b %d, %H:%M}</div>
     <div class="signal-score">{:+}</div>
   </div>
 )";

@@ -160,7 +160,7 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
                         mem_str);
   }
 
-  auto datetime = std::format("{:%b %d, %H:%M}", p.last_updated);
+  auto datetime = std::format("{:%a, %b %d, %H:%M}", p.last_updated);
   auto subtitle = std::format(index_subtitle_template, datetime);
   auto reload = (config.replay_en && config.debug_en) ? index_reload : "";
 

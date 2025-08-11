@@ -55,6 +55,15 @@ set(SPDLOG_HEADER_ONLY OFF)
 
 FetchContent_MakeAvailable(spdlog)
 
+FetchContent_Declare(
+  glaze
+  GIT_REPOSITORY https://github.com/stephenberry/glaze.git
+  GIT_TAG main
+  GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(glaze)
+
 get_target_property(
   SPDLOG_INCLUDE_DIR 
   spdlog::spdlog INTERFACE_INCLUDE_DIRECTORIES)
@@ -74,10 +83,11 @@ target_include_directories(${TARGET} SYSTEM PRIVATE ${ZMQ_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${SPDLOG_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
 
-target_link_libraries(${TARGET}
+target_link_libraries(${TARGET} PRIVATE
   cpr::cpr
   argparse
   ${ZMQ_LIB}
+  glaze::glaze
 )
 
 set(EMBED_SCRIPT ${PROJECT_SOURCE_DIR}/scripts/embed_str.py)

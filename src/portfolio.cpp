@@ -73,7 +73,7 @@ Portfolio::Portfolio() noexcept
       try {
         auto candles = time_series(symbol, H_1);
         if (candles.empty()) {
-          spdlog::error("[init] no candles fetched for " + symbol);
+          spdlog::error("[init] ({}) no candles fetched", symbol.c_str());
 
           sem.release();
           done.count_down();
@@ -90,8 +90,9 @@ Portfolio::Portfolio() noexcept
         }
 
         write_plot_data(symbol);
+        spdlog::info("[init] ({})", symbol.c_str());
       } catch (const std::exception& ex) {
-        spdlog::error("[init] error {}: {}", symbol.c_str(), ex.what());
+        spdlog::error("[init] ({}) error: {}", symbol.c_str(), ex.what());
       }
 
       sem.release();
@@ -126,7 +127,7 @@ void Portfolio::add_candle() {
         Candle candle = real_time(symbol, H_1);
 
         if (candle.time() == LocalTimePoint{}) {
-          spdlog::error("[add] invalid candle {}: {}", symbol.c_str(),
+          spdlog::error("[add] ({}) invalid candle: {}", symbol.c_str(),
                         to_str(candle).c_str());
           sem.release();
           done.count_down();
@@ -135,7 +136,7 @@ void Portfolio::add_candle() {
         ticker.add(candle, positions.get_position(symbol));
         write_plot_data(symbol);
       } catch (const std::exception& ex) {
-        spdlog::warn("[add] failed for {}: {}", symbol.c_str(), ex.what());
+        spdlog::warn("[add] ({}) failed: {}", symbol.c_str(), ex.what());
       }
 
       sem.release();

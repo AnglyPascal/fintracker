@@ -19,18 +19,8 @@
 #define POSITIONS_FILE ""
 #endif
 
-enum class Commands {
-  BUY,
-  SELL,
-  STATUS,
-  PING,
-  TRADES,
-  POSITIONS,
-  PLOT,
-};
-
 template <Commands command>
-void handle_command(const Portfolio& portfolio, std::istream& is) {
+inline void Notifier::handle_command(std::istream& is) {
   auto& tg = portfolio.tg;
 
   std::string symbol;
@@ -52,21 +42,21 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
         str = to_str<FormatTarget::Telegram>(*ticker);
     }
 
-    if (symbol == "") {
-      tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
-      auto fname = config.replay_en ? "page/public/index_replay.html"
-                                    : "page/public/index.html";
-      tg.send_doc(fname, "portfolio.html", "");
-    } else {
-      tg.send(to_str<FormatTarget::Telegram>(ELIXIR, str));
-      auto fname = std::format("{}.html", symbol);
-      tg.send_doc("page/public/" + fname, fname, "");
-    }
+    std::string load =
+        symbol == "" ? std::format("{}\n\n{}",  //
+                                   tunnel_url,
+                                   to_str<FormatTarget::Telegram>(HASKELL, str))
+                     : std::format("{}/{}.html\n\n{}",  //
+                                   tunnel_url, symbol,
+                                   to_str<FormatTarget::Telegram>(ELIXIR, str));
+
+    tg.send(load);
   }
 
   if constexpr (command == Commands::TRADES) {
     auto& mut_portfolio = const_cast<Portfolio&>(portfolio);
     mut_portfolio.update_trades();
+    tg.send(tunnel_url + "/trades.html");
   }
 
   if constexpr (command == Commands::POSITIONS) {
@@ -79,85 +69,71 @@ void handle_command(const Portfolio& portfolio, std::istream& is) {
     tg.send(to_str<FormatTarget::Telegram>(HASKELL, str));
   }
 
-  if constexpr (command == Commands::PLOT) {
-    auto fname = std::format("page/public/{}.html", symbol);
-    if (wait_for_file(fname))
-      tg.send_doc(fname, fname, "Charts for " + symbol);
+  else {
+    std::string qty_str, px_str, total_str;
+    is >> qty_str >> px_str >> total_str;
+
+    if (!portfolio.is_tracking(symbol)) {
+      spdlog::error("[tg] buy/sell for untracked symbol: {}", symbol.c_str());
+      return;
+    }
+
+    if (qty_str == "" || px_str == "" || total_str == "") {
+      spdlog::error("[tg] empty qty, px or total string");
+      return;
+    }
+
+    try {
+      Trade trade{to_str(now_ny_time()),
+                  symbol,
+                  command == Commands::BUY ? Action::BUY : Action::SELL,
+                  std::stod(qty_str),
+                  std::stod(px_str),
+                  std::stod(total_str)};
+      auto pos_pnl = portfolio.add_trade(trade);
+      auto str = to_str<FormatTarget::Telegram>(trade, pos_pnl);
+      auto msg = to_str<FormatTarget::Telegram>(DIFF, str);
+      tg.send(msg);
+
+      std::ofstream file(POSITIONS_FILE, std::ios::app);
+      if (file)
+        file << std::format("{},{},{},{},{},{}\n",                      //
+                            to_str(now_ny_time()), symbol,              //
+                            command == Commands::BUY ? "BUY" : "SELL",  //
+                            qty_str, px_str, total_str);
+    } catch (const std::invalid_argument& e) {
+      spdlog::error("[tg] invalid argument to buy/sell: {} {} @ {}, {}",
+                    symbol.c_str(), qty_str.c_str(), px_str.c_str(),
+                    total_str.c_str());
+    } catch (...) {
+      spdlog::error("[tg] wrong format for buy/sell");
+    }
   }
 }
 
-template <Commands command>
-  requires(command == Commands::BUY || command == Commands::SELL)
-void handle_command(const Portfolio& portfolio, std::istream& is) {
-  auto& tg = portfolio.tg;
-
-  std::string symbol, qty_str, px_str, total_str;
-  is >> symbol >> qty_str >> px_str >> total_str;
-
-  if (!portfolio.is_tracking(symbol)) {
-    spdlog::error("[tg] buy/sell for untracked symbol: {}", symbol.c_str());
-    return;
-  }
-
-  if (qty_str == "" || px_str == "" || total_str == "") {
-    spdlog::error("[tg] empty qty, px or total string");
-    return;
-  }
-
-  try {
-    Trade trade{to_str(now_ny_time()),
-                symbol,
-                command == Commands::BUY ? Action::BUY : Action::SELL,
-                std::stod(qty_str),
-                std::stod(px_str),
-                std::stod(total_str)};
-    auto pos_pnl = portfolio.add_trade(trade);
-    auto str = to_str<FormatTarget::Telegram>(trade, pos_pnl);
-    auto msg = to_str<FormatTarget::Telegram>(DIFF, str);
-    tg.send(msg);
-
-    std::ofstream file(POSITIONS_FILE, std::ios::app);
-    if (file)
-      file << std::format("{},{},{},{},{},{}\n",                      //
-                          to_str(now_ny_time()), symbol,              //
-                          command == Commands::BUY ? "BUY" : "SELL",  //
-                          qty_str, px_str, total_str);
-  } catch (const std::invalid_argument& e) {
-    spdlog::error("[tg] invalid argument to buy/sell: {} {} @ {}, {}",
-                  symbol.c_str(), qty_str.c_str(), px_str.c_str(),
-                  total_str.c_str());
-  } catch (...) {
-    spdlog::error("[tg] wrong format for buy/sell");
-  }
-}
-
-inline void handle_command(const Portfolio& portfolio,
-                           const std::string& line) {
+inline void Notifier::handle_command(const std::string& line) {
   std::istringstream is{line};
 
   std::string command;
   is >> command;
 
   if (command == "/buy")
-    return handle_command<Commands::BUY>(portfolio, is);
+    return handle_command<Commands::BUY>(is);
 
   if (command == "/sell")
-    return handle_command<Commands::SELL>(portfolio, is);
+    return handle_command<Commands::SELL>(is);
 
   if (command == "/trades")
-    return handle_command<Commands::TRADES>(portfolio, is);
+    return handle_command<Commands::TRADES>(is);
 
   if (command == "/status")
-    return handle_command<Commands::STATUS>(portfolio, is);
+    return handle_command<Commands::STATUS>(is);
 
   if (command == "/ping")
-    return handle_command<Commands::PING>(portfolio, is);
+    return handle_command<Commands::PING>(is);
 
   if (command == "/positions")
-    return handle_command<Commands::POSITIONS>(portfolio, is);
-
-  if (command == "/plot")
-    return handle_command<Commands::PLOT>(portfolio, is);
+    return handle_command<Commands::POSITIONS>(is);
 
   spdlog::error("[tg] wrong command: {}", line.c_str());
 }
@@ -191,7 +167,7 @@ void Notifier::iter(Notifier* notifier) {
 
     auto [valid, line, id] = notifier->tg.receive(last_update_id);
     if (valid)
-      handle_command(portfolio, line);
+      notifier->handle_command(line);
     last_update_id = id;
     std::this_thread::sleep_for(seconds(5));
   }
@@ -269,7 +245,7 @@ Notifier::Notifier(const Portfolio& portfolio)
     exit(0);
   });
 
-  auto tunnel_url = get_tunnel_url();
+  tunnel_url = get_tunnel_url();
   auto msg_id = tg.send(tunnel_url);
   tg.pin_message(msg_id);
 

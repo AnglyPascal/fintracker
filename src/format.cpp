@@ -85,6 +85,8 @@ std::string to_str(const Rating& type) {
       return "Exit";
     case Rating::Watchlist:
       return "Watch";
+    case Rating::OldWatchlist:
+      return "Watch";
     case Rating::Caution:
       return "Caution";
     case Rating::HoldCautiously:

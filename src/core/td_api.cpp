@@ -5,11 +5,11 @@
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
-#include <nlohmann/json.hpp>
+#include <glaze/glaze.hpp>
+#include <iostream>
 
 #include <unordered_map>
 
-using nlohmann::json;
 namespace fs = std::filesystem;
 
 inline constexpr int API_TOKENS = 800;
@@ -86,6 +86,10 @@ inline std::string interval_to_str(minutes interval) {
   return it->second;
 }
 
+struct curr_res_t {
+  double amount = -1;
+};
+
 double TD::to_usd(double amount, const std::string& currency) {
   if (currency == "USD")
     return amount;
@@ -102,26 +106,29 @@ double TD::to_usd(double amount, const std::string& currency) {
 
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
+  curr_res_t curr_res;
+
   if (res.status_code != 200) {
-    spdlog::error("[td] HTTP error {} while converting {} to USD",
-                  res.status_code, currency);
-    return -1;
+    spdlog::error("[td] {}/USD http error {}", currency, res.status_code);
+    return curr_res.amount;
   }
 
-  auto j = json::parse(res.text, nullptr, false);
-  if (j.is_discarded() || !j.contains("amount")) {
-    spdlog::error("[td] Invalid JSON or missing 'converted' for {} -> USD",
-                  currency);
-    return -1;
-  }
+  constexpr auto opts = glz::opts{
+      .error_on_unknown_keys = false,
+      .partial_read = true,
+  };
 
-  try {
-    return j["amount"].get<double>();
-  } catch (const std::exception& e) {
-    spdlog::error("[td] Exception parsing 'converted' value: {}", e.what());
-    return amount;
-  }
+  auto ec = glz::read<opts>(curr_res, res.text);
+  if (ec)
+    spdlog::error("[td] {}/USD json error: {}", currency,
+                  glz::format_error(ec).c_str());
+
+  return curr_res.amount;
 }
+
+struct api_call_res_t {
+  std::vector<Candle> values;
+};
 
 TD::Result TD::api_call(const std::string& symbol,
                         minutes timeframe,
@@ -143,26 +150,23 @@ TD::Result TD::api_call(const std::string& symbol,
   std::this_thread::sleep_for(milliseconds(1500));
 
   if (res.status_code != 200) {
-    spdlog::error("[td] Error: HTTP {}, {}", res.status_code, symbol.c_str());
+    spdlog::error("[td] ({}) time_series http error {}",  //
+                  symbol.c_str(), res.status_code);
     return {};
   }
 
-  auto j = json::parse(res.text);
-  if (!j.contains("values")) {
-    spdlog::error("[td] Error: JSON error, {}", symbol.c_str());
-    return {};
-  }
+  constexpr auto opts = glz::opts{
+      .error_on_unknown_keys = false,
+      .quoted_num = true,
+  };
 
-  std::vector<Candle> candles;
-  for (const auto& entry : j["values"])
-    candles.emplace_back(entry["datetime"].get<std::string>(),
-                         std::stod(entry["open"].get<std::string>()),
-                         std::stod(entry["high"].get<std::string>()),
-                         std::stod(entry["low"].get<std::string>()),
-                         std::stod(entry["close"].get<std::string>()),
-                         std::stoi(entry["volume"].get<std::string>()));
+  api_call_res_t api_res;
+  auto ec = glz::read<opts>(api_res, res.text);
+  if (ec)
+    spdlog::error("[td] ({}) time_series json error: {}",  //
+                  symbol.c_str(), glz::format_error(ec));
 
-  return candles;
+  return api_res.values;
 }
 
 TD::Result TD::time_series(const std::string& symbol, minutes timeframe) {

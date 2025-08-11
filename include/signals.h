@@ -23,10 +23,11 @@ enum class Rating {
   Entry = 1,           // Strong buy signal
   HoldCautiously = 2,  // Already in trade, tightening stop
   Watchlist = 3,       // Not a trade yet, but worth tracking
-  Mixed = 4,           // Conflicting signals
-  None = 5,            // No action
-  Caution = 6,         // Not a trade yet, but worth being cautious
-  Skip = 7,
+  OldWatchlist = 4,    // Not a trade yet, but worth tracking
+  Mixed = 5,           // Conflicting signals
+  None = 6,            // No action
+  Caution = 7,         // Not a trade yet, but worth being cautious
+  Skip = 8,
 };
 
 enum class ReasonType {
@@ -204,6 +205,8 @@ struct SignalMemory {
   }
 
   double score() const;
+
+  int rating_score() const;
 };
 
 struct Stats;

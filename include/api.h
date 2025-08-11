@@ -21,9 +21,8 @@ class TG {
                const std::string& copy_name,
                const std::string& caption = "") const;
 
-  int pin_message(int message_id) const;
-  int edit_msg(int message_id, const std::string& text) const;
-  int delete_msg(int message_id) const;
+  void pin_message(int message_id) const;
+  void delete_msg(int message_id) const;
 
   std::tuple<bool, std::string, int> receive(int last_update_id) const;
 };

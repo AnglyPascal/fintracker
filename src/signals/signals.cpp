@@ -193,16 +193,20 @@ inline bool disqualify(auto& filters) {
   return false;
 }
 
-inline Rating contextual_rating(auto& sig_1h,
-                                auto& sig_4h,
-                                auto& sig_1d,
-                                auto& filters,
-                                bool has_position,
-                                auto& stop_hit) {
-  Rating base_rating = sig_1h.type;
+inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
+                                                auto& ind_4h,
+                                                auto& ind_1d,
+                                                const auto& sig,
+                                                bool has_position) {
+  auto& sig_1h = ind_1h.signal;
+  auto& sig_4h = ind_4h.signal;
+  auto& sig_1d = ind_1d.signal;
 
-  if (disqualify(filters))
-    return Rating::Skip;
+  Rating base_rating = sig_1h.type;
+  int score_mod = 0;
+
+  if (disqualify(sig.filters))
+    return {Rating::Skip, score_mod};
 
   if (base_rating == Rating::Caution && has_position)
     base_rating = Rating::HoldCautiously;
@@ -210,13 +214,13 @@ inline Rating contextual_rating(auto& sig_1h,
   if (base_rating == Rating::Exit && !has_position)
     base_rating = Rating::Caution;
 
-  if (stop_hit.type == StopHitType::TimeExit)
+  if (sig.stop_hit.type == StopHitType::TimeExit)
     base_rating = Rating::Exit;
-  if (stop_hit.type == StopHitType::StopLossHit)
+  if (sig.stop_hit.type == StopHitType::StopLossHit)
     base_rating = Rating::Exit;
-  else if (stop_hit.type == StopHitType::StopInATR)
+  else if (sig.stop_hit.type == StopHitType::StopInATR)
     base_rating = Rating::HoldCautiously;
-  else if (stop_hit.type == StopHitType::StopProximity) {
+  else if (sig.stop_hit.type == StopHitType::StopProximity) {
     if (base_rating == Rating::Watchlist)
       base_rating = Rating::Mixed;
     else if (base_rating == Rating::Mixed || base_rating == Rating::Caution)
@@ -227,11 +231,21 @@ inline Rating contextual_rating(auto& sig_1h,
   if (base_rating == Rating::Watchlist) {
     if (sig_4h.type == Rating::Watchlist &&
         sig_4h.score > sig_config.entry_4h_score_confirmation)
-      return Rating::Entry;
+      return {Rating::Entry, score_mod};
     if (sig_1d.type == Rating::Watchlist &&
         sig_1d.score > sig_config.entry_1d_score_confirmation)
-      return Rating::Entry;
+      return {Rating::Entry, score_mod};
   }
+
+  if (ind_1h.memory.rating_score() >= 2 || ind_4h.memory.rating_score() >= 2 ||
+      ind_1d.memory.rating_score() >= 2) {
+    if (base_rating == Rating::None || base_rating == Rating::Mixed)
+      base_rating = Rating::OldWatchlist;
+    if (base_rating == Rating::Watchlist)
+      score_mod += 0.1;
+  }
+
+  // If strong history: upgrade
 
   // Higher timeframe exits should be respected
   if (sig_4h.type == Rating::Exit || sig_1d.type == Rating::Exit ||
@@ -240,12 +254,12 @@ inline Rating contextual_rating(auto& sig_1h,
       (sig_1d.type == Rating::HoldCautiously &&
        sig_1d.score < sig_config.exit_1d_score_confirmation)) {
     if (base_rating == Rating::Entry || base_rating == Rating::Watchlist)
-      return Rating::Mixed;  // Conflict requires caution
+      return {Rating::Mixed, score_mod};  // Conflict requires caution
     if (base_rating == Rating::HoldCautiously)
-      return Rating::Exit;  // Escalate to exit
+      return {Rating::Exit, score_mod};
   }
 
-  return base_rating;
+  return {base_rating, score_mod};
 }
 
 inline double weighted_score(double score_1h,
@@ -268,11 +282,9 @@ inline double weighted_score(double score_1h,
 StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss);
 
 CombinedSignal Ticker::gen_signal(int idx) const {
-  auto sig_1h = metrics.get_signal(H_1, idx);
-  auto sig_4h = metrics.get_signal(H_4, idx);
-  auto sig_1d = metrics.get_signal(D_1, idx);
-
   auto& ind_1h = metrics.ind_1h;
+  auto& ind_4h = metrics.ind_4h;
+  auto& ind_1d = metrics.ind_1d;
 
   CombinedSignal sig;
 
@@ -280,9 +292,12 @@ CombinedSignal Ticker::gen_signal(int idx) const {
   sig.forecast = ind_1h.gen_forecast(idx);
 
   sig.filters = evaluate_filters(metrics);
-  sig.type = contextual_rating(sig_1h, sig_4h, sig_1d, sig.filters,
-                               metrics.has_position(), sig.stop_hit);
-  sig.score = weighted_score(sig_1h.score, sig_4h.score, sig_1d.score);
+  auto [type, mod] =
+      contextual_rating(ind_1h, ind_4h, ind_1d, sig, metrics.has_position());
+  sig.type = type;
+  sig.score = weighted_score(ind_1h.signal.score, ind_4h.signal.score,
+                             ind_1d.signal.score) +
+              mod;
 
   if (sig.type == Rating::Entry) {
     for (auto conf : confirmations(metrics))
@@ -318,4 +333,37 @@ double SignalMemory::score() const {
   }
 
   return weight > 0.0 ? scr / weight : 0.0;
+}
+
+int SignalMemory::rating_score() const {
+  int n_entry = 0;
+  int n_strong_watchlist = 0;
+  int n_exit = 0;
+  int n_strong_caution = 0;
+
+  auto strength_threshold = sig_config.mem_strength_threshold;
+  for (auto& sig : past) {
+    switch (sig.type) {
+      case Rating::Entry:
+        n_entry += 1 + (sig.score >= strength_threshold);
+        break;
+      case Rating::Watchlist:
+        n_strong_watchlist += sig.score >= strength_threshold;
+        break;
+      case Rating::Exit:
+        n_exit += 1 + (sig.score <= -strength_threshold);
+        break;
+      case Rating::Caution:
+      case Rating::HoldCautiously:
+        n_strong_caution += sig.score <= -strength_threshold;
+        break;
+      default:
+        break;
+    }
+  }
+
+  n_entry += (n_strong_watchlist + 1) / 2;
+  n_exit += (n_strong_caution + 1) / 2;
+
+  return n_entry - n_exit;
 }

@@ -15,22 +15,18 @@ inline auto& TG_USER = config.api_config.tg_user;
 
 int TG::send(const std::string& text) const {
   spdlog::debug("[tg] send: {}...", text.substr(0, 20).c_str());
-
-  if (!enabled)
-    return -1;
-
-  if (text == "")
+  if (!enabled || text == "")
     return -1;
 
   auto url =
       std::format("https://api.telegram.org/bot{}/sendMessage", TG_TOKEN);
-  cpr::Response r = cpr::Post(cpr::Url{url},
-                              cpr::Payload{{"chat_id", std::string(TG_CHAT_ID)},
-                                           {"text", text},
-                                           {"parse_mode", "Markdown"}});
+  auto r = cpr::Post(cpr::Url{url},
+                     cpr::Payload{{"chat_id", std::string(TG_CHAT_ID)},
+                                  {"text", text},
+                                  {"parse_mode", "Markdown"}});
 
   if (r.status_code != 200 || r.text == "") {
-    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
+    spdlog::error("[tg] error {}: {}", r.status_code, r.text.c_str());
     return -1;
   }
 
@@ -38,72 +34,28 @@ int TG::send(const std::string& text) const {
   return json["result"]["message_id"];
 }
 
-int TG::pin_message(int message_id) const {
+void TG::pin_message(int message_id) const {
   spdlog::debug("[tg] pin message: {}", message_id);
-
   if (!enabled)
-    return -1;
-
-  if (!enabled)
-    return -1;
+    return;
 
   auto url =
       std::format("https://api.telegram.org/bot{}/pinChatMessage", TG_TOKEN);
   cpr::Response r = cpr::Post(
-      cpr::Url{url},
-      cpr::Payload{{"chat_id", std::string(TG_CHAT_ID)},
-                   {"message_id", std::to_string(message_id)},
-                   {"disable_notification", "true"}});  // Optional: silent pin
-
-  if (r.status_code != 200) {
-    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
-    return -1;
-  }
-
-  try {
-    auto json = json::parse(r.text);
-    if (json.contains("ok") && json["ok"].get<bool>() == true)
-      return 0;
-
-    spdlog::error("[tg] Failed to pin message: {}", r.text.c_str());
-    return -1;
-  } catch (...) {
-    spdlog::error("[tg] Unexpected error: {}", r.text.c_str());
-    return -1;
-  }
-}
-
-int TG::edit_msg(int message_id, const std::string& text) const {
-  spdlog::debug("[tg] edit msg: {} {}...", message_id,
-                text.substr(0, 20).c_str());
-
-  if (!enabled)
-    return -1;
-
-  auto url =
-      std::format("https://api.telegram.org/bot{}/editMessageText", TG_TOKEN);
-
-  cpr::Response r = cpr::Post(
       cpr::Url{url}, cpr::Payload{{"chat_id", std::string(TG_CHAT_ID)},
                                   {"message_id", std::to_string(message_id)},
-                                  {"text", text},
-                                  {"parse_mode", "Markdown"}});
+                                  {"disable_notification", "true"}});
 
-  if (r.status_code != 200) {
-    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
-    return -1;
-  }
+  if (r.status_code != 200)
+    spdlog::error("[tg] error {}: {}", r.status_code, r.text.c_str());
 
   try {
     auto json = json::parse(r.text);
     if (json.contains("ok") && json["ok"].get<bool>() == true)
-      return 0;
-
+      return;
     spdlog::error("[tg] Failed to pin message: {}", r.text.c_str());
-    return -1;
   } catch (...) {
     spdlog::error("[tg] Unexpected error: {}", r.text.c_str());
-    return -1;
   }
 }
 
@@ -117,7 +69,7 @@ std::tuple<bool, std::string, int> TG::receive(int last_update_id) const {
   auto r = cpr::Get(cpr::Url{url});
 
   if (r.status_code != 200) {
-    spdlog::error("[tg] Error {}", r.status_code);
+    spdlog::error("[tg] error {}", r.status_code);
     return {false, "", last_update_id};
   }
 
@@ -144,11 +96,10 @@ std::tuple<bool, std::string, int> TG::receive(int last_update_id) const {
   return {false, "", last_update_id};
 }
 
-int TG::delete_msg(int message_id) const {
+void TG::delete_msg(int message_id) const {
   spdlog::debug("[tg] delete msg: {}", message_id);
-
   if (!enabled)
-    return -1;
+    return;
 
   auto url =
       std::format("https://api.telegram.org/bot{}/deleteMessage", TG_TOKEN);
@@ -157,12 +108,8 @@ int TG::delete_msg(int message_id) const {
       cpr::Url{url}, cpr::Payload{{"chat_id", TG_CHAT_ID},
                                   {"message_id", std::to_string(message_id)}});
 
-  if (r.status_code != 200) {
-    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
-    return -1;
-  }
-
-  return 0;
+  if (r.status_code != 200)
+    spdlog::error("[tg] error {}: {}", r.status_code, r.text.c_str());
 }
 
 int TG::send_doc(const std::string& fname,
@@ -184,7 +131,7 @@ int TG::send_doc(const std::string& fname,
   cpr::Response r = cpr::Post(cpr::Url{url}, multipart);
 
   if (r.status_code != 200) {
-    spdlog::error("[tg] Error {}: {}", r.status_code, r.text.c_str());
+    spdlog::error("[tg] error {}: {}", r.status_code, r.text.c_str());
     return -1;
   }
 
