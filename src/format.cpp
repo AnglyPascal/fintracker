@@ -185,13 +185,8 @@ std::string to_str<FormatTarget::Telegram>(const Position* const& pos,
 template <>
 std::string to_str<FormatTarget::Telegram>(const Metrics& m) {
   auto& ind = m.ind_1h;
-
-  auto [high, pb] = ind.pullback();
-
-  return std::format(
-      "Px: {:.2f} | EMA9/EMA21: {:.2f}/{:.2f}\n"
-      "RSI: {:.2f} | Recent high: {:.2f} ({:+.2f}%)\n",
-      ind.price(-1), ind.ema9(-1), ind.ema21(-1), ind.rsi(-1), high, pb);
+  return std::format("Px: {:.2f} | EMA9/EMA21: {:.2f}/{:.2f} | RSI: {:.2f}\n",
+                     ind.price(-1), ind.ema9(-1), ind.ema21(-1), ind.rsi(-1));
 }
 
 template <>
@@ -371,4 +366,17 @@ std::string to_str<FormatTarget::Alert>(
   }
 
   return msg;
+}
+
+template <>
+std::string to_str(const LinearRegression& lr) {
+  return std::format("y = {:.2f} * x + {:.2f}", lr.slope, lr.intercept);
+}
+
+template <>
+std::string to_str(const TrendLine& tl) {
+  std::ostringstream oss;
+  oss << "Period: " << tl.period << ", Slope: " << tl.line.slope
+      << ", R²: " << tl.r2;
+  return oss.str();
 }

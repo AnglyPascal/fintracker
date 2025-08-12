@@ -11,7 +11,7 @@
 #include <semaphore>
 #include <thread>
 
-inline std::vector<SymbolInfo> read_symbols() {
+inline auto read_symbols() {
   std::vector<SymbolInfo> symbols;
   std::ifstream file("private/tickers.csv");
   std::string line;
@@ -229,6 +229,8 @@ void Portfolio::run() {
     return run_replay();
 
   while (true) {
+    config.update();
+
     auto [open, remaining] = market_status(update_interval);
     if (!open)
       break;

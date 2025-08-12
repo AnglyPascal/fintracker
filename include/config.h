@@ -63,23 +63,26 @@ struct SupportResistanceConfig {
   static constexpr const char* name = "sr_config";
   static constexpr bool debug = true;
 
-  int lookback_days = 30;
-  int n_zones = 6;
-  double min_zone_confidence = 3.0;
+  size_t lookback_days = 30;
+  size_t n_zones = 6;
+  double min_zone_confidence = 0.5;
+
+  double zone_proximity_threshold = 0.007;
+  double strong_confidence_threshold = 0.75;
 
   double break_buffer = 0.01;
 
-  int swing_window_1h = 3;
+  size_t swing_window_1h = 3;
   double zone_width_1h = 0.004;
-  int n_candles_in_zone_1h = 5;
+  size_t n_candles_in_zone_1h = 5;
 
-  int swing_window_4h = 2;
+  size_t swing_window_4h = 2;
   double zone_width_4h = 0.008;
-  int n_candles_in_zone_4h = 5;
+  size_t n_candles_in_zone_4h = 5;
 
-  int swing_window_1d = 2;
+  size_t swing_window_1d = 2;
   double zone_width_1d = 0.015;
-  int n_candles_in_zone_1d = 2;
+  size_t n_candles_in_zone_1d = 2;
 
   auto swing_window(minutes interval) const {
     if (interval == H_1)
@@ -107,7 +110,7 @@ struct SupportResistanceConfig {
 
   auto n_lookback_candles(minutes interval) const {
     if (interval == H_1)
-      return lookback_days * 8;
+      return lookback_days * 7;
     if (interval == H_4)
       return lookback_days * 2 * 2;
     return lookback_days * 3;
@@ -143,7 +146,6 @@ struct SignalConfig {
   double score_mod_4h_1d_align = 1.1;
   double score_mod_4h_1d_conflict = 0.7;
 
-  double sr_strong_confidence = 0.6;
   double mem_strength_threshold = 0.75;
 
   int stop_max_holding_days = 20;
@@ -180,6 +182,7 @@ struct Config {
 
   Config();
   void read_args(int argc, char* argv[]);
+  void update();
 };
 
 inline Config config;

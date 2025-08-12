@@ -66,6 +66,7 @@ enum class HintType {
   Ema9Flattening,
 
   // SR
+  WithinTightRange,
   NearWeakSupport,
   NearStrongSupport,
   NearWeakResistance,
@@ -112,6 +113,7 @@ struct SignalType {
 
   bool exists() const { return type != none; }
   auto severity() const { return meta ? meta->sev : Severity::Low; }
+  auto severity_w() const { return static_cast<size_t>(severity()); }
   auto cls() const { return meta ? meta->cls : SignalClass::None; }
   auto str() const { return meta ? meta->str : ""; }
   auto source() const { return meta ? meta->src : Source::None; }

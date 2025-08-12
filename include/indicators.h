@@ -117,8 +117,8 @@ struct Indicators {
 
   Trends trends;
 
-  SupportResistance<SR::Support> support;
-  SupportResistance<SR::Resistance> resistance;
+  Support support;
+  Resistance resistance;
 
  public:
   Signal signal;
@@ -178,19 +178,13 @@ struct Indicators {
     return idx == -1 ? trends.ema21[0] : Trends::ema21_trends(*this, idx)[0];
   }
 
-  Pullback pullback(size_t lookback = 360) const {
-    if (candles.size() < lookback)
-      lookback = candles.size();
-
-    double high = 0.0;
-    for (size_t i = candles.size() - lookback; i < candles.size(); ++i)
-      high = std::max(high, candles[i].high);
-
-    return {high, (high - price(-1)) / high * 100.0};
-  }
-
   auto& support_zones() const { return support.zones; }
   auto& resistance_zones() const { return resistance.zones; }
+
+  auto nearest_support(int idx) const { return support.nearest(price(idx)); }
+  auto nearest_resistance(int idx) const {
+    return resistance.nearest(price(idx));
+  }
 
   Signal get_signal(int idx) const;
 };
@@ -229,8 +223,6 @@ struct Metrics {
   LocalTimePoint plot(const std::string& sym) const;
 };
 
-struct PositionSizingConfig;
-
 struct StopLoss {
   double swing_low = 0.0;
   double ema_stop = 0.0;
@@ -242,3 +234,4 @@ struct StopLoss {
   StopLoss() noexcept = default;
   StopLoss(const Metrics& m) noexcept;
 };
+

@@ -151,48 +151,30 @@ inline Hint rsi_trending(const Indicators& m, int idx) {
 
 // SR Proximity
 
-// Support/Resistance Hints (early warnings)
-inline Hint near_support_hint(const Indicators& ind, int idx) {
-  double current_price = ind.price(idx);
+// Support/Resistance Hints
+inline Hint near_support_resistance_hint(const Indicators& ind, int idx) {
+  auto price = ind.price(idx);
 
-  for (const auto& zone : ind.support_zones()) {
-    if (zone.contains(current_price)) {
-      if (ind.price(idx) <= ind.price(idx - 1)) {
-        return zone.confidence > sig_config.sr_strong_confidence
-                   ? HintType::NearStrongSupport
-                   : HintType::NearWeakSupport;
-      }
-    } else if (current_price > zone.hi &&
-               current_price <= zone.hi * (1 + 0.008)) {
-      if (ind.price(idx) < ind.price(idx - 1)) {
-        return zone.confidence > sig_config.sr_strong_confidence
-                   ? HintType::NearStrongSupport
-                   : HintType::NearWeakSupport;
-      }
-    }
-  }
-  return HintType::None;
-}
+  auto support_opt = ind.nearest_support(idx);
+  auto resistance_opt = ind.nearest_resistance(idx);
 
-inline Hint near_resistance_hint(const Indicators& ind, int idx) {
-  double current_price = ind.price(idx);
+  if (!support_opt && !resistance_opt)
+    return HintType::None;
 
-  for (const auto& zone : ind.resistance_zones()) {
-    if (zone.contains(current_price)) {
-      if (ind.price(idx) >= ind.price(idx - 1)) {
-        return zone.confidence > sig_config.sr_strong_confidence
-                   ? HintType::NearStrongResistance
-                   : HintType::NearWeakResistance;
-      }
-    } else if (current_price < zone.lo &&
-               current_price >= zone.lo * (1 - 0.008)) {
-      if (ind.price(idx) > ind.price(idx - 1)) {
-        return zone.confidence > sig_config.sr_strong_confidence
-                   ? HintType::NearStrongResistance
-                   : HintType::NearWeakResistance;
-      }
-    }
-  }
+  auto near_support = support_opt && support_opt->get().is_near(price);
+  auto near_resistance = resistance_opt && resistance_opt->get().is_near(price);
+
+  if (near_support && near_resistance)
+    return HintType::WithinTightRange;
+
+  if (near_support)
+    return support_opt->get().is_strong() ? HintType::NearStrongSupport
+                                          : HintType::NearWeakSupport;
+
+  if (near_resistance)
+    return resistance_opt->get().is_strong() ? HintType::NearStrongResistance
+                                             : HintType::NearWeakResistance;
+
   return HintType::None;
 }
 
@@ -220,8 +202,7 @@ inline constexpr hint_f hint_funcs[] = {
     rsi_trending,
 
     // SR
-    near_support_hint,
-    near_resistance_hint,
+    near_support_resistance_hint,
 };
 
 std::vector<Hint> hints(const Indicators& ind, int idx) {

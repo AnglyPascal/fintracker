@@ -17,15 +17,21 @@ const NORD = {
   dark_yellow: "#84724e",
   yellow: "#ebcb8b",
   purple: "#B48EAD",
-  cyan: "#88C0D0"
+  cyan: "#88C0D0",
+
+  support: "#2c4057",
+  resistance: "#84724e",
 };
 
 // Global variables
 let currentTimeframe = '1h';
-let currentData = {};
 
 function csvPath(symbol, time, key) {
   return `src/${symbol}${time}_${key}.csv`;
+}
+
+function jsonPath(symbol, time, key) {
+  return `src/${symbol}${time}_${key}.json`;
 }
 
 function formatDateTime(dateStr) {
@@ -101,14 +107,24 @@ async function loadDF(symbol, time, key) {
   return await loadCSV(path);
 }
 
-async function readFits(symbol, time, name, maxFits = 3) {
-  const fits = [];
-  for (let i = 0; i < maxFits; i++) {
-    const fit = await loadDF(symbol, time, `${name}_fit_${i}`);
-    if (fit) {
-      fits.push(fit);
-    }
-  }
+async function readFits(symbol, time, name) {
+  const rawFits = await loadDF(symbol, time, 'trends');
+
+  const fits = rawFits
+    .filter(row => row.plot === name)
+    .map(row =>
+      [
+        {
+          datetime: formatDateTime(row.d0),
+          value: row.v0,
+        },
+        {
+          datetime: formatDateTime(row.d1),
+          value: row.v1,
+        }
+      ]
+    );
+
   return fits;
 }
 
@@ -174,8 +190,7 @@ function createPlotlyLayout({
   start,
   NORD,
   heights,
-  srShapes,
-    weekLines
+  srShapes
 }) {
   const subplots = [{
     key: 'yaxis',
@@ -326,8 +341,15 @@ function createPlotlyLayout({
     plot_bgcolor: NORD.best_black,
     paper_bgcolor: "rgba(23, 23, 28, 0)",
     font: {
-      size: 13,
+      size: 14,
       color: NORD.white,
+      family: 'Share Tech Mono, monospace',
+    },
+    hoverlabel: {
+      font: {
+        family: 'Share Tech Mono, monospace',
+        size: 16
+      }
     },
     xaxis: {
       domain: [0, 1],
@@ -336,10 +358,14 @@ function createPlotlyLayout({
       tickangle: 60,
       nticks: 50,
       type: 'category',
-      color: NORD.white
+      color: NORD.white,
+      tickfont: {
+        family: 'Share Tech',
+        size: 14,
+      }
     },
     ...yaxes,
-    shapes: [...dividers, ...rsiLines, ...srShapes, ...weekLines]
+    shapes: [...dividers, ...rsiLines, ...srShapes]
   };
 }
 
@@ -380,6 +406,79 @@ function claspToTimeframe(datetimeStr, timeframe) {
   return clasped.toFormat(datetimeFmt);
 }
 
+async function loadSupportResistanceTraces(path, dt, price) {
+  const data = await fetch(path).then(r => r.json());
+
+  const opacity = (row) => {
+    const in_zone = row.lo < price && price <= row.hi;
+    if (in_zone)
+      return 1;
+
+    const conf = row.confidence;
+    const weight = 1 / 0.1;
+    const scaled = (Math.exp(weight * conf) - 1) / (Math.exp(weight) - 1);
+    return scaled * 0.7;
+  };
+
+  const makeTrace = (row, sup, swings) => {
+    swings.push(...row.sps);
+    return {
+      type: 'rect',
+      xref: 'x',
+      yref: 'y',
+      x0: dt[0],
+      x1: dt[dt.length - 1],
+      y0: row.lo,
+      y1: row.hi,
+      fillcolor: sup ? NORD.support : NORD.resistance,
+      opacity: opacity(row),
+      line: { width: 0 },
+      layer: 'below',
+      name: sup ? "Supports" : "Resistances",
+    };
+  };
+
+  const swing_lows = [];
+  const swing_highs = [];
+  const res = [
+    ...(data.support || []).map(row => makeTrace(row, true, swing_lows)),
+    ...(data.resistance || []).map(row => makeTrace(row, false, swing_highs)),
+  ];
+
+  const swings = [
+    {
+      x: swing_lows.map(t => formatDateTime(t.tp)),
+      y: swing_lows.map(t => t.price),
+      type: 'scatter',
+      mode: 'markers',
+      marker: {
+        color: NORD.blue,
+        size: 10,
+        symbol: 'square'
+      },
+      xaxis: 'x',
+      yaxis: 'y',
+      showlegend: false,
+    },
+    {
+      x: swing_highs.map(t => formatDateTime(t.tp)),
+      y: swing_highs.map(t => t.price),
+      type: 'scatter',
+      mode: 'markers',
+      marker: {
+        color: NORD.yellow,
+        size: 10,
+        symbol: 'square'
+      },
+      xaxis: 'x',
+      yaxis: 'y',
+      showlegend: false,
+    }
+  ];
+
+  return [res, swings];
+}
+
 async function plotChart(symbol) {
   const timeframe = currentTimeframe;
 
@@ -407,25 +506,10 @@ async function plotChart(symbol) {
 
     // Extract datetime series
     const dt = data.map(row => row.datetime);
-    const sr = await loadDF(symbol, timeframeMapped, 'support_resistance');
 
-    const srShapes = sr.map(row => {
-      return {
-        type: 'rect',
-        xref: 'x',
-        yref: 'y',
-        x0: dt[0],
-        x1: dt[dt.length - 1],
-        y0: row.lower,
-        y1: row.upper,
-        fillcolor: row.support === 0 ? NORD.dark_blue : NORD.dark_yellow,
-        opacity: row.confidence * .5,
-        line: {
-          width: 0,
-        },
-        layer: 'below', // draw under the price lines
-      };
-    });
+    const lastPrice = data[data.length - 1].close;
+    const srPath = jsonPath(symbol, timeframeMapped, 'support_resistance');
+    const [srShapes, _] = await loadSupportResistanceTraces(srPath, dt, lastPrice);
 
     // Create traces
     const traces = [];
@@ -437,31 +521,27 @@ async function plotChart(symbol) {
         weekStartDates.push(row.datetime);
     });
 
-    console.log(weekStartDates);
-
     // List of subplot y-axis targets
     const yAxes = ['y', 'y2', 'y3', 'y4'];
 
     const weekLines = [];
-    // for (const d of weekStartDates) {
-    //   for (const yaxis of yAxes) {
-    //     weekLines.push({
-    //       type: 'line',
-    //       x0: d,
-    //       x1: d,
-    //       y0: -1e9,
-    //       y1: 1e9, // effectively "infinite"
-    //       mode: 'lines',
-    //       line: createLineStyle(NORD.red, 'solid', 1.5),
-    //       hoverinfo: 'skip',
-    //       xaxis: 'paper',
-    //       yaxis: 'paper',
-    //       showlegend: false,
-    //     });
-    //   }
-    // }
-
-    console.log(traces);
+    for (const d of weekStartDates) {
+      for (const yaxis of yAxes) {
+        weekLines.push({
+          type: 'line',
+          x0: d,
+          x1: d,
+          y0: -1e9,
+          y1: 1e9, // effectively "infinite"
+          mode: 'lines',
+          line: createLineStyle(NORD.red, 'solid', 1.5),
+          hoverinfo: 'skip',
+          xaxis: 'x',
+          yaxis: yaxis,
+          showlegend: false,
+        });
+      }
+    }
 
     // 1. Price & EMAs
     traces.push({
@@ -488,6 +568,18 @@ async function plotChart(symbol) {
       hoverinfo: 'none',
     });
 
+    const priceHoverText = (row) => {
+      const volStr = Intl.NumberFormat('en-US', {
+        notation: "compact",
+        maximumFractionDigits: 1
+      }).format(row.volume);
+
+      return `<b>${row.close}</b>, ${row.low} — ${row.high}<br>` +
+        `<b>EMA 9/21</b>: ${row.ema9}/${row.ema21}<br>` +
+        `<b>Vol</b>: ${volStr}, <b>RSI</b>: ${row.rsi}<br>`
+        ;
+    }
+
     traces.push({
       x: dt,
       y: data.map(row => row.close),
@@ -497,10 +589,7 @@ async function plotChart(symbol) {
       line: createLineStyle(NORD.white, 'solid', 1.8),
       xaxis: 'x',
       yaxis: 'y',
-      hovertext: data.map(
-        row =>
-          `<b>${row.close}</b> ${row.ema9} ${row.ema21}`
-      ),
+      hovertext: data.map(row => priceHoverText(row)),
       hovertemplate: `%{x}<br>%{hovertext}<extra></extra>`,
     });
 
@@ -730,13 +819,17 @@ async function plotChart(symbol) {
         line: createLineStyle(color, '12px,15px', 1.5),
         visible: i === 0 ? true : 'legendonly',
         xaxis: 'x',
-        yaxis: yaxis
+        yaxis: yaxis,
+        hoverinfo: 'none',
       });
     };
 
     // Add fit lines
     priceFits.forEach((fit, i) => { plotFit(fit, i, "Price", "y"); });
     rsiFits.forEach((fit, i) => { plotFit(fit, i, "RSI", "y3"); });
+
+    // traces.push(...srSwings);
+    traces.push(...weekLines);
 
     const n = Math.min(dt.length, 40);
     const start = dt.length - n;
@@ -752,7 +845,6 @@ async function plotChart(symbol) {
       NORD,
       heights: [4, 1, 2, 1.8],
       srShapes,
-            weekLines,
     });
 
     // Plot the chart

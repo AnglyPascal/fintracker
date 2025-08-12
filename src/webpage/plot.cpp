@@ -3,6 +3,8 @@
 
 #include <spdlog/spdlog.h>
 #include <fstream>
+#include <glaze/glaze.hpp>
+#include <iostream>
 
 inline constexpr std::string csv_fname(const std::string& symbol,
                                        const std::string& time,
@@ -10,7 +12,46 @@ inline constexpr std::string csv_fname(const std::string& symbol,
   return std::format("page/src/{}{}_{}.csv", symbol, time, fn);
 }
 
+inline constexpr std::string json_fname(const std::string& symbol,
+                                        const std::string& time,
+                                        const std::string& fn) {
+  return std::format("page/src/{}{}_{}.json", symbol, time, fn);
+}
+
 inline constexpr size_t n_days_plot = 90;
+
+struct sr_t {
+  std::vector<Zone> support;
+  std::vector<Zone> resistance;
+};
+
+template <>
+struct glz::meta<LocalTimePoint> {
+  static constexpr auto value = [](const auto& tp) {
+    // Format to ISO 8601 local time
+    return std::format("{:%Y-%m-%d %H:%M:%S}", tp);
+  };
+};
+
+template <>
+struct glz::meta<Zone> {
+  using T = Zone;
+  static constexpr auto value = object(  //
+      &T::hi,
+      &T::lo,
+      &T::confidence,
+      &T::sps  //
+  );
+};
+
+inline void plot_sr(auto path, auto& support, auto& resistance) {
+  sr_t sr{support.zones, resistance.zones};
+  constexpr auto opts = glz::opts{.prettify = true};
+  std::string buffer;
+  auto ec = glz::write_file_json<opts>(sr, path, buffer);
+  if (ec)
+    spdlog::error("[plot] error writing sr json: {}", path.c_str());
+}
 
 LocalTimePoint Indicators::plot(const std::string& sym,
                                 const std::string& time) const {
@@ -31,32 +72,29 @@ LocalTimePoint Indicators::plot(const std::string& sym,
   f.flush();
   f.close();
 
-  auto trends_to_csv = [this, n, &sym, &time](auto& top_trends, auto& name) {
+  std::ofstream ff(csv_fname(sym, time, "trends"));
+  ff << "plot,d0,v0,d1,v1\n";
+
+  auto trends_to_csv = [&](auto& top_trends, auto& name) {
     for (size_t i = 0; i < top_trends.size(); i++) {
-      std::ofstream f(csv_fname(sym, time, std::format("{}_fit_{}", name, i)));
-      f << "datetime,value\n";
-
       auto& top_trend = top_trends[i];
-      auto m = std::min((size_t)top_trend.period, n);
-      for (size_t j = candles.size() - m; j < candles.size(); j++)
-        f << std::format("{},{:.2f}\n", candles[j].datetime, top_trend.eval(j));
+      auto start = candles.size() - std::min(top_trend.period, n);
+      auto end = candles.size() - 1;
 
-      f.flush();
-      f.close();
+      ff << std::format("{},{},{:.2f},{},{:.2f}\n",  //
+                        name,                      //
+                        candles[start].datetime, top_trend.eval(start),
+                        candles[end].datetime, top_trend.eval(end));
     }
   };
 
   trends_to_csv(trends.price.top_trends, "price");
   trends_to_csv(trends.rsi.top_trends, "rsi");
 
-  std::ofstream sr(csv_fname(sym, time, "support_resistance"));
-  sr << "support,lower,upper,confidence\n";
-  for (auto [lo, hi, conf] : support.zones)
-    sr << std::format("0,{:.2f},{:.2f},{:.2f}\n", lo, hi, conf);
-  for (auto [lo, hi, conf] : resistance.zones)
-    sr << std::format("1,{:.2f},{:.2f},{:.2f}\n", lo, hi, conf);
-  sr.flush();
-  sr.close();
+  ff.flush();
+  ff.close();
+
+  plot_sr(json_fname(sym, time, "support_resistance"), support, resistance);
 
   return candles[candles.size() - n].time();
 }

@@ -105,14 +105,6 @@ Signal Indicators::gen_signal(int idx) const {
     (cls == SignalClass::Entry) ? entry_w += w : exit_w += w;
   };
 
-  auto weight = [](auto imp, auto sev) {
-    auto sev_w = [](Severity s) {
-      static_assert(Severity::Urgent > Severity::Low);
-      return static_cast<int>(s);
-    };
-    return imp * sev_w(sev);
-  };
-
   // Hard signals
   for (auto r : reasons(*this, idx)) {
     if (r.type == ReasonType::None || r.cls() == SignalClass::None)
@@ -126,8 +118,7 @@ Signal Indicators::gen_signal(int idx) const {
     if (r.source() == Source::Stop)
       imp = sig_config.stop_reason_importance;
 
-    auto w = weight(imp, r.severity());
-    add_w(r.cls(), w);
+    add_w(r.cls(), imp * r.severity_w());
   }
 
   // Hints
@@ -145,7 +136,7 @@ Signal Indicators::gen_signal(int idx) const {
     if (h.source() == Source::Stop)
       imp = sig_config.stop_hint_importance;
 
-    auto w = sig_config.score_hint_weight * weight(imp, h.severity());
+    auto w = sig_config.score_hint_weight * imp * h.severity_w();
     add_w(h.cls(), w);
   }
 
@@ -196,7 +187,7 @@ inline bool disqualify(auto& filters) {
 inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
                                                 auto& ind_4h,
                                                 auto& ind_1d,
-                                                const auto& sig,
+                                                auto& sig,
                                                 bool has_position) {
   auto& sig_1h = ind_1h.signal;
   auto& sig_4h = ind_4h.signal;
@@ -205,7 +196,7 @@ inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
   Rating base_rating = sig_1h.type;
   int score_mod = 0;
 
-  if (disqualify(sig.filters))
+  if (sig.stop_hit.type != StopHitType::None && disqualify(sig.filters))
     return {Rating::Skip, score_mod};
 
   if (base_rating == Rating::Caution && has_position)
@@ -214,9 +205,8 @@ inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
   if (base_rating == Rating::Exit && !has_position)
     base_rating = Rating::Caution;
 
-  if (sig.stop_hit.type == StopHitType::TimeExit)
-    base_rating = Rating::Exit;
-  if (sig.stop_hit.type == StopHitType::StopLossHit)
+  if (sig.stop_hit.type == StopHitType::TimeExit ||
+      sig.stop_hit.type == StopHitType::StopLossHit)
     base_rating = Rating::Exit;
   else if (sig.stop_hit.type == StopHitType::StopInATR)
     base_rating = Rating::HoldCautiously;
@@ -237,15 +227,15 @@ inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
       return {Rating::Entry, score_mod};
   }
 
-  if (ind_1h.memory.rating_score() >= 2 || ind_4h.memory.rating_score() >= 2 ||
-      ind_1d.memory.rating_score() >= 2) {
-    if (base_rating == Rating::None || base_rating == Rating::Mixed)
+  // If strong history: upgrade
+  if (ind_1h.memory.rating_score() >= 1.5 ||
+      ind_4h.memory.rating_score() >= 1.5 ||
+      ind_1d.memory.rating_score() >= 1.5) {
+    if (base_rating == Rating::None)
       base_rating = Rating::OldWatchlist;
     if (base_rating == Rating::Watchlist)
       score_mod += 0.1;
   }
-
-  // If strong history: upgrade
 
   // Higher timeframe exits should be respected
   if (sig_4h.type == Rating::Exit || sig_1d.type == Rating::Exit ||

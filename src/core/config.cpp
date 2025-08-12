@@ -2,7 +2,6 @@
 
 #include <spdlog/spdlog.h>
 #include <argparse/argparse.hpp>
-#include <boost/pfr.hpp>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -30,6 +29,10 @@ T read(const char* path) {
 }
 
 Config::Config() {
+  update();
+}
+
+void Config::update() {
   fs::remove("logs/configs.log");
 
   api_config = read<APIConfig>("private/api.json");

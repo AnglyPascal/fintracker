@@ -6,9 +6,8 @@
 
 inline double simple_confidence(const Signal& sig, const Stats& stats) {
   double total_importance = 0.0;
-  double min_trigger_count = std::numeric_limits<double>::max();
-  double avg_win_rate = 0.0;
-  size_t signal_count = 0;
+  double total_win_rate = 0.0;
+  size_t total_weight = 0;
 
   auto process_signals = [&](auto& vec, auto& map) {
     for (auto& r : vec) {
@@ -17,26 +16,24 @@ inline double simple_confidence(const Signal& sig, const Stats& stats) {
         continue;
 
       auto& stats = it->second;
-      total_importance += stats.importance;
-      min_trigger_count =
-          std::min(min_trigger_count, double(stats.trigger_count));
-      avg_win_rate += stats.win_rate;
-      signal_count++;
+
+      auto w = r.severity_w();
+      total_importance += stats.importance * w;
+      total_win_rate += stats.win_rate * w;
+      total_weight += w;
     }
   };
 
   process_signals(sig.reasons, stats.reason);
   process_signals(sig.hints, stats.hint);
 
-  if (signal_count == 0)
+  if (total_weight == 0)
     return 0.0;
 
-  avg_win_rate /= signal_count;
+  auto avg_win_rate = total_win_rate / total_weight;
+  auto avg_importance = total_importance / total_weight;
 
-  double importance_factor = std::min(1.0, total_importance * 2.0);
-  double sample_factor = std::min(1.0, std::sqrt(min_trigger_count) / 20.0);
-
-  return importance_factor * sample_factor * avg_win_rate;
+  return avg_win_rate * 0.5 + avg_importance * 0.5;
 }
 
 Forecast::Forecast(const Signal& sig, const Stats& stats) {

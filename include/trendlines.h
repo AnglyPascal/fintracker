@@ -18,18 +18,16 @@ struct LinearRegression {
   LinearRegression(const Container<Point>& vals) noexcept;
 
   double predict(double x) const { return slope * x + intercept; }
-  std::string to_str() const;
 };
 
 struct TrendLine {
-  int period = 0;
+  size_t period = 0;
   double r2 = 0.0;
   LinearRegression line;
 
   double slope() const { return line.slope; }
   double eval(size_t idx) const { return line.predict(idx); }
 
-  std::string to_str() const;
   bool operator<(const TrendLine& other) const;
 };
 
@@ -47,8 +45,6 @@ struct TrendLines {
              size_t min_period,
              size_t max_period,
              size_t top_n) noexcept;
-
-  std::string to_str() const;
 
   TrendLine operator[](size_t idx) const {
     if (!top_trends.empty() && idx < top_trends.size())

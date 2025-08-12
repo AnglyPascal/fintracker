@@ -42,11 +42,11 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
     // SR:
     {
         ReasonType::BrokeSupport,                              //
-        {Severity::High, Source::SR, SignalClass::Exit, "S⤰"}  //
+        {Severity::High, Source::SR, SignalClass::Exit, "⊥⤰"}  //
     },
     {
         ReasonType::BrokeResistance,                              //
-        {Severity::Medium, Source::SR, SignalClass::Entry, "R⤯"}  //
+        {Severity::Medium, Source::SR, SignalClass::Entry, "⊤⤯"}  //
     },
 };
 
@@ -183,20 +183,24 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
 
     // SR:
     {
-        HintType::NearWeakSupport,
-        {Severity::Low, Source::SR, SignalClass::Entry, "near⊥"}  //
+        HintType::WithinTightRange,
+        {Severity::High, Source::SR, SignalClass::Entry, "═"}  //
     },
     {
-        HintType::NearWeakResistance,
-        {Severity::Low, Source::SR, SignalClass::Exit, "near⊤"}  //
+        HintType::NearWeakSupport,
+        {Severity::Low, Source::SR, SignalClass::Entry, "⊥"}  //
     },
     {
         HintType::NearStrongSupport,
-        {Severity::High, Source::SR, SignalClass::Entry, "near⊥"}  //
+        {Severity::High, Source::SR, SignalClass::Entry, "⊥"}  //
+    },
+    {
+        HintType::NearWeakResistance,
+        {Severity::Low, Source::SR, SignalClass::Exit, "⊤"}  //
     },
     {
         HintType::NearStrongResistance,
-        {Severity::High, Source::SR, SignalClass::Exit, "near⊤"}  //
+        {Severity::High, Source::SR, SignalClass::Exit, "⊤"}  //
     },
 };
 

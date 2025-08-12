@@ -1,8 +1,10 @@
 #include "trendlines.h"
 #include "config.h"
+#include "format.h"
 #include "indicators.h"
 #include "signals.h"
 
+#include <cmath>
 #include <iostream>
 
 template <template <typename...> class Container>
@@ -27,25 +29,19 @@ LinearRegression::LinearRegression(const Container<Point>& vals) noexcept {
   intercept = (sum_y - slope * sum_x) / n;
 }
 
-std::string LinearRegression::to_str() const {
-  return std::format("y = {:.2f} * x + {:.2f}", slope, intercept);
-}
-
-std::string TrendLine::to_str() const {
-  std::ostringstream oss;
-  oss << "Period: " << period << ", Slope: " << line.slope << ", R²: " << r2;
-  return oss.str();
-}
-
 bool TrendLine::operator<(const TrendLine& other) const {
-  return r2 > other.r2;  // higher R² is better
+  auto score = [](auto& t) {
+    constexpr double alpha = 0.5;
+    return t.r2 * std::pow(static_cast<double>(t.period), alpha);
+  };
+  return score(*this) > score(other);
 }
 
 template <typename Func>
 TrendLines::TrendLines(const Indicators& ind,
                        Func f,
                        int last_idx,
-                       size_t min_period,
+                       [[maybe_unused]] size_t min_period,
                        size_t max_period,
                        size_t top_n) noexcept  //
 {
@@ -57,13 +53,13 @@ TrendLines::TrendLines(const Indicators& ind,
   max_period = std::min(len, max_period);
 
   std::deque<Point> window;
-  for (size_t i = len - max_period; i < len; i++)
-    window.emplace_back((double)i, f(ind, i));
+  for (int i = len - max_period; i < static_cast<int>(len); i++)
+    window.emplace_back(static_cast<double>(i), f(ind, i));
 
-  for (size_t p = max_period; p >= min_period; p--, window.pop_front()) {
+  for (int p = max_period; p >= 0; p--, window.pop_front()) {
     LinearRegression lr{window};
     auto r2 = r_squared(window, lr);
-    candidates.emplace_back((int)p, r2, lr);
+    candidates.emplace_back(p, r2, lr);
   }
 
   std::sort(candidates.begin(), candidates.end());
@@ -75,7 +71,9 @@ TrendLines::TrendLines(const Indicators& ind,
 
     bool valid = true;
     for (auto& trend : top_trends) {
-      if (std::abs(trend.period - now.period) <= 5) {
+      auto dist = std::abs(static_cast<int>(trend.period) -
+                           static_cast<int>(now.period));
+      if (dist < 5) {
         valid = false;
         break;
       }
@@ -86,13 +84,6 @@ TrendLines::TrendLines(const Indicators& ind,
       n--;
     }
   }
-}
-
-std::string TrendLines::to_str() const {
-  std::ostringstream oss;
-  for (const auto& trend : top_trends)
-    oss << trend.to_str() << "\n";
-  return oss.str();
 }
 
 template <template <typename...> class Container>
@@ -123,21 +114,21 @@ const auto& ind_config = config.ind_config;
 TrendLines Trends::price_trends(const Indicators& ind, int last_idx) noexcept {
   return TrendLines(
       ind, [](auto& ind, int idx) { return ind.price(idx); }, last_idx,  //
-      ind_config.price_trend_min_candles, ind_config.price_trend_min_candles,
+      ind_config.price_trend_min_candles, ind_config.price_trend_max_candles,
       ind_config.n_top_trends);
 }
 
 TrendLines Trends::rsi_trends(const Indicators& ind, int last_idx) noexcept {
   return TrendLines(
       ind, [](auto& ind, int idx) { return ind.rsi(idx); }, last_idx,  //
-      ind_config.rsi_trend_min_candles, ind_config.rsi_trend_min_candles,
+      ind_config.rsi_trend_min_candles, ind_config.rsi_trend_max_candles,
       ind_config.n_top_trends);
 }
 
 TrendLines Trends::ema21_trends(const Indicators& ind, int last_idx) noexcept {
   return TrendLines(
       ind, [](auto& ind, int idx) { return ind.ema21(idx); }, last_idx,  //
-      ind_config.ema21_trend_min_candles, ind_config.ema21_trend_min_candles,
+      ind_config.ema21_trend_min_candles, ind_config.ema21_trend_max_candles,
       ind_config.n_top_trends);
 }
 
@@ -145,4 +136,3 @@ Trends::Trends(const Indicators& ind, int last_idx) noexcept
     : price{price_trends(ind, last_idx)},
       ema21{ema21_trends(ind, last_idx)},
       rsi{rsi_trends(ind, last_idx)} {}
-
