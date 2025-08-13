@@ -170,9 +170,9 @@ struct Config {
   bool plot_en = true;
 
   bool replay_en = false;
+  bool replay_clear = false;
 
-  bool continuous_en = false;
-  double speed = 1.0;
+  double speed = 0.0;
 
   APIConfig api_config;
   IndicatorsConfig ind_config;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "candle.h"
 #include "times.h"
 
 #include <string>
@@ -10,11 +11,20 @@ struct Candle;
 struct SymbolInfo;
 class TD;
 
+struct Timeline {
+  std::vector<Candle> candles;
+  size_t idx = 0;
+};
+
+using CandleStore = std::unordered_map<std::string, Timeline>;
+
 class Replay {
   TD& td;
 
-  std::unordered_map<std::string, std::vector<Candle>> prev_day_candles;
-  std::unordered_map<std::string, std::vector<Candle>> curr_day_candles_rev;
+  CandleStore candles_by_sym;
+
+  size_t n_ticks = 0;
+  const size_t calls_per_hour = 4;
 
  public:
   const bool enabled = false;
@@ -22,14 +32,16 @@ class Replay {
  public:
   Replay(TD& td,
          const std::vector<SymbolInfo>& symbols,
-         bool bt_enabled = false);
+         bool bt_enabled = false) noexcept;
 
-  std::vector<Candle> time_series(const std::string& symbol,
-                                  minutes timeframe = H_1);
+  TimeSeriesRes time_series(const std::string& symbol,
+                            minutes timeframe = H_1) noexcept;
+  RealTimeRes real_time(const std::string& symbol,
+                        minutes timeframe = H_1) noexcept;
 
-  Candle real_time(const std::string& symbol, minutes timeframe = H_1);
-
-  void rollback(const std::string& symbol, const Candle& candle);
-
+  void rollback(const std::string& symbol);
   bool has_data() const;
+
+  void roll_fwd() noexcept; 
+  void roll_bwd(); 
 };

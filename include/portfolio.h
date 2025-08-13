@@ -54,15 +54,14 @@ struct Ticker {
     calculate_signal();
   }
 
-  void add(const Candle& candle, const Position* pos) {
-    metrics.add(candle, pos);
+  void push_back(const Candle& next, const Position* pos) {
+    metrics.push_back(next, pos);
     calculate_signal();
   }
 
-  Candle rollback() {
-    auto candle = metrics.rollback();
+  void rollback() {
+    metrics.rollback();
     calculate_signal();
-    return candle;
   }
 
   void calculate_signal();

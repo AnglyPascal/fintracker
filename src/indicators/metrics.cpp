@@ -3,6 +3,8 @@
 #include "positions.h"
 #include "times.h"
 
+#include <spdlog/spdlog.h>
+
 inline Candle combine(auto start, auto end) {
   assert(start != end);
   Candle out;
@@ -28,12 +30,8 @@ inline auto downsample(auto& candles, minutes source, minutes target) {
   if (candles.empty())
     return out;
 
-  assert(target.count() % source.count() == 0);
-
-  if (source == target) {
-    out.insert(out.end(), candles.cbegin(), candles.cend());
-    return out;
-  }
+  if (source == target)
+    return candles;
 
   std::vector<Candle> bucket;
   std::string current_day = candles.front().day();
@@ -116,7 +114,7 @@ inline Candle latest_candle(auto& candles, minutes source, minutes target) {
   return combine(start, end);
 }
 
-bool Metrics::add(const Candle& candle, const Position* pos) noexcept {
+bool Metrics::push_back(const Candle& candle, const Position* pos) noexcept {
   if (candles.back().time() == candle.time())
     candles.pop_back();
   candles.push_back(candle);
@@ -131,7 +129,7 @@ bool Metrics::add(const Candle& candle, const Position* pos) noexcept {
     if (!new_candle)
       ind.pop_back();
 
-    ind.add(latest_candle(candles, interval, ind.interval), new_candle);
+    ind.push_back(latest_candle(candles, interval, ind.interval), new_candle);
     return new_candle;
   };
 
@@ -143,7 +141,7 @@ bool Metrics::add(const Candle& candle, const Position* pos) noexcept {
   return new_candle;
 }
 
-Candle Metrics::rollback() noexcept {
+void Metrics::rollback() noexcept {
   auto candle = candles.back();
   candles.pop_back();
 
@@ -159,12 +157,10 @@ Candle Metrics::rollback() noexcept {
       return;
     }
 
-    ind.add(latest_candle(candles, interval, ind.interval), false);
+    ind.push_back(latest_candle(candles, interval, ind.interval), false);
   };
 
   pop_from_ind(ind_1h);
   pop_from_ind(ind_4h);
   pop_from_ind(ind_1d);
-
-  return candle;
 }

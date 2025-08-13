@@ -195,13 +195,13 @@ struct SignalMemory {
 
   SignalMemory(minutes interval) noexcept;
 
-  void add(const Signal& sig) {
+  void push_back(const Signal& sig) {
     past.push_back(sig);
     if (past.size() > (size_t)memory_length)
       past.pop_front();
   }
 
-  void remove() {
+  void pop_back() {
     if (!past.empty())
       past.pop_back();
   }

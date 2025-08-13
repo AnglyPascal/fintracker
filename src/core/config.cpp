@@ -4,9 +4,8 @@
 #include <argparse/argparse.hpp>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
-
 #include <glaze/glaze.hpp>
+#include <sstream>
 
 namespace fs = std::filesystem;
 
@@ -60,19 +59,19 @@ void Config::read_args(int argc, char* argv[]) {
       .implicit_value(true)
       .help("Enable replaying mode");
 
+  program.add_argument("-c", "--clear")
+      .default_value(false)
+      .implicit_value(true)
+      .help("Clear previous replay data, fetch anew");
+
   program.add_argument("-p", "--disable-plot")
       .default_value(false)
       .implicit_value(true)
       .help("Enable replaying mode");
 
-  program.add_argument("-c", "--continuous")
-      .default_value(false)
-      .implicit_value(true)
-      .help("Enable continuous replaying mode");
-
   program.add_argument("-s", "--speed")
       .help("Speed of continuous replay")
-      .default_value(1.0)
+      .default_value(0.0)
       .scan<'g', double>();
 
   try {
@@ -83,8 +82,8 @@ void Config::read_args(int argc, char* argv[]) {
 
   tg_en = !program.get<bool>("--disable-tg");
   replay_en = program.get<bool>("--replay");
+  replay_clear = program.get<bool>("--clear");
   plot_en = !program.get<bool>("--disable-plot");
   debug_en = program.get<bool>("--debug");
-  continuous_en = program.get<bool>("--continuous");
   speed = program.get<double>("--speed");
 }

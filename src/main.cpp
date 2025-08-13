@@ -30,13 +30,13 @@ void init_logging() {
 
 void ensure_directories_exist(const std::vector<std::string>& dirs) {
   for (const auto& dir : dirs) {
-    fs::path path(dir);
-    if (!fs::exists(path)) {
-      if (fs::create_directories(path))
-        std::cout << "Created: " << dir << '\n';
-      else
-        std::cerr << "Failed to create: " << dir << '\n';
-    }
+    fs::path path{dir};
+    if (fs::exists(path))
+      continue;
+    if (fs::create_directories(path))
+      std::cout << "Created: " << dir << '\n';
+    else
+      std::cerr << "Failed to create: " << dir << '\n';
   }
 }
 

@@ -5,7 +5,6 @@
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
-#include <glaze/glaze.hpp>
 #include <iostream>
 
 #include <unordered_map>
@@ -86,53 +85,42 @@ inline std::string interval_to_str(minutes interval) {
   return it->second;
 }
 
-struct curr_res_t {
-  double amount = -1;
-};
+double get_amount_json(const std::string& currency, const std::string& str);
 
-double TD::to_usd(double amount, const std::string& currency) {
+double TD::to_usd(double amount, const std::string& currency) noexcept {
   if (currency == "USD")
     return amount;
 
-  auto symbol = currency + "/USD";
-  auto api_key = get_key();
+  try {
+    auto symbol = currency + "/USD";
+    auto api_key = get_key();
 
-  cpr::Parameters params{{"symbol", symbol},
-                         {"amount", std::to_string(amount)},
-                         {"apikey", api_key}};
+    cpr::Parameters params{{"symbol", symbol},
+                           {"amount", std::to_string(amount)},
+                           {"apikey", api_key}};
 
-  auto res = cpr::Get(
-      cpr::Url{"https://api.twelvedata.com/currency_conversion"}, params);
+    auto res = cpr::Get(
+        cpr::Url{"https://api.twelvedata.com/currency_conversion"}, params);
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-  curr_res_t curr_res;
+    if (res.status_code != 200) {
+      spdlog::error("[td] {}/USD http error {}", currency, res.status_code);
+      return amount;
+    }
 
-  if (res.status_code != 200) {
-    spdlog::error("[td] {}/USD http error {}", currency, res.status_code);
-    return curr_res.amount;
+    amount = get_amount_json(currency, res.text);
+  } catch (std::exception& ex) {
+    spdlog::error("[td] {}/USD error: {}", currency, ex.what());
   }
-
-  constexpr auto opts = glz::opts{
-      .error_on_unknown_keys = false,
-      .partial_read = true,
-  };
-
-  auto ec = glz::read<opts>(curr_res, res.text);
-  if (ec)
-    spdlog::error("[td] {}/USD json error: {}", currency,
-                  glz::format_error(ec).c_str());
-
-  return curr_res.amount;
+  return amount;
 }
 
-struct api_call_res_t {
-  std::vector<Candle> values;
-};
+TimeSeriesRes read_candles_json(const std::string& str);
 
-TD::Result TD::api_call(const std::string& symbol,
-                        minutes timeframe,
-                        size_t output_size) {
+TimeSeriesRes TD::api_call(const std::string& symbol,
+                           minutes timeframe,
+                           size_t output_size) {
   auto api_key = get_key();
 
   if (output_size > MAX_OUTPUT_SIZE)
@@ -155,30 +143,40 @@ TD::Result TD::api_call(const std::string& symbol,
     return {};
   }
 
-  constexpr auto opts = glz::opts{
-      .error_on_unknown_keys = false,
-      .quoted_num = true,
-  };
-
-  api_call_res_t api_res;
-  auto ec = glz::read<opts>(api_res, res.text);
-  if (ec)
-    spdlog::error("[td] ({}) time_series json error: {}",  //
-                  symbol.c_str(), glz::format_error(ec));
-
-  return api_res.values;
+  return read_candles_json(res.text);
 }
 
-TD::Result TD::time_series(const std::string& symbol, minutes timeframe) {
-  return api_call(symbol, timeframe);
+TimeSeriesRes TD::time_series(const std::string& symbol,
+                              minutes timeframe) noexcept {
+  TimeSeriesRes res;
+  try {
+    res = api_call(symbol, timeframe);
+  } catch (const std::exception& ex) {
+    spdlog::error("[ts] ({}) error: {}", symbol.c_str(), ex.what());
+  }
+  return res;
 }
 
-Candle TD::real_time(const std::string& symbol, minutes timeframe) {
-  return api_call(symbol, timeframe, 1).back();
+RealTimeRes TD::real_time(const std::string& symbol,
+                          minutes timeframe) noexcept {
+  RealTimeRes res;
+  try {
+    auto candles = api_call(symbol, timeframe, 2);
+    res = {candles[candles.size() - 2], candles[candles.size() - 1]};
+  } catch (const std::exception& ex) {
+    spdlog::error("[rt] ({}) error: {}", symbol.c_str(), ex.what());
+  }
+  return res;
 }
 
-LocalTimePoint TD::latest_datetime() {
-  return real_time("NVDA", interval).time();
+LocalTimePoint TD::latest_datetime() noexcept {
+  LocalTimePoint tp;
+  try {
+    tp = api_call("NVDA", interval, 1).back().time();
+  } catch (const std::exception& ex) {
+    spdlog::error("[datetime] error: {}", ex.what());
+  }
+  return tp;
 }
 
 bool wait_for_file(const std::string& path,

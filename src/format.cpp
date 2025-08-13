@@ -20,9 +20,9 @@ std::string to_str<FormatTarget::Telegram>(const std::string& lang,
 
 template <>
 std::string to_str(const Candle& candle) {
-  auto& [datetime, open, high, low, close, volume] = candle;
+  auto& [_, open, high, low, close, volume] = candle;
   return std::format("{} {:.2f} {:.2f} {:.2f} {:.2f} {}",  //
-                     datetime, open, high, low, close, volume);
+                     candle.time(), open, high, low, close, volume);
 }
 
 template <>

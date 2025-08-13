@@ -1,5 +1,6 @@
 #pragma once
 
+#include "candle.h"
 #include "times.h"
 
 #include <deque>
@@ -33,13 +34,9 @@ struct APIKey {
   std::deque<TimePoint> call_timestamps = {};  // to enforce 8/min
 };
 
-struct Candle;
-
 inline constexpr int MAX_OUTPUT_SIZE = 5000;
 
 class TD {
-  using Result = std::vector<Candle>;
-
   std::vector<APIKey> keys;
   int idx = 0;
   std::mutex mtx;
@@ -51,18 +48,20 @@ class TD {
   int try_get_key();
   const std::string& get_key();
 
-  Result api_call(const std::string& symbol,
-                  minutes timeframe,
-                  size_t output_size = MAX_OUTPUT_SIZE);
+  TimeSeriesRes api_call(const std::string& symbol,
+                         minutes timeframe,
+                         size_t output_size = MAX_OUTPUT_SIZE);
 
  public:
   TD(size_t n_tickers);
 
-  double to_usd(double amount, const std::string& currency = "GBP");
+  double to_usd(double amount, const std::string& currency = "GBP") noexcept;
 
-  Result time_series(const std::string& symbol, minutes timeframe = H_1);
-  Candle real_time(const std::string& symbol, minutes timeframe = H_1);
-  LocalTimePoint latest_datetime();
+  TimeSeriesRes time_series(const std::string& symbol,
+                            minutes timeframe = H_1) noexcept;
+  RealTimeRes real_time(const std::string& symbol,
+                        minutes timeframe = H_1) noexcept;
+  LocalTimePoint latest_datetime() noexcept;
 };
 
 bool wait_for_file(const std::string& path,

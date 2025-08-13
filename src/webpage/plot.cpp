@@ -28,8 +28,7 @@ struct sr_t {
 template <>
 struct glz::meta<LocalTimePoint> {
   static constexpr auto value = [](const auto& tp) {
-    // Format to ISO 8601 local time
-    return std::format("{:%Y-%m-%d %H:%M:%S}", tp);
+    return std::format("{:%F %T}", tp);
   };
 };
 
@@ -63,9 +62,9 @@ LocalTimePoint Indicators::plot(const std::string& sym,
 
   for (size_t i = candles.size() - n; i < candles.size(); i++)
     f << std::format(
-        "{},{:.2f},{:.2f},{:.2f},{:.2f},{},"
+        "{:%F %T},{:.2f},{:.2f},{:.2f},{:.2f},{},"
         "{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n",
-        candles[i].datetime, candles[i].open, candles[i].close, candles[i].high,
+        candles[i].time(), candles[i].open, candles[i].close, candles[i].high,
         candles[i].low, candles[i].volume, _ema9.values[i], _ema21.values[i],
         _rsi.values[i], _macd.macd_line[i], _macd.signal_ema.values[i]);
 
@@ -81,10 +80,10 @@ LocalTimePoint Indicators::plot(const std::string& sym,
       auto start = candles.size() - std::min(top_trend.period, n);
       auto end = candles.size() - 1;
 
-      ff << std::format("{},{},{:.2f},{},{:.2f}\n",  //
-                        name,                      //
-                        candles[start].datetime, top_trend.eval(start),
-                        candles[end].datetime, top_trend.eval(end));
+      ff << std::format("{},{:%F %T},{:.2f},{:%F %T},{:.2f}\n",  //
+                        name,                                    //
+                        candles[start].time(), top_trend.eval(start),
+                        candles[end].time(), top_trend.eval(end));
     }
   };
 

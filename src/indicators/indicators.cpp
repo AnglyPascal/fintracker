@@ -32,11 +32,11 @@ EMA::EMA(const std::vector<double>& prices, int period) noexcept
   }
 }
 
-void EMA::add(const Candle& candle) noexcept {
-  return add(candle.price());
+void EMA::push_back(const Candle& candle) noexcept {
+  return push_back(candle.price());
 }
 
-void EMA::add(double price) noexcept {
+void EMA::push_back(double price) noexcept {
   auto alpha = 2.0 / (period + 1);
   auto last = values.back();
   values.push_back((price - last) * alpha + last);
@@ -86,7 +86,7 @@ RSI::RSI(const std::vector<Candle>& candles, int period) noexcept
   }
 }
 
-void RSI::add(const Candle& candle) noexcept {
+void RSI::push_back(const Candle& candle) noexcept {
   double change = candle.price() - last_price;
   last_price = candle.price();
 
@@ -128,14 +128,14 @@ MACD::MACD(const std::vector<Candle>& candles,
     histogram.push_back(macd_line[i] - signal_line[i]);
 }
 
-void MACD::add(const Candle& candle) noexcept {
-  fast_ema.add(candle);
-  slow_ema.add(candle);
+void MACD::push_back(const Candle& candle) noexcept {
+  fast_ema.push_back(candle);
+  slow_ema.push_back(candle);
 
   double macd = fast_ema.values.back() - slow_ema.values.back();
   macd_line.push_back(macd);
 
-  signal_ema.add(macd);
+  signal_ema.push_back(macd);
   double signal_val = signal_ema.values.back();
   histogram.push_back(macd - signal_val);
 }
@@ -174,7 +174,7 @@ ATR::ATR(const std::vector<Candle>& candles, int period) noexcept
   prev_close = candles.back().close;
 }
 
-void ATR::add(const Candle& candle) noexcept {
+void ATR::push_back(const Candle& candle) noexcept {
   double tr = true_range(prev_close, candle);
   double prev_atr = values.back();
   double atr = (prev_atr * (period - 1) + tr) / period;
@@ -204,21 +204,21 @@ Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
   get_stats();
   signal = gen_signal(-1);
   for (int i = -1 - memory.memory_length; i < -1; i++)
-    memory.add(gen_signal(i));
+    memory.push_back(gen_signal(i));
 }
 
-void Indicators::add(const Candle& candle, bool new_candle) noexcept {
+void Indicators::push_back(const Candle& candle, bool new_candle) noexcept {
   if (new_candle)
-    memory.add(signal);
+    memory.push_back(signal);
 
   candles.push_back(candle);
 
-  _ema9.add(candle);
-  _ema21.add(candle);
-  _ema50.add(candle);
-  _rsi.add(candle);
-  _macd.add(candle);
-  _atr.add(candle);
+  _ema9.push_back(candle);
+  _ema21.push_back(candle);
+  _ema50.push_back(candle);
+  _rsi.push_back(candle);
+  _macd.push_back(candle);
+  _atr.push_back(candle);
 
   trends = Trends{*this};
   signal = gen_signal(-1);
@@ -240,7 +240,7 @@ void Indicators::pop_back() noexcept {
 }
 
 void Indicators::pop_memory() noexcept {
-  memory.remove();
+  memory.pop_back();
 }
 
 void Indicators::get_stats() {

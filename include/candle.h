@@ -2,17 +2,21 @@
 
 #include "times.h"
 
+#include <iostream>
 #include <string>
 
 struct Candle {
-  std::string datetime = "";
+  LocalTimePoint datetime;
   double open = 0.0;
   double high = 0.0;
   double low = 0.0;
   double close = 0.0;
   int volume = 0.0;
 
-  std::string day() const { return datetime.substr(0, 10); }
+  std::string day() const { return std::format("{:%F}", time()); }
   double price() const { return close; }
-  LocalTimePoint time() const { return datetime_to_local(datetime); }
+  LocalTimePoint time() const { return datetime; }
 };
+
+using TimeSeriesRes = std::vector<Candle>;
+using RealTimeRes = std::pair<Candle, Candle>;

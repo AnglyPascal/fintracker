@@ -24,8 +24,8 @@ struct EMA {
   EMA(const std::vector<Candle>& candles, int period) noexcept;
   EMA(const std::vector<double>& prices, int period) noexcept;
 
-  void add(const Candle& candle) noexcept;
-  void add(double price) noexcept;
+  void push_back(const Candle& candle) noexcept;
+  void push_back(double price) noexcept;
   void pop_back() noexcept { values.pop_back(); }
 };
 
@@ -44,7 +44,7 @@ struct RSI {
  public:
   RSI(const std::vector<Candle>& candles, int period = 14) noexcept;
 
-  void add(const Candle& candle) noexcept;
+  void push_back(const Candle& candle) noexcept;
   void pop_back() noexcept { values.pop_back(); }
 
   bool rising() const;
@@ -69,7 +69,7 @@ struct MACD {
        int slow = 26,
        int signal = 9) noexcept;
 
-  void add(const Candle& candle) noexcept;
+  void push_back(const Candle& candle) noexcept;
   void pop_back() noexcept;
 };
 
@@ -84,7 +84,7 @@ struct ATR {
   ATR() noexcept = default;
   ATR(const std::vector<Candle>& candles, int period = 14) noexcept;
 
-  void add(const Candle& candle) noexcept;
+  void push_back(const Candle& candle) noexcept;
   void pop_back(double close) noexcept {
     prev_close = close;
     values.pop_back();
@@ -132,7 +132,7 @@ struct Indicators {
  public:
   Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
 
-  void add(const Candle& candle, bool new_candle) noexcept;
+  void push_back(const Candle& candle, bool new_candle) noexcept;
   void pop_back() noexcept;
   void pop_memory() noexcept;
 
@@ -201,13 +201,11 @@ struct Metrics {
           minutes interval,
           const Position* position) noexcept;
 
-  bool add(const Candle& candle, const Position* position) noexcept;
-  Candle rollback() noexcept;
+  bool push_back(const Candle& next, const Position* position) noexcept;
+  void rollback() noexcept;
 
   auto last_price() const { return candles.back().price(); }
-  auto last_updated() const {
-    return datetime_to_local(candles.back().datetime);
-  }
+  auto last_updated() const { return candles.back().time(); }
 
   const Indicators& get_indicators(minutes interval) const {
     return interval == H_1 ? ind_1h : (interval == H_4 ? ind_4h : ind_1d);
