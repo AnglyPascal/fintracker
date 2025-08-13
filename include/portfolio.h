@@ -8,6 +8,7 @@
 #include "positions.h"
 #include "replay.h"
 #include "signals.h"
+#include "symbols.h"
 
 #include <mutex>
 #include <shared_mutex>
@@ -69,18 +70,13 @@ struct Ticker {
 
 using Tickers = std::map<std::string, Ticker>;
 
-struct SymbolInfo {
-  std::string symbol;
-  int priority;
-};
-
 enum class FormatTarget;
 
 inline constexpr int max_concurrency = 32;
 
 class Portfolio {
  private:
-  std::vector<SymbolInfo> symbols;
+  Symbols symbols;
   mutable std::shared_mutex mtx;
 
  public:

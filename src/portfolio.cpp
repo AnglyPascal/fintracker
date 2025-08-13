@@ -44,7 +44,7 @@ void Ticker::calculate_signal() {
 }
 
 Portfolio::Portfolio() noexcept
-    : symbols{read_symbols()},
+    : symbols{},
 
       // APIs
       tg{config.tg_en},

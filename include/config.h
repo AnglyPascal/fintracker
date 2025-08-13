@@ -41,7 +41,6 @@ struct PositionSizingConfig {
   double trailing_atr_multiplier = 3.0;
   double trailing_stop_pct = 0.035;
 
-  int swing_low_window = 30;
   double swing_low_buffer = 0.002;
   double ema_stop_pct = 0.02;
 

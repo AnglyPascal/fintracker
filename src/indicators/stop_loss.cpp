@@ -19,12 +19,18 @@ StopLoss::StopLoss(const Metrics& m) noexcept {
       m.has_position() &&
       (max_price_seen > entry_price + sizing_config.trailing_trigger_atr * atr);
 
-  auto n = std::min((size_t)sizing_config.swing_low_window, ind.size());
+  auto support_1d = m.ind_1d.nearest_support(-1);
+  auto support_4h = m.ind_4h.nearest_support(-1);
+  auto support_1h = m.ind_1h.nearest_support(-1);
 
-  swing_low = std::numeric_limits<double>::max();
-  for (int i = -n; i <= -1; ++i)
-    swing_low = std::min(swing_low, ind.low(i));
-  swing_low *= 1.0 - sizing_config.swing_low_buffer;
+  auto primary_support =
+      support_1d ? support_1d : (support_4h ? support_4h : support_1h);
+
+  swing_low = 0.0;
+  if (primary_support) {
+    double buffer = support_1d ? 0.012 : support_4h ? 0.008 : 0.005;
+    swing_low = primary_support->get().lo * (1 - buffer);
+  }
 
   double hard_stop = 0.0;
 
@@ -48,5 +54,4 @@ StopLoss::StopLoss(const Metrics& m) noexcept {
     final_stop = std::max({swing_low, atr_stop, hard_stop});
     stop_pct = (price - final_stop) / price;
   }
-
 }

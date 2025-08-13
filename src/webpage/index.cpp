@@ -41,22 +41,22 @@ inline constexpr std::string_view index_event_template = R"(
 )";
 
 inline constexpr std::string_view index_row_template = R"(
-  <tr class="info-row {}" 
-      id="row-{}" 
-      style="{}"
-      onclick="toggleSignalDetails(this, '{}-details') ">
-    <td data-label="Signal">{}</td>
+  <tr class="info-row {1}" 
+      id="row-{0}" 
+      style="{2}"
+      onclick="toggleSignalDetails(this, '{0}-details') ">
+    <td data-label="Signal">{3}</td>
     <td data-label="Symbol">
       <div class="eventful">
-        <a href="{}.html" target="_blank"><b>{}</b></a>{}
+        <a href="{0}.html" target="_blank">{4}</a>{5}
       </div>
     </td>
-    <td data-label="Price"><div>{}</div></td>
-    <td data-label="EMA"><div>{}</div></td>
-    <td data-label="RSI"><div>{}</div></td>
-    <td data-label="MACD"><div>{}</div></td>
-    <td data-label="Position"><div>{}</div></td>
-    <td data-label="Stop Loss"><div>{}</div></td>
+    <td data-label="Price"><div>{6}</div></td>
+    <td data-label="EMA"><div>{7}</div></td>
+    <td data-label="RSI"><div>{8}</div></td>
+    <td data-label="MACD"><div>{9}</div></td>
+    <td data-label="Position"><div>{10}</div></td>
+    <td data-label="Stop Loss"><div>{11}</div></td>
   </tr>
 )";
 
@@ -89,6 +89,23 @@ inline bool hide(auto& m, auto& type) {
 };
 
 template <>
+inline std::string to_str<FormatTarget::HTML>(const Metrics& m,
+                                              const StopLoss& stop_loss)  //
+{
+  auto price = std::format("<b>{:.2f}</b>", m.last_price());
+  if (!m.has_position())
+    return price;
+  return price + ", " + to_str(stop_loss);
+}
+
+template <>
+inline std::string to_str<FormatTarget::HTML>(const std::string& sym,
+                                              const Event& ev)  //
+{
+  return std::format(index_event_template, sym, to_str(ev));
+}
+
+template <>
 inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   std::string body;
 
@@ -99,9 +116,7 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
   std::sort(sorted.begin(), sorted.end(), [](auto& lhs, auto& rhs) {
     auto lt = lhs.second->signal.type;
     auto rt = rhs.second->signal.type;
-    if (lt == rt)
-      return *lhs.first < *rhs.first;
-    return lt < rt;
+    return (lt == rt) ? *lhs.first < *rhs.first : lt < rt;
   });
 
   for (auto [s, t] : sorted) {
@@ -114,32 +129,26 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
     auto& sig = ticker.signal;
     auto& sig_1h = ind_1h.signal;
 
-    auto row_class = to_str<FormatTarget::HTML>(sig.type);
-
-    auto pos_str = to_str<FormatTarget::HTML>(m.position, m.last_price());
-    auto stop_loss_str = m.has_position()  //
-                             ? std::format("<b>{:.2f}</b>, {}", m.last_price(),
-                                           to_str(ticker.stop_loss))
-                             : std::format("<b>{:.2f}</b>", m.last_price());
-
-    auto event = p.calendar.next_event(symbol);
-    auto event_str = std::format(index_event_template, symbol, to_str(event));
-
     auto stop_str = sig.stop_hit.str();
     auto str = [&](auto src) {
       return to_str<FormatTarget::HTML>(sig_1h, src);
     };
 
-    body +=
-        std::format(index_row_template,                                     //
-                    row_class, symbol,                                      //
-                    hide(m, sig.type) ? "display:none;" : "", symbol,       //
-                    to_str<FormatTarget::HTML>(sig),                        //
-                    symbol, symbol, event_str,                              //
-                    str(Source::Price) + stop_str + str(Source::SR),        //
-                    str(Source::EMA), str(Source::RSI), str(Source::MACD),  //
-                    pos_str, stop_loss_str                                  //
-        );
+    body += std::format(
+        index_row_template,                                                //
+        symbol,                                                            //
+        to_str<FormatTarget::HTML>(sig.type),                              //
+        hide(m, sig.type) ? "display:none;" : "",                          //
+        to_str<FormatTarget::HTML>(sig),                                   //
+        ticker.priority == 3 ? symbol : std::format("<b>{}</b>", symbol),  //
+        to_str<FormatTarget::HTML>(symbol, ticker.ev),                     //
+        str(Source::Price) + stop_str + str(Source::SR),                   //
+        str(Source::EMA),                                                  //
+        str(Source::RSI),                                                  //
+        str(Source::MACD),                                                 //
+        to_str<FormatTarget::HTML>(m.position, m.last_price()),            //
+        to_str<FormatTarget::HTML>(m, ticker.stop_loss)                    //
+    );
 
     std::string mem_str = "";
     int n = 1;

@@ -175,7 +175,7 @@ void Notifier::iter(Notifier* notifier) {
 
 pid_t tunnel_pid = -1;  // To track the child process
 
-inline std::string get_tunnel_url() {
+inline std::string start_tunnel() {
   int pipefd[2];
   if (pipe(pipefd) == -1) {
     spdlog::error("[tunnel] pipe creation failed");
@@ -190,7 +190,7 @@ inline std::string get_tunnel_url() {
 
   if (tunnel_pid == 0) {
     // Child process
-    close(pipefd[0]);                // Close read end
+    // close(pipefd[0]);                // Close read end
     dup2(pipefd[1], STDOUT_FILENO);  // Redirect stdout to pipe
     close(pipefd[1]);
 
@@ -199,7 +199,7 @@ inline std::string get_tunnel_url() {
   }
 
   // Parent process
-  close(pipefd[1]);  // Close write end
+  // close(pipefd[1]);  // Close write end
   std::array<char, 256> buffer;
   std::string result;
 
@@ -245,7 +245,7 @@ Notifier::Notifier(const Portfolio& portfolio)
     exit(0);
   });
 
-  tunnel_url = get_tunnel_url();
+  tunnel_url = start_tunnel();
   auto msg_id = tg.send(tunnel_url);
   tg.pin_message(msg_id);
 

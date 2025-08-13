@@ -19,15 +19,15 @@ struct Meta {
 };
 
 enum class Rating {
-  Exit = 0,            // Strong sell signal
-  Entry = 1,           // Strong buy signal
-  HoldCautiously = 2,  // Already in trade, tightening stop
-  Watchlist = 3,       // Not a trade yet, but worth tracking
-  OldWatchlist = 4,    // Not a trade yet, but worth tracking
-  Mixed = 5,           // Conflicting signals
-  None = 6,            // No action
-  Caution = 7,         // Not a trade yet, but worth being cautious
-  Skip = 8,
+  Exit,            // Strong sell signal
+  Entry,           // Strong buy signal
+  HoldCautiously,  // Already in trade, tightening stop
+  Watchlist,       // Not a trade yet, but worth tracking
+  Mixed,           // Conflicting signals
+  None,            // No action
+  OldWatchlist,    // Not a trade yet, but worth tracking
+  Caution,         // Not a trade yet, but worth being cautious
+  Skip,
 };
 
 enum class ReasonType {

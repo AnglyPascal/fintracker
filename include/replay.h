@@ -1,6 +1,7 @@
 #pragma once
 
 #include "candle.h"
+#include "symbols.h"
 #include "times.h"
 
 #include <string>
@@ -30,9 +31,7 @@ class Replay {
   const bool enabled = false;
 
  public:
-  Replay(TD& td,
-         const std::vector<SymbolInfo>& symbols,
-         bool bt_enabled = false) noexcept;
+  Replay(TD& td, const Symbols& symbols, bool bt_enabled = false) noexcept;
 
   TimeSeriesRes time_series(const std::string& symbol,
                             minutes timeframe = H_1) noexcept;
@@ -42,6 +41,6 @@ class Replay {
   void rollback(const std::string& symbol);
   bool has_data() const;
 
-  void roll_fwd() noexcept; 
-  void roll_bwd(); 
+  void roll_fwd() noexcept;
+  void roll_bwd();
 };

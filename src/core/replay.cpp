@@ -12,9 +12,7 @@ namespace fs = std::filesystem;
 void write_candles(const std::string& filename, const CandleStore& data);
 CandleStore read_candles(const std::string& filename);
 
-Replay::Replay(TD& td,
-               const std::vector<SymbolInfo>& symbols,
-               bool rp_enabled) noexcept
+Replay::Replay(TD& td, const Symbols& symbols, bool rp_enabled) noexcept
     : td{td},
       calls_per_hour{static_cast<size_t>(H_1 / td.interval)},
       enabled{rp_enabled}  //

@@ -1,4 +1,5 @@
 #include "config.h"
+#include "format.h"
 #include "indicators.h"
 #include "portfolio.h"
 
@@ -280,6 +281,9 @@ CombinedSignal Ticker::gen_signal(int idx) const {
 
   sig.stop_hit = stop_loss_hits(metrics, stop_loss);
   sig.forecast = ind_1h.gen_forecast(idx);
+
+  std::cout << symbol << ": " << sig.forecast.expected_return << " "
+            << sig.forecast.confidence << std::endl;
 
   sig.filters = evaluate_filters(metrics);
   auto [type, mod] =

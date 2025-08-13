@@ -40,3 +40,7 @@ class Notifier {
   ~Notifier();
 };
 
+class NPMServer {
+  NPMServer() noexcept;
+  ~NPMServer() noexcept;
+};

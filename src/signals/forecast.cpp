@@ -1,4 +1,5 @@
 #include "config.h"
+#include "format.h"
 #include "indicators.h"
 
 #include <cmath>
