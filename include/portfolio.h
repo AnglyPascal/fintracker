@@ -10,6 +10,9 @@
 #include "signals.h"
 #include "symbols.h"
 
+#include <atomic>
+#include <condition_variable>
+#include <functional>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -69,20 +72,20 @@ struct Ticker {
 };
 
 using Tickers = std::map<std::string, Ticker>;
-
 enum class FormatTarget;
+using sleep_f = std::function<bool(std::chrono::milliseconds)>;
 
 inline constexpr int max_concurrency = 32;
 
 class Portfolio {
  private:
+  std::atomic<bool> _killed = false;
+  mutable std::condition_variable _cv;
+  mutable std::mutex _cv_m;
+
   Symbols symbols;
   mutable std::shared_mutex mtx;
 
- public:
-  TG tg;
-
- private:
   TD td;
   Replay rp;
 
@@ -98,24 +101,37 @@ class Portfolio {
 
  public:
   Portfolio() noexcept;
-  void run();
+  void run(sleep_f f);
   void update_trades();
 
   std::pair<const Position*, double> add_trade(const Trade& trade) const;
+
+  bool is_killed() const { return _killed; }
+
+  void kill() {
+    _killed.store(true, std::memory_order_relaxed);
+    _cv.notify_all();
+  }
+
+  void wait_for(std::chrono::milliseconds millis) const {
+    std::unique_lock lk{_cv_m};
+    _cv.wait_for(lk, millis,
+                 [&] { return _killed.load(std::memory_order_acquire); });
+  }
 
  private:
   void run_replay();
 
   template <typename... Args>
   auto time_series(Args&&... args) {
-    return rp.enabled ? rp.time_series(std::forward<Args>(args)...)
-                      : td.time_series(std::forward<Args>(args)...);
+    return config.replay_en ? rp.time_series(std::forward<Args>(args)...)
+                            : td.time_series(std::forward<Args>(args)...);
   }
 
   template <typename... Args>
   auto real_time(Args&&... args) {
-    return rp.enabled ? rp.real_time(std::forward<Args>(args)...)
-                      : td.real_time(std::forward<Args>(args)...);
+    return config.replay_en ? rp.real_time(std::forward<Args>(args)...)
+                            : td.real_time(std::forward<Args>(args)...);
   }
 
   void add_candle();

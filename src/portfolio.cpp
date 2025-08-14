@@ -12,27 +12,6 @@
 #include <semaphore>
 #include <thread>
 
-inline auto read_symbols() {
-  std::vector<SymbolInfo> symbols;
-  std::ifstream file("private/tickers.csv");
-  std::string line;
-
-  std::getline(file, line);
-
-  while (std::getline(file, line)) {
-    std::istringstream ss(line);
-    std::string push_back, symbol, tier_str, sector;
-
-    if (std::getline(ss, push_back, ',') && std::getline(ss, symbol, ',') &&
-        std::getline(ss, tier_str, ',') && std::getline(ss, sector, ',')) {
-      if (push_back == "+")
-        symbols.push_back({symbol, std::stoi(tier_str)});
-    }
-  }
-
-  return symbols;
-}
-
 void Ticker::calculate_signal() {
   stop_loss = StopLoss(metrics);
   signal = gen_signal(-1);
@@ -47,9 +26,8 @@ Portfolio::Portfolio() noexcept
     : symbols{},
 
       // APIs
-      tg{config.tg_en},
       td{symbols.size()},
-      rp{td, symbols, config.replay_en},
+      rp{td, symbols},
 
       // components
       positions{},
@@ -221,16 +199,8 @@ std::pair<const Position*, double> Portfolio::add_trade(
   return {pos, pnl};
 }
 
-inline auto sleep(auto mins) {
-  return std::this_thread::sleep_for(minutes(mins));
-}
-
-inline auto sleep(double mins) {
-  return std::this_thread::sleep_for(seconds((int)(mins * 60)));
-}
-
-void Portfolio::run() {
-  if (rp.enabled)
+void Portfolio::run(sleep_f f) {
+  if (config.replay_en)
     return run_replay();
 
   while (true) {
@@ -240,13 +210,13 @@ void Portfolio::run() {
     if (!open)
       break;
 
-    sleep(remaining + minutes(4));
+    if (!f(remaining + minutes(4)))
+      break;
     add_candle();
   }
 
-  spdlog::info("[close]");
-  while (true)
-    sleep(1);
+  kill();
+  std::cout << "[portfolio] exit" << std::endl;
 }
 
 void Portfolio::update_trades() {
@@ -268,18 +238,22 @@ void Portfolio::update_trades() {
 
 void Portfolio::run_replay() {
   if (config.speed != 0.0) {
-    while (rp.has_data()) {
+    while (!is_killed() && rp.has_data()) {
       spdlog::info("[replay] adding data");
       add_candle();
-      sleep(config.speed);
+      int secs = static_cast<int>(config.speed * 60);
+      std::this_thread::sleep_for(seconds{secs});
     }
     spdlog::info("[replay] done");
+
+    kill();
+    std::cout << "[exit] portfolio" << std::endl;
     return;
   }
 
   RawMode _;
 
-  while (rp.has_data()) {
+  while (!is_killed() && rp.has_data()) {
     char ch;
     if (read(STDIN_FILENO, &ch, 1) == 1) {
       printf("\b \b");
@@ -295,4 +269,7 @@ void Portfolio::run_replay() {
         rollback();
     }
   }
+
+  kill();
+  std::cout << "[exit] portfolio" << std::endl;
 }

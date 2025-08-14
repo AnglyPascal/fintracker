@@ -8,19 +8,22 @@
   </head>
   <body>
 
-    <h1>Trade History</h1>
+    <div id="title-div">
+      <div id="title">Trade History</div>
+      <button id="reload-btn">Reload</button>
+    </div>
 
     <div class="filters">
-      <div class="filter-group">
+      <div class="tickers-filter">
         <label><strong>Tickers:</strong></label>
         <button id="toggle-btn">Toggle All</button>
         <div class="checkbox-group" id="ticker-filters"></div>
       </div>
 
-      <div class="filter-group">
-        <label><strong>Date Range:</strong></label>
+      <div class="date-filter">
+        <label><strong>From:</strong></label>
         <input type="date" id="from-date">
-        to
+        <label><strong>To:</strong></label>
         <input type="date" id="to-date">
       </div>
 

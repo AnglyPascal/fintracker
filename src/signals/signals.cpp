@@ -282,9 +282,6 @@ CombinedSignal Ticker::gen_signal(int idx) const {
   sig.stop_hit = stop_loss_hits(metrics, stop_loss);
   sig.forecast = ind_1h.gen_forecast(idx);
 
-  std::cout << symbol << ": " << sig.forecast.expected_return << " "
-            << sig.forecast.confidence << std::endl;
-
   sig.filters = evaluate_filters(metrics);
   auto [type, mod] =
       contextual_rating(ind_1h, ind_4h, ind_1d, sig, metrics.has_position());

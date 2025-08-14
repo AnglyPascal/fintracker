@@ -1,5 +1,5 @@
-#include "api.h"
 #include "config.h"
+#include "servers.h"
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
@@ -13,9 +13,9 @@ inline auto& TG_TOKEN = config.api_config.tg_token;
 inline auto& TG_CHAT_ID = config.api_config.tg_chat_id;
 inline auto& TG_USER = config.api_config.tg_user;
 
-int TG::send(const std::string& text) const {
+inline int send_str(const std::string& text) {
   spdlog::debug("[tg] send: {}...", text.substr(0, 20).c_str());
-  if (!enabled || text == "")
+  if (!config.tg_en || text == "")
     return -1;
 
   auto url =
@@ -34,9 +34,9 @@ int TG::send(const std::string& text) const {
   return json["result"]["message_id"];
 }
 
-void TG::pin_message(int message_id) const {
+inline void pin_message(int message_id) {
   spdlog::debug("[tg] pin message: {}", message_id);
-  if (!enabled)
+  if (!config.tg_en)
     return;
 
   auto url =
@@ -59,8 +59,8 @@ void TG::pin_message(int message_id) const {
   }
 }
 
-std::tuple<bool, std::string, int> TG::receive(int last_update_id) const {
-  if (!enabled)
+inline std::tuple<bool, std::string, int> listen(int last_update_id) {
+  if (!config.tg_en)
     return {false, "", -1};
 
   auto url =
@@ -96,9 +96,9 @@ std::tuple<bool, std::string, int> TG::receive(int last_update_id) const {
   return {false, "", last_update_id};
 }
 
-void TG::delete_msg(int message_id) const {
+inline void delete_msg(int message_id) {
   spdlog::debug("[tg] delete msg: {}", message_id);
-  if (!enabled)
+  if (!config.tg_en)
     return;
 
   auto url =
@@ -112,12 +112,12 @@ void TG::delete_msg(int message_id) const {
     spdlog::error("[tg] error {}: {}", r.status_code, r.text.c_str());
 }
 
-int TG::send_doc(const std::string& fname,
-                 const std::string& copy_name,
-                 const std::string& caption) const {
+inline int send_doc(const std::string& fname,
+                    const std::string& copy_name,
+                    const std::string& caption) {
   spdlog::debug("[tg] send doc: {} to {}", fname.c_str(), copy_name.c_str());
 
-  if (!enabled)
+  if (!config.tg_en)
     return -1;
 
   auto url =
@@ -137,4 +137,72 @@ int TG::send_doc(const std::string& fname,
 
   auto json = nlohmann::json::parse(r.text);
   return json["result"]["message_id"];
+}
+
+Message TGServer::parse(const std::string& line) const {
+  std::istringstream is{line};
+  std::string command;
+  is >> command;
+
+  if (command == "/ping") {
+    return {NOTIFIER_ID, "ping", {}};
+  } else if (command == "/status") {
+    std::string sym;
+    is >> sym;
+    return {NOTIFIER_ID, "status", {{"sym", sym}}};
+  } else if (command == "/trades") {
+    std::string sym;
+    is >> sym;
+    if (sym == "")
+      return {NOTIFIER_ID, "update_trades", {}};
+    else
+      return {NOTIFIER_ID, "report_trades", {{"sym", sym}}};
+  }
+
+  return {NOTIFIER_ID, "", {}};
+}
+
+void TGServer::t_receive_f() {
+  while (!is_stopped()) {
+    auto [valid, line, id] = listen(last_update_id);
+    if (valid) {
+      auto msg = parse(line);
+      if (msg.cmd != "") {
+        send(std::move(msg));
+      }
+    }
+
+    last_update_id = id;
+    msg_q.sleep_for(seconds{5});
+  }
+}
+
+void TGServer::t_send_f() {
+  while (!is_stopped()) {
+    auto msg_opt = msg_q.pop();
+    if (!msg_opt)
+      break;
+
+    auto msg = *msg_opt;
+    if (msg.cmd == "send") {
+      auto it = msg.params.find("str");
+      if (it != msg.params.end())
+        send_str(it->second);
+    }
+  }
+}
+
+TGServer::TGServer() noexcept : Endpoint{TG_ID} {
+  t_receive = std::thread{[this]() { t_receive_f(); }};
+  t_send = std::thread{[this]() { t_send_f(); }};
+}
+
+// FIXME: handle exit
+TGServer::~TGServer() noexcept {
+  stop();
+  if (t_receive.joinable())
+    t_receive.join();
+  if (t_send.joinable())
+    t_send.join();
+  std::cout << "[exit] tg_server" << std::endl;
 }

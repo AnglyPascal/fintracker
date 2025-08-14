@@ -1,14 +1,16 @@
 #pragma once
 
+#include "message.h"
+#include "servers.h"
 #include "times.h"
 
+#include <deque>
 #include <string>
 #include <thread>
 #include <unordered_map>
 
 struct Portfolio;
 struct Signal;
-struct TG;
 
 enum class Commands {
   BUY,
@@ -19,28 +21,19 @@ enum class Commands {
   POSITIONS,
 };
 
-class Notifier {
+class Notifier : public Endpoint {
   const Portfolio& portfolio;
-  const TG& tg;
-
-  std::string tunnel_url;
 
   mutable LocalTimePoint last_updated;
   std::unordered_map<std::string, Signal> prev_signals;
+  std::string tunnel_url;
 
   std::thread td;
-  static void iter(Notifier* notifier);
-
-  template <Commands command>
-  void handle_command(std::istream& is);
-  void handle_command(const std::string& line);
+  void iter();
+  void handle_command(const Message& msg);
 
  public:
   Notifier(const Portfolio& portfolio);
   ~Notifier();
 };
 
-class NPMServer {
-  NPMServer() noexcept;
-  ~NPMServer() noexcept;
-};

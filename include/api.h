@@ -9,24 +9,6 @@
 #include <string>
 #include <vector>
 
-class TG {
- private:
-  bool enabled = true;
-  mutable std::set<int> seen_updates;
-
- public:
-  TG(bool tg_enabled = true) : enabled{tg_enabled} {}
-
-  int send(const std::string& text) const;
-  int send_doc(const std::string& fname,
-               const std::string& copy_name,
-               const std::string& caption = "") const;
-
-  void pin_message(int message_id) const;
-  void delete_msg(int message_id) const;
-
-  std::tuple<bool, std::string, int> receive(int last_update_id) const;
-};
 
 struct APIKey {
   const std::string key;

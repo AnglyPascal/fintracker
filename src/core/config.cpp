@@ -64,15 +64,20 @@ void Config::read_args(int argc, char* argv[]) {
       .implicit_value(true)
       .help("Clear previous replay data, fetch anew");
 
-  program.add_argument("-p", "--disable-plot")
+  program.add_argument("-l", "--disable-plot")
       .default_value(false)
       .implicit_value(true)
-      .help("Enable replaying mode");
+      .help("Disable plot generation");
 
   program.add_argument("-s", "--speed")
       .help("Speed of continuous replay")
       .default_value(0.0)
       .scan<'g', double>();
+
+  program.add_argument("-p", "--port")
+      .help("Port for the webpage")
+      .default_value(8000)
+      .scan<'d', int>();
 
   try {
     program.parse_args(argc, argv);
@@ -86,4 +91,5 @@ void Config::read_args(int argc, char* argv[]) {
   plot_en = !program.get<bool>("--disable-plot");
   debug_en = program.get<bool>("--debug");
   speed = program.get<double>("--speed");
+  port = program.get<int>("--port");
 }

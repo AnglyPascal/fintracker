@@ -28,10 +28,7 @@ class Replay {
   const size_t calls_per_hour = 4;
 
  public:
-  const bool enabled = false;
-
- public:
-  Replay(TD& td, const Symbols& symbols, bool bt_enabled = false) noexcept;
+  Replay(TD& td, const Symbols& symbols) noexcept;
 
   TimeSeriesRes time_series(const std::string& symbol,
                             minutes timeframe = H_1) noexcept;

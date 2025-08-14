@@ -8,6 +8,7 @@ const tickerFiltersContainer = document.getElementById("ticker-filters");
 const fromDateInput = document.getElementById("from-date");
 const toDateInput = document.getElementById("to-date");
 const toggleBtn = document.getElementById("toggle-btn");
+const reloadBtn = document.getElementById("reload-btn");
 const tableBody = document.querySelector("#trades-table tbody");
 
 fetch("/api/trades")
@@ -90,6 +91,20 @@ function resizeAllTextareas() {
     });
 }
 
+function formatShortDate(datetimeStr) {
+  // Parse as if it's New York time
+  // JS Date will treat the string as local time unless we append the offset
+  const date = new Date(datetimeStr.replace(" ", "T") + "-04:00"); 
+  // NOTE: -04:00 is EDT; you'll need -05:00 for EST
+  
+  const weekday = date.toLocaleString("en-GB", { weekday: "short", timeZone: "America/New_York" });
+  const day = date.toLocaleString("en-GB", { day: "2-digit", timeZone: "America/New_York" });
+  const month = date.toLocaleString("en-GB", { month: "short", timeZone: "America/New_York" });
+
+  return `${weekday}, ${day} ${month}`;
+}
+
+
 function renderTable() {
     tableBody.innerHTML = "";
     for (const trade of filterTrades()) {
@@ -97,7 +112,7 @@ function renderTable() {
         const cell = trade.action === "BUY" ? "buy-cell" : "sell-cell";
         row.className = trade.action === "BUY" ? "buy-row" : "sell-row";
         row.innerHTML = `
-      <td>${trade.date.split(" ")[0]}</td>
+      <td>${formatShortDate(trade.date)}</td>
       <td>${trade.ticker}</td>
       <td class="${cell}">${trade.action}</td>
       <td>${Number(trade.qty).toFixed(2)}</td>
@@ -124,10 +139,24 @@ function toggleAllTickers() {
     renderTable();
 }
 
+function updateTrades() {
+    fetch('/api/update-trades', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }).then(res => res.json())
+      .then(data => console.log(data))
+      .catch(err => console.error(err));
+}
+
 tickerFiltersContainer.addEventListener("change", renderTable);
 fromDateInput.addEventListener("input", renderTable);
 toDateInput.addEventListener("input", renderTable);
 toggleBtn.addEventListener("click", toggleAllTickers);
+reloadBtn.addEventListener("click", updateTrades);
+
+console.log(reloadBtn);
 
 document.addEventListener("input", (e) => {
     if (e.target.classList.contains("remark-input")) {

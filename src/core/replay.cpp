@@ -1,5 +1,6 @@
 #include "replay.h"
 #include "api.h"
+#include "config.h"
 #include "portfolio.h"
 
 #include <cpr/cpr.h>
@@ -12,12 +13,9 @@ namespace fs = std::filesystem;
 void write_candles(const std::string& filename, const CandleStore& data);
 CandleStore read_candles(const std::string& filename);
 
-Replay::Replay(TD& td, const Symbols& symbols, bool rp_enabled) noexcept
-    : td{td},
-      calls_per_hour{static_cast<size_t>(H_1 / td.interval)},
-      enabled{rp_enabled}  //
-{
-  if (!enabled)
+Replay::Replay(TD& td, const Symbols& symbols) noexcept
+    : td{td}, calls_per_hour{static_cast<size_t>(H_1 / td.interval)} {
+  if (!config.replay_en)
     return;
 
   auto candles_fname = "data/replay_candles.bin";
@@ -68,7 +66,6 @@ TimeSeriesRes Replay::time_series(const std::string& symbol, minutes) noexcept {
   return TimeSeriesRes{candles.begin(), candles.begin() + idx};
 }
 
-// FIXME: broken, either here, or in portfolio push_back
 RealTimeRes Replay::real_time(const std::string& symbol, minutes) noexcept {
   auto it = candles_by_sym.find(symbol);
   if (it == candles_by_sym.end()) {
@@ -76,15 +73,11 @@ RealTimeRes Replay::real_time(const std::string& symbol, minutes) noexcept {
     return {};
   }
   auto& [candles, idx] = it->second;
-  if (symbol == "NVDA")
-    std::cout << std::format("{}: {}, {}", idx, candles[idx - 1].time(),
-                             candles[idx].time())
-              << std::endl;
   return {candles[idx - 1], candles[idx]};
 }
 
 void Replay::roll_fwd() noexcept {
-  if (!enabled)
+  if (!config.replay_en)
     return;
   if (++n_ticks < calls_per_hour)
     return;
@@ -93,6 +86,7 @@ void Replay::roll_fwd() noexcept {
     tl.idx++;
 }
 
+// FIXME fix
 void Replay::rollback(const std::string& symbol) {
   auto it = candles_by_sym.find(symbol);
   if (it == candles_by_sym.end()) {

@@ -164,6 +164,7 @@ struct APIConfig {
 
 struct Config {
   bool debug_en = false;
+  int port = 8000;
 
   bool tg_en = true;
   bool plot_en = true;
@@ -185,4 +186,3 @@ struct Config {
 };
 
 inline Config config;
-
