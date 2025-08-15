@@ -1,7 +1,7 @@
-#include "api.h"
-#include "candle.h"
-#include "config.h"
-#include "times.h"
+#include "concurrency/api.h"
+#include "ind/candle.h"
+#include "util/config.h"
+#include "util/times.h"
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "message.h"
+#include "concurrency/message.h"
 
 #include <cpp-subprocess/subprocess.hpp>
 
@@ -10,7 +10,7 @@
 #include <thread>
 #include <unordered_map>
 
-class TGServer : public Endpoint {
+class TGEndpoint : public Endpoint {
   mutable std::set<int> seen_updates;
   int last_update_id = 0;
 
@@ -21,24 +21,24 @@ class TGServer : public Endpoint {
   Message parse(const std::string&) const;
 
  public:
-  TGServer() noexcept;
-  ~TGServer() noexcept;
+  TGEndpoint() noexcept;
+  ~TGEndpoint() noexcept;
 };
 
 namespace sp = subprocess;
 
-class NPMServer : public Endpoint {
+class NPMEndpoint : public Endpoint {
   sp::Popen p;
   std::thread t;
 
   Message parse(const std::string& line) const;
 
  public:
-  NPMServer() noexcept;
-  ~NPMServer() noexcept;
+  NPMEndpoint() noexcept;
+  ~NPMEndpoint() noexcept;
 };
 
-class CloudflareServer : public Endpoint {
+class CloudflareEndpoint : public Endpoint {
  private:
   sp::Popen p;
   std::thread t;
@@ -46,6 +46,7 @@ class CloudflareServer : public Endpoint {
   bool failed;
 
  public:
-  CloudflareServer() noexcept;
-  ~CloudflareServer() noexcept;
+  CloudflareEndpoint() noexcept;
+  ~CloudflareEndpoint() noexcept;
 };
+

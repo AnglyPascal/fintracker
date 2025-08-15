@@ -1,6 +1,5 @@
-#include "positions.h"
-
-#include "format.h"
+#include "core/positions.h"
+#include "util/format.h"
 
 #include <spdlog/spdlog.h>
 #include <cmath>

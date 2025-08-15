@@ -1,6 +1,6 @@
-#include "candle.h"
-#include "replay.h"
-#include "times.h"
+#include "core/replay.h"
+#include "ind/candle.h"
+#include "util/times.h"
 
 #include <spdlog/spdlog.h>
 #include <fstream>

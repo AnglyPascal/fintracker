@@ -1,6 +1,6 @@
-#include "config.h"
-#include "indicators.h"
-#include "signals.h"
+#include "ind/indicators.h"
+#include "signals/signals.h"
+#include "util/config.h"
 
 inline auto& sig_config = config.sig_config;
 
@@ -124,7 +124,7 @@ std::vector<Reason> reasons(const Indicators& ind, int idx) {
   return res;
 }
 
-void Stats::get_reason_stats(const Backtest &bt) {
+void Stats::get_reason_stats(const Backtest& bt) {
   for (auto& f : reason_funcs) {
     auto [r, s] = bt.get_stats<ReasonType>(f);
     reason.try_emplace(r, s);

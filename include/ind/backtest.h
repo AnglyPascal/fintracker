@@ -1,6 +1,6 @@
 #pragma once
 
-#include "signals.h"
+#include "signals/signals.h"
 
 #include <cstdlib>
 #include <map>

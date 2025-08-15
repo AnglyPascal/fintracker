@@ -1,6 +1,6 @@
-#include "format.h"
-#include "gen_html_template.h"
-#include "portfolio.h"
+#include "core/portfolio.h"
+#include "util/format.h"
+#include "util/gen_html_template.h"
 
 #include <filesystem>
 #include <fstream>

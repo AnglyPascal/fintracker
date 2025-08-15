@@ -1,10 +1,10 @@
-#include "format.h"
-#include "portfolio.h"
+#include "core/portfolio.h"
+#include "util/format.h"
 
 #include <fstream>
 #include <iostream>
-#include <thread>
 #include <set>
+#include <thread>
 
 constexpr std::string_view history_template = R"(
 <!DOCTYPE html>
@@ -151,7 +151,7 @@ inline std::string to_str<FormatTarget::HTML>(const Tickers& tickers,
   //   buttons += std::format(history_ticker_button, symbol);
   // buttons = std::format(history_ticker_button_group, buttons);
 
-  return std::format(history_tbl_template, 
+  return std::format(history_tbl_template,
                      to_str<FormatTarget::HTML>(Rating::Entry),
                      to_str<FormatTarget::HTML>(Rating::Watchlist),
                      to_str<FormatTarget::HTML>(Rating::Caution), tbl_body);

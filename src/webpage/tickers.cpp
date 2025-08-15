@@ -1,8 +1,8 @@
-#include "config.h"
-#include "format.h"
-#include "gen_html_template.h"
-#include "portfolio.h"
-#include "times.h"
+#include "core/portfolio.h"
+#include "util/config.h"
+#include "util/format.h"
+#include "util/gen_html_template.h"
+#include "util/times.h"
 
 #include <fstream>
 #include <thread>

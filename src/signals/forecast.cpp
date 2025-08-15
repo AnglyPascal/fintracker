@@ -1,6 +1,6 @@
-#include "config.h"
-#include "format.h"
-#include "indicators.h"
+#include "ind/indicators.h"
+#include "util/config.h"
+#include "util/format.h"
 
 #include <cmath>
 #include <iostream>

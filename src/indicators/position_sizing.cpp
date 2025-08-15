@@ -1,6 +1,6 @@
-#include "position_sizing.h"
-#include "config.h"
-#include "format.h"
+#include "signals/position_sizing.h"
+#include "util/config.h"
+#include "util/format.h"
 
 #include <spdlog/spdlog.h>
 

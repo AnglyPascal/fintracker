@@ -1,12 +1,12 @@
 #pragma once
 
-#include "backtest.h"
-#include "candle.h"
-#include "positions.h"
-#include "signals.h"
-#include "support_resistance.h"
-#include "times.h"
-#include "trendlines.h"
+#include "core/positions.h"
+#include "ind/backtest.h"
+#include "ind/candle.h"
+#include "ind/support_resistance.h"
+#include "ind/trendlines.h"
+#include "signals/signals.h"
+#include "util/times.h"
 
 #include <cassert>
 #include <deque>
@@ -232,4 +232,3 @@ struct StopLoss {
   StopLoss() noexcept = default;
   StopLoss(const Metrics& m) noexcept;
 };
-

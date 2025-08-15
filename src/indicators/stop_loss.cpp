@@ -1,6 +1,6 @@
-#include "config.h"
-#include "indicators.h"
-#include "positions.h"
+#include "core/positions.h"
+#include "ind/indicators.h"
+#include "util/config.h"
 
 auto& sizing_config = config.sizing_config;
 

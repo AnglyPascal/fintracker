@@ -1,6 +1,6 @@
 #pragma once
 
-#include "indicators.h"
+#include "ind/indicators.h"
 
 struct TimeframeRisk {
   double volatility_score = 0.0;  // Based on ATR relative to price
@@ -56,4 +56,3 @@ struct PositionSizing {
   // Determine position size multiplier based on risk and signal quality
   double get_size_multiplier(const CombinedSignal& signal, double risk_score);
 };
-

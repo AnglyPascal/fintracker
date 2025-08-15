@@ -1,8 +1,9 @@
 #pragma once
 
+#include "util/times.h"
+
 #include <optional>
 #include <vector>
-#include "times.h"
 
 struct Indicators;
 
@@ -57,4 +58,3 @@ template struct SupportResistance<SR::Resistance>;
 
 using Support = SupportResistance<SR::Support>;
 using Resistance = SupportResistance<SR::Resistance>;
-

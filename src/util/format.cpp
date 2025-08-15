@@ -1,6 +1,6 @@
-#include "format.h"
-#include "portfolio.h"
-#include "times.h"
+#include "util/format.h"
+#include "core/portfolio.h"
+#include "util/times.h"
 
 template <>
 std::string to_str(const SysTimePoint& datetime) {
@@ -282,7 +282,8 @@ std::string to_str<FormatTarget::Telegram>(const Portfolio& portfolio) {
   auto positions =
       to_str<FormatTarget::Telegram>(portfolio.get_positions(), portfolio);
 
-  std::string header = "-- Status Update\n";
+  auto header =
+      std::format("-- Status Update {:%F %T}\n", portfolio.last_updated);
   return header + signal_str + positions;
 }
 

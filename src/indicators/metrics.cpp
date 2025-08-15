@@ -1,7 +1,7 @@
-#include "config.h"
-#include "indicators.h"
-#include "positions.h"
-#include "times.h"
+#include "core/positions.h"
+#include "ind/indicators.h"
+#include "util/config.h"
+#include "util/times.h"
 
 #include <spdlog/spdlog.h>
 

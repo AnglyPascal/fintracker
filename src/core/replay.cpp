@@ -1,7 +1,7 @@
-#include "replay.h"
-#include "api.h"
-#include "config.h"
-#include "portfolio.h"
+#include "core/replay.h"
+#include "concurrency/api.h"
+#include "core/portfolio.h"
+#include "util/config.h"
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "times.h"
+#include "util/times.h"
 
 #include <string>
 
@@ -170,6 +170,7 @@ struct Config {
   bool plot_en = true;
 
   bool replay_en = false;
+  bool replay_paused = false;
   bool replay_clear = false;
 
   double speed = 0.0;
@@ -183,6 +184,13 @@ struct Config {
   Config();
   void read_args(int argc, char* argv[]);
   void update();
+
+  seconds update_interval() {
+    if (speed == 0.0)
+      return minutes{2};
+    auto secs = static_cast<uint64_t>(60 * 2 / speed);
+    return seconds{secs};
+  }
 };
 
 inline Config config;

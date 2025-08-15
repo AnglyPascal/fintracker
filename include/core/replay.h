@@ -1,8 +1,9 @@
 #pragma once
 
-#include "candle.h"
-#include "symbols.h"
-#include "times.h"
+#include "concurrency/api.h"
+#include "ind/candle.h"
+#include "util/symbols.h"
+#include "util/times.h"
 
 #include <string>
 #include <unordered_map>

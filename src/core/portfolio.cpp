@@ -1,8 +1,8 @@
-#include "portfolio.h"
-#include "config.h"
-#include "format.h"
-#include "raw_mode.h"
-#include "times.h"
+#include "core/portfolio.h"
+#include "util/config.h"
+#include "util/format.h"
+#include "util/raw_mode.h"
+#include "util/times.h"
 
 #include <spdlog/spdlog.h>
 #include <iostream>
@@ -128,13 +128,17 @@ void Portfolio::add_candle() {
 
   done.wait();
   rp.roll_fwd();
-  spdlog::info("[push_back] took {:.2f}ms", timer.diff_ms());
+
+  auto ms = timer.diff_ms();
 
   if (!tickers.empty())
     last_updated = tickers.begin()->second.metrics.last_updated();
 
   write_page();
-  spdlog::info("[update] at " + std::format("{}", last_updated));
+  spdlog::info("[update] at {}, took {:.2f}ms",
+               std::format("{}", last_updated).c_str(), ms);
+
+  send_to_broker(id, "update");
 }
 
 void Portfolio::add_candle_sync() {
@@ -202,8 +206,8 @@ std::pair<const Position*, double> Portfolio::add_trade(
 }
 
 void Portfolio::run(sleep_f sleep) {
-  // if (con fig.replay_en)
-  //   return run_replay();
+  if (config.replay_en)
+    return run_replay(sleep);
 
   while (!is_stopped()) {
     config.update();
@@ -240,16 +244,15 @@ void Portfolio::update_trades() {
   spdlog::info("[trades] updated at" + std::format("{}", now_ny_time()));
 }
 
-void Portfolio::run_replay() {
-  if (config.speed != 0.0) {
+void Portfolio::run_replay(sleep_f sleep) {
+  if (!config.replay_paused) {
     while (!is_stopped() && rp.has_data()) {
-      spdlog::info("[replay] adding data");
+      if (!sleep(config.update_interval())) {
+        stop();
+        break;
+      }
       add_candle();
-      int secs = static_cast<int>(config.speed * 60);
-      std::this_thread::sleep_for(seconds{secs});
     }
-    spdlog::info("[replay] done");
-
     std::cout << "[exit] portfolio" << std::endl;
     return;
   }

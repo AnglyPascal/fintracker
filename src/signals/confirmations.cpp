@@ -1,6 +1,6 @@
-#include "config.h"
-#include "indicators.h"
-#include "signals.h"
+#include "ind/indicators.h"
+#include "signals/signals.h"
+#include "util/config.h"
 
 inline auto& sig_config = config.sig_config;
 

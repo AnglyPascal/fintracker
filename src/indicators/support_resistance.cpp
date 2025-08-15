@@ -1,6 +1,6 @@
-#include "support_resistance.h"
-#include "config.h"
-#include "indicators.h"
+#include "ind/support_resistance.h"
+#include "ind/indicators.h"
+#include "util/config.h"
 
 #include <algorithm>
 #include <cmath>

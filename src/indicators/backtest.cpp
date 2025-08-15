@@ -1,6 +1,6 @@
-#include "backtest.h"
-#include "config.h"
-#include "indicators.h"
+#include "ind/backtest.h"
+#include "ind/indicators.h"
+#include "util/config.h"
 
 #include <cmath>
 

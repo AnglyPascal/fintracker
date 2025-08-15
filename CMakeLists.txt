@@ -106,7 +106,7 @@ set(EMBED_SCRIPT ${PROJECT_SOURCE_DIR}/scripts/embed_str.py)
 set(INPUT_HTML 
     ${PROJECT_SOURCE_DIR}/data/index.html 
     ${PROJECT_SOURCE_DIR}/data/ticker.html)
-set(OUTPUT_HEADER ${PROJECT_SOURCE_DIR}/include/gen_html_template.h)
+set(OUTPUT_HEADER ${PROJECT_SOURCE_DIR}/include/util/gen_html_template.h)
 
 add_custom_command(
   OUTPUT ${OUTPUT_HEADER} 

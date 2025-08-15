@@ -1,10 +1,8 @@
-#include "portfolio.h"
-
-#include "api.h"
-#include "config.h"
-#include "format.h"
-#include "portfolio.h"
-#include "times.h"
+#include "concurrency/api.h"
+#include "core/portfolio.h"
+#include "util/config.h"
+#include "util/format.h"
+#include "util/times.h"
 
 #include <spdlog/spdlog.h>
 
@@ -22,6 +20,17 @@ inline void Portfolio::handle_command(const Message& msg) {
   if (command == "update_trades") {
     update_trades();
     send_to_broker(TG_ID, "send", {{"str", tunnel_url + "/trades.html"}});
+    return;
+  }
+
+  if (command == "update") {
+    std::string str;
+    {
+      auto _ = reader_lock();
+      str = to_str<FormatTarget::Telegram>(*this);
+    }
+    str = to_str<FormatTarget::Telegram>(HASKELL, str);
+    send_to_broker(TG_ID, "send", {{"str", str}});
     return;
   }
 
@@ -78,11 +87,7 @@ inline void Portfolio::handle_command(const Message& msg) {
 }
 
 void Portfolio::iter() {
-  auto str = to_str<FormatTarget::Telegram>(
-      HASKELL, to_str<FormatTarget::Telegram>(*this));
-
-  send_to_broker(TG_ID, "send", {{"str", str}});
-
+  send_to_broker(id, "status");
   while (!is_stopped()) {
     auto msg_opt = msg_q.pop();
     if (!msg_opt)

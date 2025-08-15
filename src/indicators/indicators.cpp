@@ -1,5 +1,5 @@
-#include "indicators.h"
-#include "times.h"
+#include "ind/indicators.h"
+#include "util/times.h"
 
 #include <cassert>
 #include <numeric>

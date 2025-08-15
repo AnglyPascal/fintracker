@@ -1,8 +1,8 @@
-#include "trendlines.h"
-#include "config.h"
-#include "format.h"
-#include "indicators.h"
-#include "signals.h"
+#include "ind/trendlines.h"
+#include "ind/indicators.h"
+#include "signals/signals.h"
+#include "util/config.h"
+#include "util/format.h"
 
 #include <cmath>
 #include <iostream>

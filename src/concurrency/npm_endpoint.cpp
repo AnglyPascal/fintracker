@@ -1,8 +1,8 @@
-#include "config.h"
-#include "servers.h"
+#include "concurrency/endpoints.h"
+#include "util/config.h"
 
-#include <format.h>
 #include <poll.h>
+#include <format>
 #include <iostream>
 #include <thread>
 
@@ -18,14 +18,14 @@ inline auto split_first_newline(const std::string& str) {
   return std::make_pair(str.substr(0, pos), str.substr(pos + 1));
 }
 
-Message NPMServer::parse(const std::string& line) const {
+Message NPMEndpoint::parse(const std::string& line) const {
   std::istringstream is{line};
   std::string cmd;
   is >> cmd;
   return {id, PORTFOLIO_ID, cmd};
 }
 
-NPMServer::NPMServer() noexcept
+NPMEndpoint::NPMEndpoint() noexcept
     : Endpoint{NPM_ID},
       p{{"npm", "start", "--", "--port", std::format("{}", config.port)},
         cwd{"./page"},
@@ -74,7 +74,7 @@ NPMServer::NPMServer() noexcept
   std::cout << "[npm_server] started at port " << config.port << std::endl;
 }
 
-NPMServer::~NPMServer() noexcept {
+NPMEndpoint::~NPMEndpoint() noexcept {
   stop();
   if (t.joinable())
     t.join();

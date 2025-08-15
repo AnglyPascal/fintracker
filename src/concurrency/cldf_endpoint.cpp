@@ -1,8 +1,8 @@
-#include "config.h"
-#include "servers.h"
+#include "concurrency/endpoints.h"
+#include "util/config.h"
 
-#include <format.h>
 #include <poll.h>
+#include <format>
 #include <iostream>
 #include <regex>
 #include <thread>
@@ -14,7 +14,7 @@ inline std::regex url_regex{R"(https://[a-zA-Z0-9\-]+\.trycloudflare\.com)"};
 
 using namespace subprocess;
 
-CloudflareServer::CloudflareServer() noexcept
+CloudflareEndpoint::CloudflareEndpoint() noexcept
     : Endpoint{CLDF_ID},
       p{{"cloudflared", "tunnel", "--url",
          std::format("http://localhost:{}", config.port)},
@@ -80,7 +80,7 @@ CloudflareServer::CloudflareServer() noexcept
   }};
 }
 
-CloudflareServer::~CloudflareServer() noexcept {
+CloudflareEndpoint::~CloudflareEndpoint() noexcept {
   stop();
   if (t.joinable())
     t.join();

@@ -1,5 +1,5 @@
-#include "config.h"
-#include "servers.h"
+#include "concurrency/endpoints.h"
+#include "util/config.h"
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
@@ -139,7 +139,7 @@ inline int send_doc(const std::string& fname,
   return json["result"]["message_id"];
 }
 
-Message TGServer::parse(const std::string& line) const {
+Message TGEndpoint::parse(const std::string& line) const {
   std::istringstream is{line};
   std::string command;
   is >> command;
@@ -162,7 +162,7 @@ Message TGServer::parse(const std::string& line) const {
   return {TG_ID, PORTFOLIO_ID, ""};
 }
 
-void TGServer::t_receive_f() {
+void TGEndpoint::t_receive_f() {
   while (!is_stopped()) {
     auto [valid, line, id] = listen(last_update_id);
     if (valid) {
@@ -177,7 +177,7 @@ void TGServer::t_receive_f() {
   }
 }
 
-void TGServer::t_send_f() {
+void TGEndpoint::t_send_f() {
   while (!is_stopped()) {
     auto msg_opt = msg_q.pop();
     if (!msg_opt)
@@ -192,13 +192,13 @@ void TGServer::t_send_f() {
   }
 }
 
-TGServer::TGServer() noexcept : Endpoint{TG_ID} {
+TGEndpoint::TGEndpoint() noexcept : Endpoint{TG_ID} {
   t_receive = std::thread{[this]() { t_receive_f(); }};
   t_send = std::thread{[this]() { t_send_f(); }};
 }
 
 // FIXME: handle exit
-TGServer::~TGServer() noexcept {
+TGEndpoint::~TGEndpoint() noexcept {
   stop();
   if (t_receive.joinable())
     t_receive.join();

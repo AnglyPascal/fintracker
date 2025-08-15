@@ -1,7 +1,7 @@
-#include "config.h"
-#include "format.h"
-#include "indicators.h"
-#include "portfolio.h"
+#include "core/portfolio.h"
+#include "ind/indicators.h"
+#include "util/config.h"
+#include "util/format.h"
 
 #include <cmath>
 

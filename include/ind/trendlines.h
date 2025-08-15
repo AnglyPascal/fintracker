@@ -68,4 +68,3 @@ struct Trends {
   static TrendLines ema21_trends(const Indicators& ind, int last_idx) noexcept;
   static TrendLines rsi_trends(const Indicators& ind, int last_idx) noexcept;
 };
-

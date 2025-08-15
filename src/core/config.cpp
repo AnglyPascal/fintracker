@@ -1,4 +1,4 @@
-#include "config.h"
+#include "util/config.h"
 
 #include <spdlog/spdlog.h>
 #include <argparse/argparse.hpp>
@@ -59,6 +59,11 @@ void Config::read_args(int argc, char* argv[]) {
       .implicit_value(true)
       .help("Enable replaying mode");
 
+  program.add_argument("-R", "--replay-paused")
+      .default_value(false)
+      .implicit_value(true)
+      .help("Enable replaying mode");
+
   program.add_argument("-c", "--clear")
       .default_value(false)
       .implicit_value(true)
@@ -86,10 +91,13 @@ void Config::read_args(int argc, char* argv[]) {
   }
 
   tg_en = !program.get<bool>("--disable-tg");
-  replay_en = program.get<bool>("--replay");
   replay_clear = program.get<bool>("--clear");
   plot_en = !program.get<bool>("--disable-plot");
   debug_en = program.get<bool>("--debug");
   speed = program.get<double>("--speed");
   port = program.get<int>("--port");
+
+  replay_en =
+      program.get<bool>("--replay") || program.get<bool>("--replay-paused");
+  replay_paused = program.get<bool>("--replay-paused");
 }

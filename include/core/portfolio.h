@@ -1,15 +1,16 @@
 #pragma once
 
-#include "api.h"
-#include "calendar.h"
-#include "config.h"
-#include "indicators.h"
-#include "message.h"
-#include "position_sizing.h"
-#include "positions.h"
-#include "replay.h"
-#include "signals.h"
-#include "symbols.h"
+#include "concurrency/api.h"
+#include "concurrency/message.h"
+#include "core/calendar.h"
+#include "core/positions.h"
+#include "core/replay.h"
+#include "ind/indicators.h"
+#include "signals/position_sizing.h"
+#include "signals/signals.h"
+#include "util/config.h"
+#include "util/symbols.h"
+#include "util/times.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -100,13 +101,13 @@ class Portfolio : public Endpoint {
   Portfolio() noexcept;
   ~Portfolio() noexcept;
 
-  void run(sleep_f f);
+  void run(sleep_f sleep);
   void update_trades();
 
   std::pair<const Position*, double> add_trade(const Trade& trade) const;
 
  private:
-  void run_replay();
+  void run_replay(sleep_f sleep);
 
   template <typename... Args>
   auto time_series(Args&&... args) {

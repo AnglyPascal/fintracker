@@ -1,14 +1,13 @@
 #pragma once
 
-#include "candle.h"
-#include "times.h"
+#include "ind/candle.h"
+#include "util/times.h"
 
 #include <deque>
 #include <mutex>
 #include <set>
 #include <string>
 #include <vector>
-
 
 struct APIKey {
   const std::string key;
@@ -50,4 +49,3 @@ bool wait_for_file(const std::string& path,
                    seconds freshness = seconds{120},
                    seconds timeout = seconds{30},
                    milliseconds poll_interval = milliseconds{500});
-
