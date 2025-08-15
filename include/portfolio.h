@@ -4,6 +4,7 @@
 #include "calendar.h"
 #include "config.h"
 #include "indicators.h"
+#include "message.h"
 #include "position_sizing.h"
 #include "positions.h"
 #include "replay.h"
@@ -16,6 +17,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 struct Ticker {
@@ -77,12 +79,8 @@ using sleep_f = std::function<bool(std::chrono::milliseconds)>;
 
 inline constexpr int max_concurrency = 32;
 
-class Portfolio {
+class Portfolio : public Endpoint {
  private:
-  std::atomic<bool> _killed = false;
-  mutable std::condition_variable _cv;
-  mutable std::mutex _cv_m;
-
   Symbols symbols;
   mutable std::shared_mutex mtx;
 
@@ -93,31 +91,19 @@ class Portfolio {
   OpenPositions positions;
   Calendar calendar;
 
+  const minutes update_interval;
+  std::string tunnel_url;
+
  public:
   LocalTimePoint last_updated;
 
- private:
-  const minutes update_interval;
-
- public:
   Portfolio() noexcept;
+  ~Portfolio() noexcept;
+
   void run(sleep_f f);
   void update_trades();
 
   std::pair<const Position*, double> add_trade(const Trade& trade) const;
-
-  bool is_killed() const { return _killed; }
-
-  void kill() {
-    _killed.store(true, std::memory_order_relaxed);
-    _cv.notify_all();
-  }
-
-  void wait_for(std::chrono::milliseconds millis) const {
-    std::unique_lock lk{_cv_m};
-    _cv.wait_for(lk, millis,
-                 [&] { return _killed.load(std::memory_order_acquire); });
-  }
 
  private:
   void run_replay();
@@ -163,8 +149,6 @@ class Portfolio {
   }
 
  private:
-  friend class Notifier;
-
   template <FormatTarget target, typename T>
   friend std::string to_str(const T& t);
 
@@ -182,4 +166,9 @@ class Portfolio {
     write_tickers();
     write_history();
   }
+
+ private:
+  void handle_command(const Message& msg);
+  std::thread server;
+  void iter();
 };

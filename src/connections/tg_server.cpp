@@ -145,21 +145,21 @@ Message TGServer::parse(const std::string& line) const {
   is >> command;
 
   if (command == "/ping") {
-    return {NOTIFIER_ID, "ping", {}};
+    return {TG_ID, PORTFOLIO_ID, "ping"};
   } else if (command == "/status") {
     std::string sym;
     is >> sym;
-    return {NOTIFIER_ID, "status", {{"sym", sym}}};
+    return {TG_ID, PORTFOLIO_ID, "status", {{"sym", sym}}};
   } else if (command == "/trades") {
     std::string sym;
     is >> sym;
     if (sym == "")
-      return {NOTIFIER_ID, "update_trades", {}};
+      return {TG_ID, PORTFOLIO_ID, "update_trades"};
     else
-      return {NOTIFIER_ID, "report_trades", {{"sym", sym}}};
+      return {TG_ID, PORTFOLIO_ID, "report_trades", {{"sym", sym}}};
   }
 
-  return {NOTIFIER_ID, "", {}};
+  return {TG_ID, PORTFOLIO_ID, ""};
 }
 
 void TGServer::t_receive_f() {
@@ -168,7 +168,7 @@ void TGServer::t_receive_f() {
     if (valid) {
       auto msg = parse(line);
       if (msg.cmd != "") {
-        send(std::move(msg));
+        send_to_broker(std::move(msg));
       }
     }
 

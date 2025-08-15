@@ -1,6 +1,6 @@
 #include "config.h"
-#include "notifier.h"
 #include "portfolio.h"
+#include "servers.h"
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
@@ -49,19 +49,34 @@ inline void ensure_directories_exist(const std::vector<std::string>& dirs) {
 }
 
 struct SignalFD {
-  int fd{-1};
+  int fd = -1;
+  uint32_t signo;
 
-  explicit SignalFD(int signo) {
+  explicit SignalFD(uint32_t signo) : signo{signo} {
     sigset_t mask;
     sigemptyset(&mask);
     sigaddset(&mask, signo);
 
-    if (sigprocmask(SIG_BLOCK, &mask, nullptr) == -1)
+    if (pthread_sigmask(SIG_BLOCK, &mask, nullptr) == -1)
       throw std::runtime_error("sigprocmask failed");
 
     fd = signalfd(-1, &mask, SFD_CLOEXEC);
     if (fd == -1)
       throw std::runtime_error("signalfd failed");
+  }
+
+  SignalFD(const SignalFD&) = delete;
+  SignalFD& operator=(const SignalFD&) = delete;
+  SignalFD(SignalFD&& o) noexcept : fd{o.fd}, signo{o.signo} { o.fd = -1; }
+  SignalFD& operator=(SignalFD&& o) noexcept {
+    if (this != &o) {
+      if (this->fd != o.fd && fd != -1)
+        close(fd);
+      fd = o.fd;
+      signo = o.signo;
+      o.fd = -1;
+    }
+    return *this;
   }
 
   ~SignalFD() {
@@ -70,14 +85,14 @@ struct SignalFD {
   }
 };
 
-inline bool wait_with_sigint(int sfd, std::chrono::milliseconds timeout) {
-  struct pollfd fds;
-  fds.fd = sfd;
-  fds.events = POLLIN;
+inline bool sleep_with(SignalFD& sfd, std::chrono::milliseconds timeout) {
+  struct pollfd pfd{sfd.fd, POLLIN, 0};
 
-  int ret = poll(&fds, 1, static_cast<int>(timeout.count()));
-
+  int ret = poll(&pfd, 1, static_cast<int>(timeout.count()));
   if (ret == -1) {
+    if (errno == EINTR)
+      return true;  // pretend we timed out
+
     perror("poll");
     return false;
   }
@@ -85,18 +100,22 @@ inline bool wait_with_sigint(int sfd, std::chrono::milliseconds timeout) {
   if (ret == 0)
     return true;
 
-  if (fds.revents & POLLIN) {
-    struct signalfd_siginfo si;
-    ssize_t res = read(sfd, &si, sizeof(si));
-    if (res != sizeof(si)) {
-      perror("read");
-    } else if (si.ssi_signo == SIGINT) {
-      std::cerr << "SIGINT received\n";
+  if (pfd.revents & POLLIN) {
+    signalfd_siginfo si;
+
+    ssize_t n = read(sfd.fd, &si, sizeof(si));
+    if (n != sizeof(si)) {
+      perror("read(signalfd)");
       return false;
     }
+
+    if (sfd.signo == 0 || si.ssi_signo == sfd.signo)
+      return false;
+
+    return true;
   }
 
-  return true;
+  return false;
 }
 
 int main(int argc, char* argv[]) {
@@ -104,27 +123,15 @@ int main(int argc, char* argv[]) {
   config.read_args(argc, argv);
   init_logging();
 
+  SignalFD sfd{SIGINT};
   {
     TGServer tg;
     NPMServer npm;
     CloudflareServer cfl;
+    Portfolio portfolio;
+    MessageBroker broker{tg, npm, cfl, portfolio};
 
-    Portfolio portfolio{};
-    Notifier notifier{portfolio};
-
-    notifier.add_target(tg);
-    tg.add_target(notifier);
-
-    notifier.add_target(npm);
-    npm.add_target(notifier);
-
-    notifier.add_target(cfl);
-    cfl.add_target(notifier);
-
-    // FIXME: what happens when replay is enabled
-    SignalFD sfd{SIGINT};
-    portfolio.run(
-        [sfd](auto millis) { return wait_with_sigint(sfd.fd, millis); });
+    portfolio.run([&sfd](auto millis) { return sleep_with(sfd, millis); });
   }
 
   std::cout << "[exit] main" << std::endl;

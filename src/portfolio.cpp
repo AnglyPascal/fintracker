@@ -23,7 +23,8 @@ void Ticker::calculate_signal() {
 }
 
 Portfolio::Portfolio() noexcept
-    : symbols{},
+    : Endpoint{PORTFOLIO_ID},
+      symbols{},
 
       // APIs
       td{symbols.size()},
@@ -34,8 +35,8 @@ Portfolio::Portfolio() noexcept
       calendar{},
 
       // timing
-      last_updated{},
-      update_interval{td.interval}  //
+      update_interval{td.interval},
+      last_updated{}  //
 {
   config.sizing_config.capital_usd = td.to_usd(
       config.sizing_config.capital, config.sizing_config.capital_currency);
@@ -86,8 +87,9 @@ Portfolio::Portfolio() noexcept
     last_updated = tickers.begin()->second.metrics.last_updated();
 
   write_page();
-
   spdlog::info("[init] at {}", std::format("{}", last_updated).c_str());
+
+  server = std::thread{[this] { iter(); }};
 }
 
 void Portfolio::add_candle() {
@@ -199,23 +201,25 @@ std::pair<const Position*, double> Portfolio::add_trade(
   return {pos, pnl};
 }
 
-void Portfolio::run(sleep_f f) {
-  if (config.replay_en)
-    return run_replay();
+void Portfolio::run(sleep_f sleep) {
+  // if (con fig.replay_en)
+  //   return run_replay();
 
-  while (true) {
+  while (!is_stopped()) {
     config.update();
 
     auto [open, remaining] = market_status(update_interval);
     if (!open)
       break;
 
-    if (!f(remaining + minutes(4)))
+    if (!sleep(remaining + minutes(4))) {
+      stop();
       break;
+    }
+
     add_candle();
   }
 
-  kill();
   std::cout << "[portfolio] exit" << std::endl;
 }
 
@@ -238,7 +242,7 @@ void Portfolio::update_trades() {
 
 void Portfolio::run_replay() {
   if (config.speed != 0.0) {
-    while (!is_killed() && rp.has_data()) {
+    while (!is_stopped() && rp.has_data()) {
       spdlog::info("[replay] adding data");
       add_candle();
       int secs = static_cast<int>(config.speed * 60);
@@ -246,14 +250,13 @@ void Portfolio::run_replay() {
     }
     spdlog::info("[replay] done");
 
-    kill();
     std::cout << "[exit] portfolio" << std::endl;
     return;
   }
 
   RawMode _;
 
-  while (!is_killed() && rp.has_data()) {
+  while (!is_stopped() && rp.has_data()) {
     char ch;
     if (read(STDIN_FILENO, &ch, 1) == 1) {
       printf("\b \b");
@@ -270,6 +273,11 @@ void Portfolio::run_replay() {
     }
   }
 
-  kill();
   std::cout << "[exit] portfolio" << std::endl;
+}
+
+Portfolio::~Portfolio() noexcept {
+  stop();
+  if (server.joinable())
+    server.join();
 }
