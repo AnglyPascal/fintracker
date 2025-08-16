@@ -1,14 +1,12 @@
 #include "concurrency/endpoints.h"
-#include "concurrency/signalfd.h"
 #include "core/portfolio.h"
 #include "util/config.h"
 
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
 
-#include <chrono>
+#include <csignal>
 #include <filesystem>
-#include <functional>
 #include <iostream>
 
 namespace fs = std::filesystem;
@@ -48,15 +46,19 @@ int main(int argc, char* argv[]) {
   config.read_args(argc, argv);
   init_logging();
 
-  SignalFD sfd{SIGINT};
   {
+    sigset_t block_set;
+    sigemptyset(&block_set);
+    sigaddset(&block_set, SIGINT);
+    pthread_sigmask(SIG_BLOCK, &block_set, NULL);
+
     TGEndpoint tg;
     NPMEndpoint npm;
     CloudflareEndpoint cfl;
     Portfolio portfolio;
-    MessageBroker broker{tg, npm, cfl, portfolio};
 
-    portfolio.run([&sfd](auto millis) { return sleep_with(sfd, millis); });
+    MessageBroker broker{tg, npm, cfl, portfolio};
+    portfolio.run();
   }
 
   std::cout << "[exit] main" << std::endl;

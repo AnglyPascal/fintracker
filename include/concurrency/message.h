@@ -1,9 +1,8 @@
 #pragma once
 
-#include <atomic>
 #include <condition_variable>
 #include <deque>
-#include <iostream>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -65,7 +64,7 @@ class MessageQueue {
   }
 
   void stop() {
-    if (stopped)
+    if (is_stopped())
       return;
     std::lock_guard lk{mtx};
     stopped = true;
@@ -153,13 +152,17 @@ class MessageBroker {
   template <typename... Args>
     requires(std::derived_from<Args, Endpoint> && ...)
   MessageBroker(Args&... args) {
-    (
-        [this](auto& args) {
-          args.broker = std::ref(*this);
-          endpoints.try_emplace(args.id, std::ref(args));
-        }(args),
-        ...  //
-    );
+    bool stop = ([this](auto& args) {
+      if (args.is_stopped())
+        return true;
+      args.broker = std::ref(*this);
+      endpoints.try_emplace(args.id, std::ref(args));
+      return false;
+    }(args) || ...);
+
+    if (stop)
+      for (auto& [_, endpoint] : endpoints)
+        endpoint.get().stop();
   }
 };
 
@@ -167,3 +170,5 @@ inline void Endpoint::send_to_broker(Message&& msg) {
   if (broker)
     broker->get().send(std::move(msg));
 }
+
+using sleep_f = std::function<bool(std::chrono::milliseconds)>;

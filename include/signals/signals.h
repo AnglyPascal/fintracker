@@ -207,7 +207,6 @@ struct SignalMemory {
   }
 
   double score() const;
-
   int rating_score() const;
 };
 

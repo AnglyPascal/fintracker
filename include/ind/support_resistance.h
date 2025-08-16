@@ -45,12 +45,18 @@ enum class SR {
   Resistance,
 };
 
+using ZoneOpt = std::optional<std::reference_wrapper<const Zone>>;
+
 template <SR sr>
 struct SupportResistance {
   std::vector<Zone> zones;
   SupportResistance(const Indicators& m) noexcept;
 
-  std::optional<std::reference_wrapper<const Zone>> nearest(double price) const;
+  ZoneOpt nearest_below(double price) const { return nearest(price, true); }
+  ZoneOpt nearest_above(double price) const { return nearest(price, false); }
+
+ private:
+  ZoneOpt nearest(double price, bool below) const;
 };
 
 template struct SupportResistance<SR::Support>;

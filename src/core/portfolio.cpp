@@ -1,4 +1,6 @@
 #include "core/portfolio.h"
+#include "concurrency/sleeper.h"
+#include "concurrency/thread_pool.h"
 #include "util/config.h"
 #include "util/format.h"
 #include "util/raw_mode.h"
@@ -7,9 +9,6 @@
 #include <spdlog/spdlog.h>
 #include <iostream>
 
-#include <fstream>
-#include <latch>
-#include <semaphore>
 #include <thread>
 
 void Ticker::calculate_signal() {
@@ -41,101 +40,99 @@ Portfolio::Portfolio() noexcept
   config.sizing_config.capital_usd = td.to_usd(
       config.sizing_config.capital, config.sizing_config.capital_currency);
 
-  std::counting_semaphore<max_concurrency> sem(
-      std::thread::hardware_concurrency() / 2);
-  std::latch done(symbols.size());
+  auto func = [this](SymbolInfo&& sminfo) {
+    if (sleeper.should_shutdown())
+      return false;
+
+    auto [symbol, priority] = sminfo;
+
+    auto candles = time_series(symbol, H_1);
+    if (candles.empty()) {
+      spdlog::error("[init] ({}) no candles", symbol.c_str());
+      return true;
+    }
+
+    Ticker ticker{
+        symbol,
+        priority,
+        std::move(candles),
+        H_1,
+        positions.get_position(symbol),
+        calendar.next_event(symbol)  //
+    };
+
+    {
+      auto _ = writer_lock();
+      tickers.try_emplace(symbol, std::move(ticker));
+    }
+
+    write_plot_data(symbol);
+    spdlog::info("[init] ({})", symbol.c_str());
+
+    return true;
+  };
 
   Timer timer;
-
-  for (auto& [symbol, priority] : symbols) {
-    sem.acquire();
-    std::jthread([&]() {
-      try {
-        auto candles = time_series(symbol, H_1);
-        if (candles.empty()) {
-          spdlog::error("[init] ({}) no candles fetched", symbol.c_str());
-
-          sem.release();
-          done.count_down();
-          return;
-        }
-
-        Ticker ticker(symbol, priority,         //
-                      std::move(candles), H_1,  //
-                      positions.get_position(symbol),
-                      calendar.next_event(symbol));
-        {
-          auto _ = writer_lock();
-          tickers.emplace(symbol, std::move(ticker));
-        }
-
-        write_plot_data(symbol);
-        spdlog::info("[init] ({})", symbol.c_str());
-      } catch (const std::exception& ex) {
-        spdlog::error("[init] ({}) error: {}", symbol.c_str(), ex.what());
-      }
-
-      sem.release();
-      done.count_down();
-    }).detach();
+  {
+    thread_pool<SymbolInfo> pool{config.n_concurrency, func, symbols.arr};
   }
+  auto ms = timer.diff_ms();
 
-  done.wait();
-  spdlog::info("[init] took {:.2f}ms", timer.diff_ms());
+  if (sleeper.should_shutdown())
+    return;
 
   if (!tickers.empty())
     last_updated = tickers.begin()->second.metrics.last_updated();
 
   write_page();
-  spdlog::info("[init] at {}", std::format("{}", last_updated).c_str());
+  spdlog::info("[init] at {} took {:.2f}ms",
+               std::format("{}", last_updated).c_str(), ms);
 
   server = std::thread{[this] { iter(); }};
 }
 
 void Portfolio::add_candle() {
-  spdlog::info("[push_back] at {}", std::format("{}", now_ny_time()).c_str());
+  auto func = [&](SymbolInfo sminfo) {
+    if (sleeper.should_shutdown())
+      return false;
 
-  std::counting_semaphore<max_concurrency> sem(
-      std::thread::hardware_concurrency() / 2);
-  std::latch done(tickers.size());
+    auto [symbol, _] = sminfo;
+
+    auto it = tickers.find(symbol);
+    if (it == tickers.end())
+      return true;
+
+    auto [_, next] = real_time(symbol, H_1);
+    if (next.time() == LocalTimePoint{}) {
+      spdlog::error("[push_back] ({}) invalid candle: {}", symbol.c_str(),
+                    to_str(next).c_str());
+      return true;
+    }
+
+    auto& ticker = it->second;
+    ticker.push_back(next, positions.get_position(symbol));
+
+    write_plot_data(symbol);
+
+    return true;
+  };
 
   Timer timer;
-
-  for (auto& [symbol, ticker] : tickers) {
-    sem.acquire();
-    std::jthread([&]() {
-      try {
-        auto [_, next] = real_time(symbol, H_1);
-
-        if (next.time() == LocalTimePoint{}) {
-          spdlog::error("[push_back] ({}) invalid candle: {}", symbol.c_str(),
-                        to_str(next).c_str());
-          sem.release();
-          done.count_down();
-          return;
-        }
-
-        ticker.push_back(next, positions.get_position(symbol));
-        write_plot_data(symbol);
-      } catch (const std::exception& ex) {
-        spdlog::warn("[push_back] ({}) failed: {}", symbol.c_str(), ex.what());
-      }
-
-      sem.release();
-      done.count_down();
-    }).detach();
+  {
+    thread_pool<SymbolInfo> pool{config.n_concurrency, func, symbols.arr};
   }
-
-  done.wait();
-  rp.roll_fwd();
-
   auto ms = timer.diff_ms();
+
+  if (sleeper.should_shutdown())
+    return;
+
+  rp.roll_fwd();
 
   if (!tickers.empty())
     last_updated = tickers.begin()->second.metrics.last_updated();
 
   write_page();
-  spdlog::info("[update] at {}, took {:.2f}ms",
+  spdlog::info("[update] at {} took {:.2f}ms",
                std::format("{}", last_updated).c_str(), ms);
 
   send_to_broker(id, "update");
@@ -205,28 +202,6 @@ std::pair<const Position*, double> Portfolio::add_trade(
   return {pos, pnl};
 }
 
-void Portfolio::run(sleep_f sleep) {
-  if (config.replay_en)
-    return run_replay(sleep);
-
-  while (!is_stopped()) {
-    config.update();
-
-    auto [open, remaining] = market_status(update_interval);
-    if (!open)
-      break;
-
-    if (!sleep(remaining + minutes(4))) {
-      stop();
-      break;
-    }
-
-    add_candle();
-  }
-
-  std::cout << "[portfolio] exit" << std::endl;
-}
-
 void Portfolio::update_trades() {
   {
     auto _ = writer_lock();
@@ -244,22 +219,41 @@ void Portfolio::update_trades() {
   spdlog::info("[trades] updated at" + std::format("{}", now_ny_time()));
 }
 
-void Portfolio::run_replay(sleep_f sleep) {
+void Portfolio::run() {
+  if (config.replay_en)
+    return run_replay();
+
+  while (!sleeper.should_shutdown()) {
+    config.update();
+
+    auto [open, remaining] = market_status(update_interval);
+    if (!open)
+      break;
+
+    if (!sleeper.sleep_for(remaining)) {
+      stop();
+      break;
+    }
+
+    add_candle();
+  }
+}
+
+void Portfolio::run_replay() {
   if (!config.replay_paused) {
-    while (!is_stopped() && rp.has_data()) {
-      if (!sleep(config.update_interval())) {
+    while (!sleeper.should_shutdown() && rp.has_data()) {
+      if (!sleeper.sleep_for(config.update_interval())) {
         stop();
         break;
       }
       add_candle();
     }
-    std::cout << "[exit] portfolio" << std::endl;
     return;
   }
 
   RawMode _;
 
-  while (!is_stopped() && rp.has_data()) {
+  while (!sleeper.should_shutdown() && rp.has_data()) {
     char ch;
     if (read(STDIN_FILENO, &ch, 1) == 1) {
       printf("\b \b");
@@ -275,12 +269,11 @@ void Portfolio::run_replay(sleep_f sleep) {
         rollback();
     }
   }
-
-  std::cout << "[exit] portfolio" << std::endl;
 }
 
 Portfolio::~Portfolio() noexcept {
   stop();
   if (server.joinable())
     server.join();
+  std::cout << "[exit] portfolio" << std::endl;
 }

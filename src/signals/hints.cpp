@@ -155,8 +155,8 @@ inline Hint rsi_trending(const Indicators& m, int idx) {
 inline Hint near_support_resistance_hint(const Indicators& ind, int idx) {
   auto price = ind.price(idx);
 
-  auto support_opt = ind.nearest_support(idx);
-  auto resistance_opt = ind.nearest_resistance(idx);
+  auto support_opt = ind.nearest_support_below(idx);
+  auto resistance_opt = ind.nearest_resistance_above(idx);
 
   if (!support_opt && !resistance_opt)
     return HintType::None;

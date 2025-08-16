@@ -175,6 +175,8 @@ struct Config {
 
   double speed = 0.0;
 
+  size_t n_concurrency = 1;
+
   APIConfig api_config;
   IndicatorsConfig ind_config;
   PositionSizingConfig sizing_config;

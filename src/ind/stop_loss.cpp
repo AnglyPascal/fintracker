@@ -19,9 +19,9 @@ StopLoss::StopLoss(const Metrics& m) noexcept {
       m.has_position() &&
       (max_price_seen > entry_price + sizing_config.trailing_trigger_atr * atr);
 
-  auto support_1d = m.ind_1d.nearest_support(-1);
-  auto support_4h = m.ind_4h.nearest_support(-1);
-  auto support_1h = m.ind_1h.nearest_support(-1);
+  auto support_1d = m.ind_1d.nearest_support_below(-1);
+  auto support_4h = m.ind_4h.nearest_support_below(-1);
+  auto support_1h = m.ind_1h.nearest_support_below(-1);
 
   auto primary_support =
       support_1d ? support_1d : (support_4h ? support_4h : support_1h);

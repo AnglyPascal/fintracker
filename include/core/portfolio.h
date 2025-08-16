@@ -12,10 +12,7 @@
 #include "util/symbols.h"
 #include "util/times.h"
 
-#include <atomic>
-#include <condition_variable>
 #include <functional>
-#include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <thread>
@@ -76,14 +73,15 @@ struct Ticker {
 
 using Tickers = std::map<std::string, Ticker>;
 enum class FormatTarget;
-using sleep_f = std::function<bool(std::chrono::milliseconds)>;
 
 inline constexpr int max_concurrency = 32;
 
 class Portfolio : public Endpoint {
  private:
   Symbols symbols;
+
   mutable std::shared_mutex mtx;
+  std::thread server;
 
   TD td;
   Replay rp;
@@ -101,14 +99,12 @@ class Portfolio : public Endpoint {
   Portfolio() noexcept;
   ~Portfolio() noexcept;
 
-  void run(sleep_f sleep);
+  void run();
   void update_trades();
 
   std::pair<const Position*, double> add_trade(const Trade& trade) const;
 
  private:
-  void run_replay(sleep_f sleep);
-
   template <typename... Args>
   auto time_series(Args&&... args) {
     return config.replay_en ? rp.time_series(std::forward<Args>(args)...)
@@ -125,6 +121,8 @@ class Portfolio : public Endpoint {
   void rollback();
 
   void add_candle_sync();
+
+  void run_replay();
 
  public:  // getters
   auto& get_trades() const { return positions.get_trades(); }
@@ -170,6 +168,5 @@ class Portfolio : public Endpoint {
 
  private:
   void handle_command(const Message& msg);
-  std::thread server;
   void iter();
 };

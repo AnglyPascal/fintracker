@@ -132,6 +132,11 @@ struct Indicators {
  public:
   Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
 
+  Indicators(const Indicators&) = delete;
+  Indicators& operator=(const Indicators&) = delete;
+  Indicators(Indicators&&) = default;
+  Indicators& operator=(Indicators&&) = default;
+
   void push_back(const Candle& candle, bool new_candle) noexcept;
   void pop_back() noexcept;
   void pop_memory() noexcept;
@@ -181,9 +186,18 @@ struct Indicators {
   auto& support_zones() const { return support.zones; }
   auto& resistance_zones() const { return resistance.zones; }
 
-  auto nearest_support(int idx) const { return support.nearest(price(idx)); }
-  auto nearest_resistance(int idx) const {
-    return resistance.nearest(price(idx));
+  auto nearest_support_below(int idx) const {
+    return support.nearest_below(price(idx));
+  }
+  auto nearest_support_above(int idx) const {
+    return support.nearest_above(price(idx));
+  }
+
+  auto nearest_resistance_below(int idx) const {
+    return resistance.nearest_below(price(idx));
+  }
+  auto nearest_resistance_above(int idx) const {
+    return resistance.nearest_above(price(idx));
   }
 
   Signal get_signal(int idx) const;
@@ -200,6 +214,11 @@ struct Metrics {
   Metrics(std::vector<Candle>&& candles,
           minutes interval,
           const Position* position) noexcept;
+
+  Metrics(const Metrics&) = delete;
+  Metrics(Metrics&&) = default;
+  Metrics& operator=(const Metrics&) = delete;
+  Metrics& operator=(Metrics&&) = default;
 
   bool push_back(const Candle& next, const Position* position) noexcept;
   void rollback() noexcept;

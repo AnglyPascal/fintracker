@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <glaze/glaze.hpp>
-#include <sstream>
+#include <thread>
 
 namespace fs = std::filesystem;
 
@@ -79,10 +79,17 @@ void Config::read_args(int argc, char* argv[]) {
       .default_value(0.0)
       .scan<'g', double>();
 
-  program.add_argument("-p", "--port")
+  program.add_argument("--port")
       .help("Port for the webpage")
       .default_value(8000)
       .scan<'d', int>();
+
+  auto def_nthreads =
+      static_cast<size_t>(std::thread::hardware_concurrency() / 2);
+  program.add_argument("--nthreads")
+      .help("Max number of concurrent threads")
+      .default_value(def_nthreads)
+      .scan<'d', size_t>();
 
   try {
     program.parse_args(argc, argv);
@@ -100,4 +107,6 @@ void Config::read_args(int argc, char* argv[]) {
   replay_en =
       program.get<bool>("--replay") || program.get<bool>("--replay-paused");
   replay_paused = program.get<bool>("--replay-paused");
+
+  n_concurrency = program.get<size_t>("--nthreads");
 }

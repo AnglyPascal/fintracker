@@ -294,14 +294,19 @@ SupportResistance<sr>::SupportResistance(const Indicators& ind) noexcept
     : zones{find_zones<sr>(ind)} {}
 
 template <SR sr>
-std::optional<std::reference_wrapper<const Zone>>
-SupportResistance<sr>::nearest(double price) const {
+ZoneOpt SupportResistance<sr>::nearest(double price, bool below) const {
   double min_dist = std::numeric_limits<double>::max();
   size_t min_idx = 0;
   for (size_t i = 0; i < zones.size(); i++) {
     auto& zone = zones[i];
     if (zone.contains(price))
       return zone;
+
+    if (below && zone.lo > price)
+      continue;
+    else if (!below && zone.hi < price)
+      continue;
+
     auto dist = zone.distance(price);
     if (dist < min_dist) {
       min_dist = dist;
