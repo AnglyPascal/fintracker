@@ -1,80 +1,21 @@
 #pragma once
 
+#include "positions.h"
+#include "replay.h"
+
 #include "concurrency/api.h"
 #include "concurrency/message.h"
-#include "core/calendar.h"
-#include "core/positions.h"
-#include "core/replay.h"
-#include "ind/indicators.h"
-#include "signals/position_sizing.h"
-#include "signals/signals.h"
+#include "ind/ticker.h"
 #include "util/config.h"
 #include "util/symbols.h"
 #include "util/times.h"
 
-#include <functional>
 #include <shared_mutex>
 #include <string>
 #include <thread>
-#include <vector>
-
-struct Ticker {
-  const std::string symbol;
-  const int priority;
-
-  TimePoint last_polled;
-
-  Metrics metrics;
-  CombinedSignal signal;
-
-  StopLoss stop_loss;
-  PositionSizing position_sizing;
-
-  Event ev;
-
- private:
-  friend class Portfolio;
-
-  Ticker(const std::string& symbol,
-         int priority,
-         std::vector<Candle>&& candles,
-         minutes update_interval,
-         const Position* position,
-         const Event& ev) noexcept
-      : symbol{symbol},
-        priority{priority},
-        last_polled{Clock::now()},
-        metrics{std::move(candles), update_interval, position},
-        ev{ev}  //
-  {
-    calculate_signal();
-  }
-
-  void write_plot_data() const;
-  CombinedSignal gen_signal(int idx = -1) const;
-
-  void update_position(const Position* pos) {
-    metrics.update_position(pos);
-    calculate_signal();
-  }
-
-  void push_back(const Candle& next, const Position* pos) {
-    metrics.push_back(next, pos);
-    calculate_signal();
-  }
-
-  void rollback() {
-    metrics.rollback();
-    calculate_signal();
-  }
-
-  void calculate_signal();
-};
 
 using Tickers = std::map<std::string, Ticker>;
 enum class FormatTarget;
-
-inline constexpr int max_concurrency = 32;
 
 class Portfolio : public Endpoint {
  private:
@@ -98,11 +39,7 @@ class Portfolio : public Endpoint {
 
   Portfolio() noexcept;
   ~Portfolio() noexcept;
-
   void run();
-  void update_trades();
-
-  std::pair<const Position*, double> add_trade(const Trade& trade) const;
 
  private:
   template <typename... Args>
@@ -120,9 +57,10 @@ class Portfolio : public Endpoint {
   void add_candle();
   void rollback();
 
-  void add_candle_sync();
-
   void run_replay();
+
+  std::pair<const Position*, double> add_trade(const Trade& trade);
+  void update_trades();
 
  public:  // getters
   auto& get_trades() const { return positions.get_trades(); }

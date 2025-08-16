@@ -10,8 +10,6 @@ class Sleeper {
   std::atomic<bool> shutdown_requested{false};
   std::mutex mtx;
   std::condition_variable cv;
-
-  static Sleeper* instance;
   std::thread td;
 
   inline void handler() {
@@ -24,8 +22,7 @@ class Sleeper {
       if (sigwait(&set, &signum) == 0) {
         if (signum == SIGINT) {
           std::cout << "\b \b" << "\b \b" << std::flush;
-          shutdown_requested.store(true, std::memory_order_release);
-          cv.notify_all();
+          request_shutdown();
           break;
         }
       }
@@ -36,25 +33,19 @@ class Sleeper {
     sigset_t set;
     sigemptyset(&set);
     sigaddset(&set, SIGINT);
-
-    // Block these signals for all threads
-    if (pthread_sigmask(SIG_BLOCK, &set, nullptr) != 0) {
+    if (pthread_sigmask(SIG_BLOCK, &set, nullptr) != 0)
       throw std::runtime_error("Failed to block signals");
-    }
   }
 
  public:
   Sleeper() {
-    instance = this;
     block_signals_for_all_threads();
     td = std::thread(&Sleeper::handler, this);
   }
 
   ~Sleeper() {
-    if (!shutdown_requested.load()) {
-      shutdown_requested.store(true, std::memory_order_release);
-      cv.notify_all();
-    }
+    if (!should_shutdown())
+      request_shutdown();
 
     if (td.joinable()) {
       // Send SIGINT to ourselves to wake up the signal thread for clean
@@ -62,8 +53,6 @@ class Sleeper {
       pthread_kill(td.native_handle(), SIGINT);
       td.join();
     }
-
-    instance = nullptr;
   }
 
   Sleeper(const Sleeper&) = delete;
@@ -75,10 +64,17 @@ class Sleeper {
     return shutdown_requested.load(std::memory_order_acquire);
   }
 
+  void request_shutdown() {
+    shutdown_requested.store(true, std::memory_order_release);
+    cv.notify_all();
+  }
+
   template <typename Rep, typename Period>
   bool sleep_for(const std::chrono::duration<Rep, Period> duration) {
+    if (should_shutdown())
+      return false;
     std::unique_lock lk{mtx};
-    return cv.wait_for(lk, duration, [this] { return should_shutdown(); });
+    return !cv.wait_for(lk, duration, [this] { return should_shutdown(); });
   }
 
   void wait_for_shutdown() {
@@ -87,6 +83,4 @@ class Sleeper {
   }
 };
 
-inline Sleeper* Sleeper::instance = nullptr;
 inline Sleeper sleeper;
-

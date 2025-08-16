@@ -103,4 +103,3 @@ class thread_pool {
     cv.notify_one();
   }
 };
-

@@ -2,6 +2,8 @@
 #include "core/portfolio.h"
 #include "util/times.h"
 
+#include <set>
+
 template <>
 std::string to_str(const SysTimePoint& datetime) {
   return std::format("{:%F %T}", datetime);

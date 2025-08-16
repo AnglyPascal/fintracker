@@ -2,7 +2,6 @@
 
 #include "util/times.h"
 
-#include <iostream>
 #include <string>
 
 struct Candle {

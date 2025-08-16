@@ -1,15 +1,17 @@
 #pragma once
 
+#include "backtest.h"
+#include "candle.h"
+#include "support_resistance.h"
+#include "trendlines.h"
+
 #include "core/positions.h"
-#include "ind/backtest.h"
-#include "ind/candle.h"
-#include "ind/support_resistance.h"
-#include "ind/trendlines.h"
 #include "signals/signals.h"
 #include "util/times.h"
 
 #include <cassert>
 #include <deque>
+#include <map>
 #include <string>
 #include <vector>
 

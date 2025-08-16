@@ -5,7 +5,6 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
 
-#include <csignal>
 #include <filesystem>
 #include <iostream>
 
@@ -47,11 +46,6 @@ int main(int argc, char* argv[]) {
   init_logging();
 
   {
-    sigset_t block_set;
-    sigemptyset(&block_set);
-    sigaddset(&block_set, SIGINT);
-    pthread_sigmask(SIG_BLOCK, &block_set, NULL);
-
     TGEndpoint tg;
     NPMEndpoint npm;
     CloudflareEndpoint cfl;

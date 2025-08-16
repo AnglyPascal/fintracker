@@ -11,16 +11,6 @@
 
 #include <thread>
 
-void Ticker::calculate_signal() {
-  stop_loss = StopLoss(metrics);
-  signal = gen_signal(-1);
-  position_sizing = PositionSizing(metrics, signal, stop_loss);
-
-  spdlog::trace("[stop] {}: {} price={:.2f} atr_stop={:.2f} final={:.2f}",
-                symbol, stop_loss.is_trailing, metrics.last_price(),
-                stop_loss.atr_stop, stop_loss.final_stop);
-}
-
 Portfolio::Portfolio() noexcept
     : Endpoint{PORTFOLIO_ID},
       symbols{},
@@ -138,27 +128,6 @@ void Portfolio::add_candle() {
   send_to_broker(id, "update");
 }
 
-void Portfolio::add_candle_sync() {
-  Timer timer;
-  for (auto& [symbol, ticker] : tickers) {
-    auto [_, next] = real_time(symbol, H_1);
-    {
-      auto _ = writer_lock();
-      ticker.push_back(next, positions.get_position(symbol));
-    }
-    write_plot_data(symbol);
-  }
-
-  rp.roll_fwd();
-  spdlog::info("[push_back sync] completed in {:.2f} ms", timer.diff_ms());
-
-  if (!tickers.empty())
-    last_updated = tickers.begin()->second.metrics.last_updated();
-
-  write_page();
-  spdlog::info("[update] at " + std::format("{}", last_updated));
-}
-
 void Portfolio::rollback() {
   if (!config.replay_en)
     return;
@@ -179,22 +148,18 @@ void Portfolio::rollback() {
   spdlog::info("[rollback] to " + std::format("{}", last_updated));
 }
 
-std::pair<const Position*, double> Portfolio::add_trade(
-    const Trade& trade) const {
+std::pair<const Position*, double> Portfolio::add_trade(const Trade& trade) {
   const Position* pos;
   double pnl;
-
   {
-    auto portfolio = const_cast<Portfolio*>(this);
+    auto _ = writer_lock();
+    pnl = positions.add_trade(trade);
 
-    auto _ = portfolio->writer_lock();
-    pnl = portfolio->positions.add_trade(trade);
-
-    auto& ticker = portfolio->tickers.at(trade.ticker);
+    auto& ticker = tickers.at(trade.ticker);
     pos = positions.get_position(trade.ticker);
     ticker.update_position(pos);
   }
-  spdlog::info("[push_back trade] at " + std::format("{}", last_updated));
+  spdlog::info("[trades] added at " + std::format("{}", last_updated));
 
   write_plot_data(trade.ticker);
   write_page();
@@ -227,10 +192,7 @@ void Portfolio::run() {
     config.update();
 
     auto [open, remaining] = market_status(update_interval);
-    if (!open)
-      break;
-
-    if (!sleeper.sleep_for(remaining)) {
+    if (!open || !sleeper.sleep_for(remaining)) {
       stop();
       break;
     }
@@ -259,8 +221,10 @@ void Portfolio::run_replay() {
       printf("\b \b");
       fflush(stdout);
 
-      if (ch == 'q')
+      if (ch == 'q') {
+        sleeper.request_shutdown();
         break;
+      }
 
       if (ch == 'l')
         add_candle();

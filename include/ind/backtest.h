@@ -3,7 +3,6 @@
 #include "signals/signals.h"
 
 #include <cstdlib>
-#include <map>
 #include <utility>
 #include <vector>
 

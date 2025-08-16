@@ -170,5 +170,3 @@ inline void Endpoint::send_to_broker(Message&& msg) {
   if (broker)
     broker->get().send(std::move(msg));
 }
-
-using sleep_f = std::function<bool(std::chrono::milliseconds)>;
