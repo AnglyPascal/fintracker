@@ -1,4 +1,4 @@
-#include "signals/position_sizing.h"
+#include "sig/position_sizing.h"
 #include "util/config.h"
 #include "util/format.h"
 

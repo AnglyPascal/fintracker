@@ -6,7 +6,7 @@
 #include "trendlines.h"
 
 #include "core/positions.h"
-#include "signals/signals.h"
+#include "sig/signals.h"
 #include "util/times.h"
 
 #include <cassert>

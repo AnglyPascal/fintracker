@@ -1,12 +1,9 @@
 #include "core/replay.h"
-#include "concurrency/api.h"
-#include "core/portfolio.h"
 #include "util/config.h"
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
 #include <filesystem>
-#include <iostream>
 
 namespace fs = std::filesystem;
 

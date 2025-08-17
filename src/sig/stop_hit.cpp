@@ -1,5 +1,5 @@
 #include "ind/indicators.h"
-#include "signals/signals.h"
+#include "sig/signals.h"
 #include "util/config.h"
 
 inline auto& sig_config = config.sig_config;

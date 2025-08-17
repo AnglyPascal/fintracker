@@ -36,9 +36,9 @@ SignalStats::SignalStats(size_t count,
                          size_t wins,
                          bool entry,
                          size_t n_candles) noexcept {
-  trigger_count = count;
-  avg_return = count ? sum_ret / count : 0.0;
-  avg_drawdown = count ? sum_dd / count : 0.0;
+  n_triggers = count;
+  avg_ret = count ? sum_ret / count : 0.0;
+  avg_dd = count ? sum_dd / count : 0.0;
   win_rate = count ? double(wins) / count : 0.0;
 
   auto eps = config.ind_config.eps;
@@ -46,18 +46,18 @@ SignalStats::SignalStats(size_t count,
 
   double raw = 0.0;
   if (entry) {
-    double dd = std::max(avg_drawdown, eps);
-    raw = win_rate * (avg_return / dd) * std::sqrt(double(trigger_count));
+    double dd = std::max(avg_dd, eps);
+    raw = win_rate * (avg_ret / dd) * std::sqrt(double(n_triggers));
   } else {
-    double ret = std::max(avg_return, eps);
-    raw = (1 - win_rate) * (avg_drawdown / ret) *
-          std::sqrt(double(trigger_count));
+    double ret = std::max(avg_ret, eps);
+    raw = (1 - win_rate) * (avg_dd / ret) *
+          std::sqrt(double(n_triggers));
   }
 
-  /** Smaller kappa means more restrictive importance,
-   *  where larger kappa gives a looser, more uniform importance
+  /** Smaller kappa means more restrictive imp,
+   *  where larger kappa gives a looser, more uniform imp
    */
-  importance = 1.0 - std::exp(-kappa * raw);
+  imp = 1.0 - std::exp(-kappa * raw);
 
   avg_ret_n_candles = n_candles;
 }

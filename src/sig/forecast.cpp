@@ -1,9 +1,6 @@
 #include "ind/indicators.h"
-#include "util/config.h"
-#include "util/format.h"
 
 #include <cmath>
-#include <iostream>
 
 inline double simple_confidence(const Signal& sig, const Stats& stats) {
   double total_importance = 0.0;
@@ -19,7 +16,7 @@ inline double simple_confidence(const Signal& sig, const Stats& stats) {
       auto& stats = it->second;
 
       auto w = r.severity_w();
-      total_importance += stats.importance * w;
+      total_importance += stats.imp * w;
       total_win_rate += stats.win_rate * w;
       total_weight += w;
     }

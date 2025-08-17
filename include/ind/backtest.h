@@ -1,24 +1,22 @@
 #pragma once
 
-#include "signals/signals.h"
-
 #include <cstdlib>
 #include <utility>
 #include <vector>
 
 struct LookaheadStats {
   double max_return;
-  int max_return_n_candles;
+  int max_return_n_candles;  // TODO: use it
   double max_drawdown;
-  int max_drawdown_n_candles;
-};  // FIXME: use the n_candles
+  int max_drawdown_n_candles;  // TODO: use it
+};
 
 struct SignalStats {
-  size_t trigger_count;
-  double avg_return;
-  double avg_drawdown;
+  size_t n_triggers;
+  double avg_ret;
+  double avg_dd;
   double win_rate;  // % of signals with positive return
-  double importance;
+  double imp;
   size_t avg_ret_n_candles;
 
   SignalStats(size_t count,
@@ -33,7 +31,7 @@ struct Indicators;
 
 struct Backtest {
   const Indicators& ind;
-  std::vector<LookaheadStats> lookahead;  // same length as candles
+  std::vector<LookaheadStats> lookahead;
 
   Backtest(const Indicators& ind, size_t max_candles = 8 * 10);
 

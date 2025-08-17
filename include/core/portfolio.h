@@ -3,9 +3,9 @@
 #include "positions.h"
 #include "replay.h"
 
-#include "concurrency/api.h"
-#include "concurrency/message.h"
 #include "ind/ticker.h"
+#include "mt/api.h"
+#include "mt/message.h"
 #include "util/config.h"
 #include "util/symbols.h"
 #include "util/times.h"

@@ -1,11 +1,10 @@
-#include "concurrency/api.h"
 #include "ind/candle.h"
+#include "mt/api.h"
 #include "util/config.h"
 #include "util/times.h"
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
-#include <iostream>
 
 #include <unordered_map>
 

@@ -3,9 +3,9 @@
 #include "calendar.h"
 #include "indicators.h"
 
+#include "sig/position_sizing.h"
+#include "sig/signals.h"
 #include "util/times.h"
-#include "signals/position_sizing.h"
-#include "signals/signals.h"
 
 #include <string>
 

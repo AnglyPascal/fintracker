@@ -1,6 +1,6 @@
 #include "core/portfolio.h"
-#include "concurrency/sleeper.h"
-#include "concurrency/thread_pool.h"
+#include "mt/sleeper.h"
+#include "mt/thread_pool.h"
 #include "util/config.h"
 #include "util/format.h"
 #include "util/raw_mode.h"
@@ -237,6 +237,7 @@ void Portfolio::run_replay() {
 
 Portfolio::~Portfolio() noexcept {
   stop();
+  sleeper.request_shutdown();
   if (server.joinable())
     server.join();
   std::cout << "[exit] portfolio" << std::endl;
