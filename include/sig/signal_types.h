@@ -137,12 +137,12 @@ enum class Trend {
 
 struct Filter {
   Trend trend;
-  Confidence confidence;
+  Confidence conf;
   std::string str;
 
-  Filter() : trend{Trend::None}, confidence{Confidence::Low}, str{""} {}
+  Filter() : trend{Trend::None}, conf{Confidence::Low}, str{""} {}
   Filter(Trend t, Confidence c, const std::string& desc = "")
-      : trend{t}, confidence{c}, str{desc} {}
+      : trend{t}, conf{c}, str{desc} {}
 };
 
 using Filters = std::unordered_map<minutes::rep, std::vector<Filter>>;

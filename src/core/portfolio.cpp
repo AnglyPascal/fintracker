@@ -30,11 +30,11 @@ Portfolio::Portfolio() noexcept
   config.sizing_config.capital_usd = td.to_usd(
       config.sizing_config.capital, config.sizing_config.capital_currency);
 
-  auto func = [this](SymbolInfo&& sminfo) {
+  auto func = [this](SymbolInfo&& si) {
     if (sleeper.should_shutdown())
       return false;
 
-    auto [symbol, priority] = sminfo;
+    auto [symbol, priority] = si;
 
     auto candles = time_series(symbol, H_1);
     if (candles.empty()) {
@@ -42,14 +42,8 @@ Portfolio::Portfolio() noexcept
       return true;
     }
 
-    Ticker ticker{
-        symbol,
-        priority,
-        std::move(candles),
-        H_1,
-        positions.get_position(symbol),
-        calendar.next_event(symbol)  //
-    };
+    Ticker ticker{si, calendar.next_event(symbol),  //
+                  std::move(candles), H_1, positions.get_position(symbol)};
 
     {
       auto _ = writer_lock();
@@ -82,11 +76,11 @@ Portfolio::Portfolio() noexcept
 }
 
 void Portfolio::add_candle() {
-  auto func = [&](SymbolInfo sminfo) {
+  auto func = [&](SymbolInfo&& si) {
     if (sleeper.should_shutdown())
       return false;
 
-    auto [symbol, _] = sminfo;
+    auto [symbol, _] = si;
 
     auto it = tickers.find(symbol);
     if (it == tickers.end())

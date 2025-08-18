@@ -62,8 +62,7 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
     if (s.stop_hit.type != StopHitType::None)
       conf_str = s.stop_hit.str();
   } else if (s.type == Rating::Entry) {
-    auto& conf = s.confirmations;
-    conf_str = join(conf.begin(), conf.end());
+    conf_str = join(s.confs.begin(), s.confs.end());
   }
 
   if (conf_str != "")
@@ -78,9 +77,9 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
 template <>
 std::string to_str<FormatTarget::HTML>(const Forecast& f) {
   return std::format("<b>Forecast</b>: <b>{} / {}</b>, {:.2f}",  //
-                     colored("green", f.expected_return),        //
-                     colored("red", f.expected_drawdown),        //
-                     f.confidence);
+                     colored("green", f.exp_ret),        //
+                     colored("red", f.exp_dd),        //
+                     f.conf);
 }
 
 inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
@@ -168,9 +167,9 @@ std::string to_str<FormatTarget::HTML>(const Recommendation& recom) {
 
 template <>
 std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
-  if (sizing.recommendation == Recommendation::Avoid)
+  if (sizing.rec == Recommendation::Avoid)
     return std::format("<div><b>{}</b></div>",
-                       to_str<FormatTarget::HTML>(sizing.recommendation));
+                       to_str<FormatTarget::HTML>(sizing.rec));
 
   constexpr std::string_view templ = R"(
     <div><b>{}</b>: {} w/ {:.2f}</div>
@@ -189,14 +188,14 @@ std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
     warnings = std::format("<div><b>Warnings:</b> {}</div>", warnings);
   }
 
-  return std::format(templ,                                              //
-                     to_str<FormatTarget::HTML>(sizing.recommendation),  //
-                     colored("yellow", sizing.recommended_shares),       //
-                     sizing.recommended_capital,                         //
-                     colored("red", sizing.actual_risk_amount),          //
-                     sizing.actual_risk_pct * 100,                       //
-                     sizing.overall_risk_score,                          //
-                     warnings                                            //
+  return std::format(templ,                                      //
+                     to_str<FormatTarget::HTML>(sizing.rec),     //
+                     colored("yellow", sizing.rec_shares),       //
+                     sizing.rec_capital,                         //
+                     colored("red", sizing.risk_amount),  //
+                     sizing.risk_pct * 100,               //
+                     sizing.risk,                                //
+                     warnings                                    //
   );
 }
 

@@ -5,7 +5,7 @@
 #include <optional>
 #include <vector>
 
-struct Indicators;
+struct IndicatorsCore;
 
 struct Interval {
   size_t l, r;
@@ -30,7 +30,7 @@ struct Zone {
   double lo;
   double hi;
 
-  double confidence = 0.5;
+  double conf = 0.5;
   std::vector<Interval> hits;
   std::vector<SwingPoint> sps;
 
@@ -50,7 +50,7 @@ using ZoneOpt = std::optional<std::reference_wrapper<const Zone>>;
 template <SR sr>
 struct SupportResistance {
   std::vector<Zone> zones;
-  SupportResistance(const Indicators& m) noexcept;
+  SupportResistance(const IndicatorsCore& m) noexcept;
 
   ZoneOpt nearest_below(double price) const { return nearest(price, true); }
   ZoneOpt nearest_above(double price) const { return nearest(price, false); }

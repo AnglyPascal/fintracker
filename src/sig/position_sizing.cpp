@@ -6,105 +6,42 @@
 
 inline auto& sizing_config = config.sizing_config;
 
+struct TimeframeRisk {
+  double volatility_score = 0.0;  // Based on ATR relative to price
+  double trend_alignment = 0.0;   // How aligned trends are
+
+  TimeframeRisk(const Indicators& ind) {
+    auto atr = ind.atr(-1);
+    auto price = ind.price(-1);
+    volatility_score = (atr / price) * 100.0;
+
+    auto ema9 = ind.ema9(-1);
+    auto ema21 = ind.ema21(-1);
+    auto ema50 = ind.ema50(-1);
+
+    double alignment_score = 0;
+    if (ema9 > ema21)
+      alignment_score++;
+    if (ema21 > ema50)
+      alignment_score++;
+    if (price > ema9)
+      alignment_score++;
+
+    trend_alignment = alignment_score / 3.0;
+  }
+};
+
 inline double round_to(double x, int n = 2) {
   double factor = std::pow(10.0, n);
   return std::round(x * factor) / factor;
 }
 
-PositionSizing::PositionSizing(const Metrics& metrics,
-                               const CombinedSignal& signal,
-                               const StopLoss& stop_loss) {
-  current_price = metrics.last_price();
+// Calculate overall risk score (0-10, where 10 is highest risk)
+inline double calculate_risk(auto& ind_1h, auto& ind_4h, auto& ind_1d) {
+  TimeframeRisk risk_1h{ind_1h};
+  TimeframeRisk risk_4h{ind_4h};
+  TimeframeRisk risk_1d{ind_1d};
 
-  risk_1h = TimeframeRisk{metrics.ind_1h};
-  risk_4h = TimeframeRisk{metrics.ind_4h};
-  risk_1d = TimeframeRisk{metrics.ind_1d};
-
-  overall_risk_score = calculate_overall_risk(metrics);
-
-  double risk_per_share = current_price - stop_loss.final_stop;
-  actual_risk_pct = risk_per_share / current_price;
-
-  // Validate minimum risk threshold
-  if (actual_risk_pct < 0.005)  // Less than 0.5%
-    warnings.push_back("stop loss too tight");
-
-  if (actual_risk_pct > 0.035) {  // More than 3.5%
-    warnings.push_back("stop loss too high");
-    return;
-  }
-
-  // Calculate base position size based on max risk
-  double max_risk_amount = sizing_config.max_risk_amount();
-  double base_shares = max_risk_amount / risk_per_share;
-
-  // Apply size multiplier based on signal quality and risk
-  double size_multiplier = get_size_multiplier(signal, overall_risk_score);
-  recommended_shares = round_to(base_shares * size_multiplier, 2);
-
-  // Ensure we don't exceed capital constraints: max 25% of capital per position
-  recommended_capital = recommended_shares * current_price;
-  if (recommended_capital >
-      sizing_config.capital_usd * sizing_config.max_capital_per_position) {
-    auto total_capital =
-        sizing_config.capital_usd * sizing_config.max_capital_per_position;
-    recommended_shares = round_to(total_capital / current_price, 2);
-    recommended_capital = recommended_shares * current_price;
-  }
-
-  // Calculate actual risk with final position size
-  actual_risk_amount = recommended_shares * risk_per_share;
-  actual_risk_pct = actual_risk_amount / sizing_config.capital_usd;
-
-  bool possible_entry = signal.type == Rating::Entry ||
-                        (signal.type == Rating::Watchlist &&
-                         signal.score > sizing_config.entry_score_cutoff);
-  bool maybe_buy =
-      possible_entry && overall_risk_score <= sizing_config.entry_risk_cutoff &&
-      signal.forecast.confidence > sizing_config.entry_confidence_cutoff;
-
-  if (maybe_buy) {
-    if (size_multiplier >= 0.9)
-      recommendation = Recommendation::StrongBuy;
-    else if (size_multiplier >= 0.7)
-      recommendation = Recommendation::Buy;
-    else if (size_multiplier >= 0.4)
-      recommendation = Recommendation::WeakBuy;
-    else
-      recommendation = Recommendation::Caution;
-  } else {
-    recommendation = Recommendation::Avoid;
-  }
-
-  is_valid = recommended_shares > 0 && recommendation != Recommendation::Avoid;
-
-  spdlog::trace("[pos] {}: {:.2f} w/ {:.2f}", to_str(recommendation).c_str(),
-                recommended_shares, recommended_capital);
-}
-
-TimeframeRisk::TimeframeRisk(const Indicators& ind) {
-  signal_strength = ind.signal.type;
-
-  double atr = ind.atr(-1);
-  double price = ind.price(-1);
-  volatility_score = (atr / price) * 100.0;
-
-  double ema9 = ind.ema9(-1);
-  double ema21 = ind.ema21(-1);
-  double ema50 = ind.ema50(-1);
-
-  int alignment_score = 0;
-  if (ema9 > ema21)
-    alignment_score++;
-  if (ema21 > ema50)
-    alignment_score++;
-  if (price > ema9)
-    alignment_score++;
-
-  trend_alignment = alignment_score / 3.0;
-}
-
-double PositionSizing::calculate_overall_risk(const Metrics&) {
   double risk_score = 0.0;
 
   // Volatility component (0-4 points)
@@ -128,10 +65,9 @@ double PositionSizing::calculate_overall_risk(const Metrics&) {
 
   // Signal consistency component (0-3 points)
   int conflicting_signals = 0;
-  for (auto rating : {risk_1h.signal_strength, risk_4h.signal_strength,
-                      risk_1d.signal_strength}) {
-    if (rating == Rating::Mixed || rating == Rating::Caution ||
-        rating == Rating::HoldCautiously || rating == Rating::Exit) {
+  for (auto r : {ind_1h.signal.type, ind_4h.signal.type, ind_1d.signal.type}) {
+    if (r == Rating::Mixed || r == Rating::Caution ||
+        r == Rating::HoldCautiously || r == Rating::Exit) {
       conflicting_signals++;
     }
   }
@@ -140,8 +76,9 @@ double PositionSizing::calculate_overall_risk(const Metrics&) {
   return std::min(risk_score, 10.0);
 }
 
-double PositionSizing::get_size_multiplier(const CombinedSignal& signal,
-                                           double risk_score) {
+// Determine position size multiplier based on risk and signal quality
+inline double get_size_multiplier(const CombinedSignal& signal,
+                                  double risk_score) {
   double base_multiplier = 1.0;
 
   // Adjust based on signal rating
@@ -157,29 +94,81 @@ double PositionSizing::get_size_multiplier(const CombinedSignal& signal,
       break;
   }
 
-  // Adjust based on forecast confidence
-  if (signal.forecast.confidence > 0.8)
+  // Adjust based on forecast conf
+  if (signal.forecast.conf > 0.8)
     base_multiplier *= 1.1;
-  else if (signal.forecast.confidence < 0.4)
+  else if (signal.forecast.conf < 0.4)
     base_multiplier *= 0.7;
 
-  // Adjust based on risk score (0-10 scale, where 10 is highest risk)
+  // Adjust based on risk score
   double risk_adjustment = 1.0 - (risk_score / 20.0);
 
   // Never go below 20% of base
   base_multiplier *= std::max(risk_adjustment, 0.2);
 
   // Adjust based on number of confirmations
-  if (signal.confirmations.size() >= 3)
+  if (signal.confs.size() >= 3)
     base_multiplier *= 1.05;
-  else if (signal.confirmations.empty())
+  else if (signal.confs.empty())
     base_multiplier *= 0.85;
 
   return std::clamp(base_multiplier, 0.1, 1.0);
 }
 
+PositionSizing::PositionSizing(const Metrics& m,
+                               const CombinedSignal& sig,
+                               const StopLoss& sl) {
+  current_price = m.last_price();
+  risk = calculate_risk(m.ind_1h, m.ind_4h, m.ind_1d);
+
+  double risk_per_share = current_price - sl.final_stop;
+  risk_pct = risk_per_share / current_price;
+
+  // Validate minimum risk threshold
+  if (risk_pct < 0.005)  // Less than 0.5%
+    warnings.push_back("stop loss too tight");
+
+  if (risk_pct > 0.035)  // More than 3.5%
+    warnings.push_back("stop loss too high");
+
+  double base_shares = sizing_config.max_risk_amount() / risk_per_share;
+  double size_multiplier = get_size_multiplier(sig, risk);
+  rec_shares = round_to(base_shares * size_multiplier, 2);
+
+  // Ensure we don't exceed capital constraints: max 25% of capital per position
+  rec_capital = rec_shares * current_price;
+  auto max_position_amount = sizing_config.max_position_amount();
+  if (rec_capital > max_position_amount) {
+    rec_shares = round_to(max_position_amount / current_price, 2);
+    rec_capital = rec_shares * current_price;
+  }
+
+  // Calculate actual risk with final position size
+  risk_amount = rec_shares * risk_per_share;
+  risk_pct = round_to(risk_amount / sizing_config.capital_usd, 3);
+
+  bool possible_entry = sig.type == Rating::Entry ||
+                        (sig.type == Rating::Watchlist &&
+                         sig.score > sizing_config.entry_score_cutoff);
+  bool maybe_buy =
+      possible_entry && risk <= sizing_config.entry_risk_cutoff &&
+      sig.forecast.conf > sizing_config.entry_conf_cutoff;
+
+  if (!maybe_buy)
+    rec = Recommendation::Avoid;
+  else if (size_multiplier >= 0.9)
+    rec = Recommendation::StrongBuy;
+  else if (size_multiplier >= 0.7)
+    rec = Recommendation::Buy;
+  else if (size_multiplier >= 0.4)
+    rec = Recommendation::WeakBuy;
+  else
+    rec = Recommendation::Caution;
+
+  spdlog::trace("[pos] {}: {:.2f} w/ {:.2f}", to_str(rec).c_str(), rec_shares,
+                rec_capital);
+}
+
 bool PositionSizing::meets_minimum_criteria() const {
-  return is_valid && recommendation != Recommendation::Avoid &&
-         actual_risk_pct <= 0.02 &&  // Max 2% risk
-         recommended_shares > 0;
+  return rec != Recommendation::Avoid && risk_pct <= 0.02 && rec_shares > 0;
 }

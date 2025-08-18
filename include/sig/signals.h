@@ -1,7 +1,6 @@
 #pragma once
 
 #include "signal_types.h"
-
 #include "util/times.h"
 
 #include <deque>
@@ -13,11 +12,6 @@ struct Metrics;
 using signal_f = Reason (*)(const Indicators&, int idx);
 using hint_f = Hint (*)(const Indicators&, int idx);
 using conf_f = Confirmation (*)(const Metrics&);
-
-std::vector<Reason> reasons(const Indicators& ind, int idx);
-std::vector<Hint> hints(const Indicators& ind, int idx);
-std::vector<Confirmation> confirmations(const Metrics& m);
-Filters evaluate_filters(const Metrics& m);
 
 struct Signal {
   Rating type = Rating::None;
@@ -32,6 +26,9 @@ struct Signal {
   bool has_hints() const { return !hints.empty(); }
 
   bool is_interesting() const;
+
+  Signal() = default;
+  Signal(const Indicators& ind, int idx = -1);
 };
 
 struct SignalMemory {
@@ -40,8 +37,9 @@ struct SignalMemory {
 
   SignalMemory(minutes interval) noexcept;
 
-  void push_back(const Signal& sig) {
-    past.push_back(sig);
+  template <typename... Args>
+  void emplace_back(Args&&... args) {
+    past.emplace_back(std::forward<Args>(args)...);
     if (past.size() > (size_t)memory_length)
       past.pop_front();
   }
@@ -58,15 +56,18 @@ struct SignalMemory {
 struct Stats;
 
 struct Forecast {
-  double expected_return = 0.0;
-  double expected_drawdown = 0.0;
+  double exp_ret = 0.0;
+  double exp_dd = 0.0;
   int n_min_candles = 0;
   int n_max_candles = 0;
-  double confidence = 0.0;
+  double conf = 0.0;
 
   Forecast() = default;
-  Forecast(const Signal& sig, const Stats& stats);
+  Forecast(const Metrics& m, int idx);
 };
+
+struct StopLoss;
+struct Event;
 
 struct CombinedSignal {
   Rating type = Rating::None;
@@ -74,7 +75,13 @@ struct CombinedSignal {
 
   StopHit stop_hit;
   Filters filters;
-  std::vector<Confirmation> confirmations;
+  std::vector<Confirmation> confs;
 
   Forecast forecast;
+
+  CombinedSignal() = default;
+  CombinedSignal(const Metrics& m,
+                 const StopLoss& sl,
+                 const Event& ev,
+                 int idx);
 };

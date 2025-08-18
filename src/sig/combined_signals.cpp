@@ -1,8 +1,9 @@
-#include "ind/ticker.h"
+#include "ind/calendar.h"
+#include "ind/indicators.h"
+#include "sig/signals.h"
 #include "util/config.h"
 
 #include <spdlog/spdlog.h>
-#include <iostream>
 
 inline auto& sig_config = config.sig_config;
 
@@ -13,7 +14,7 @@ inline bool disqualify(auto& filters) {
 
   for (auto& f : filters.at(D_1.count())) {
     if (f.trend == Trend::Bearish) {
-      if (f.confidence == Confidence::High)
+      if (f.conf == Confidence::High)
         ++strongBearish1D;
       else
         ++weakBearish1D;
@@ -37,7 +38,8 @@ inline bool disqualify(auto& filters) {
 inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
                                                 auto& ind_4h,
                                                 auto& ind_1d,
-                                                auto& sig,
+                                                auto& stop_hit,
+                                                auto& filters,
                                                 bool has_position) {
   auto& sig_1h = ind_1h.signal;
   auto& sig_4h = ind_4h.signal;
@@ -46,7 +48,7 @@ inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
   Rating base_rating = sig_1h.type;
   int score_mod = 0;
 
-  if (sig.stop_hit.type != StopHitType::None && disqualify(sig.filters))
+  if (stop_hit.type != StopHitType::None && disqualify(filters))
     return {Rating::Skip, score_mod};
 
   if (base_rating == Rating::Caution && has_position)
@@ -55,12 +57,12 @@ inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
   if (base_rating == Rating::Exit && !has_position)
     base_rating = Rating::Caution;
 
-  if (sig.stop_hit.type == StopHitType::TimeExit ||
-      sig.stop_hit.type == StopHitType::StopLossHit)
+  if (stop_hit.type == StopHitType::TimeExit ||
+      stop_hit.type == StopHitType::StopLossHit)
     base_rating = Rating::Exit;
-  else if (sig.stop_hit.type == StopHitType::StopInATR)
+  else if (stop_hit.type == StopHitType::StopInATR)
     base_rating = Rating::HoldCautiously;
-  else if (sig.stop_hit.type == StopHitType::StopProximity) {
+  else if (stop_hit.type == StopHitType::StopProximity) {
     if (base_rating == Rating::Watchlist)
       base_rating = Rating::Mixed;
     else if (base_rating == Rating::Mixed || base_rating == Rating::Caution)
@@ -120,52 +122,36 @@ inline double weighted_score(double score_1h,
 }
 
 StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss);
+Filters evaluate_filters(const Metrics& m);
+std::vector<Confirmation> confirmations(const Metrics& m);
 
-CombinedSignal Ticker::gen_signal(int idx) const {
-  auto& ind_1h = metrics.ind_1h;
-  auto& ind_4h = metrics.ind_4h;
-  auto& ind_1d = metrics.ind_1d;
+CombinedSignal::CombinedSignal(const Metrics& m,
+                               const StopLoss& sl,
+                               const Event& ev,
+                               int idx) {
+  auto& ind_1h = m.ind_1h;
+  auto& ind_4h = m.ind_4h;
+  auto& ind_1d = m.ind_1d;
 
-  CombinedSignal sig;
+  stop_hit = stop_loss_hits(m, sl);
+  forecast = Forecast{m, idx};
 
-  sig.stop_hit = stop_loss_hits(metrics, stop_loss);
-  sig.forecast = ind_1h.gen_forecast(idx);
+  filters = evaluate_filters(m);
+  auto [t, mod] = contextual_rating(ind_1h, ind_4h, ind_1d, stop_hit, filters,
+                                    m.has_position());
+  type = t;
+  score = weighted_score(ind_1h.signal.score, ind_4h.signal.score,
+                         ind_1d.signal.score) +
+          mod;
 
-  std::cout << std::format("{}:  {:.2f}, {:.2f}, {:.2f}\n",  //
-                           symbol, sig.forecast.expected_return,
-                           sig.forecast.expected_drawdown,
-                           sig.forecast.confidence);
-
-  sig.filters = evaluate_filters(metrics);
-  auto [type, mod] =
-      contextual_rating(ind_1h, ind_4h, ind_1d, sig, metrics.has_position());
-  sig.type = type;
-  sig.score = weighted_score(ind_1h.signal.score, ind_4h.signal.score,
-                             ind_1d.signal.score) +
-              mod;
-
-  if (sig.type == Rating::Entry) {
-    for (auto conf : confirmations(metrics))
+  if (type == Rating::Entry) {
+    for (auto conf : confirmations(m))
       if (conf.str != "")
-        sig.confirmations.push_back(conf);
+        confs.push_back(conf);
 
     // disqualify if earnings is near
     if (ev.is_earnings() && ev.days_until() >= 0 &&
         ev.days_until() < config.sizing_config.earnings_volatility_buffer)
-      sig.type = Rating::Watchlist;
+      type = Rating::Watchlist;
   }
-
-  return sig;
-}
-
-void Ticker::calculate_signal() {
-  stop_loss = StopLoss(metrics);
-  signal = gen_signal(-1);
-  position_sizing = PositionSizing(metrics, signal, stop_loss);
-
-  spdlog::trace("[stop] {}: {} price={:.2f} atr_stop={:.2f} final={:.2f}",
-                symbol, stop_loss.is_trailing, metrics.last_price(),
-                stop_loss.atr_stop, stop_loss.final_stop);
-  spdlog::info("[sizing] {}: {} {}", symbol, position_sizing.recommended_shares,
-               position_sizing.recommended_capital);
 }

@@ -36,7 +36,7 @@ bool TrendLine::operator<(const TrendLine& other) const {
 }
 
 template <typename Func>
-TrendLines::TrendLines(const Indicators& ind,
+TrendLines::TrendLines(const IndicatorsCore& ind,
                        Func f,
                        int last_idx,
                        [[maybe_unused]] size_t min_period,
@@ -109,28 +109,31 @@ double TrendLines::r_squared(const Container<Point>& points,
 
 const auto& ind_config = config.ind_config;
 
-TrendLines Trends::price_trends(const Indicators& ind, int last_idx) noexcept {
+TrendLines Trends::price_trends(const IndicatorsCore& ind,
+                                int last_idx) noexcept {
   return TrendLines(
       ind, [](auto& ind, int idx) { return ind.price(idx); }, last_idx,  //
       ind_config.price_trend_min_candles, ind_config.price_trend_max_candles,
       ind_config.n_top_trends);
 }
 
-TrendLines Trends::rsi_trends(const Indicators& ind, int last_idx) noexcept {
+TrendLines Trends::rsi_trends(const IndicatorsCore& ind,
+                              int last_idx) noexcept {
   return TrendLines(
       ind, [](auto& ind, int idx) { return ind.rsi(idx); }, last_idx,  //
       ind_config.rsi_trend_min_candles, ind_config.rsi_trend_max_candles,
       ind_config.n_top_trends);
 }
 
-TrendLines Trends::ema21_trends(const Indicators& ind, int last_idx) noexcept {
+TrendLines Trends::ema21_trends(const IndicatorsCore& ind,
+                                int last_idx) noexcept {
   return TrendLines(
       ind, [](auto& ind, int idx) { return ind.ema21(idx); }, last_idx,  //
       ind_config.ema21_trend_min_candles, ind_config.ema21_trend_max_candles,
       ind_config.n_top_trends);
 }
 
-Trends::Trends(const Indicators& ind, int last_idx) noexcept
+Trends::Trends(const IndicatorsCore& ind, int last_idx) noexcept
     : price{price_trends(ind, last_idx)},
       ema21{ema21_trends(ind, last_idx)},
       rsi{rsi_trends(ind, last_idx)} {}

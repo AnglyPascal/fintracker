@@ -96,7 +96,7 @@ table_row(const Tickers& tickers, const minutes& interval, const int& idx) {
     auto sig = ind.get_signal(idx);
     auto str = std::format(history_ticker_template, symbol,
                            to_str<FormatTarget::HTML>(sig, ind),
-                           to_str<FormatTarget::HTML>(ind.gen_forecast(idx)));
+                           to_str<FormatTarget::HTML>(Forecast{m, idx}));
 
     symbols.insert(symbol);
 

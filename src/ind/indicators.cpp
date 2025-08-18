@@ -112,9 +112,6 @@ MACD::MACD(const std::vector<Candle>& candles,
            int slow,
            int signal) noexcept
     : macd_line{std::vector<double>(candles.size())},
-      fast_period{fast},
-      slow_period{slow},
-      signal_period{signal},
       fast_ema{candles, fast},
       slow_ema{candles, slow}  //
 {
@@ -183,33 +180,33 @@ void ATR::push_back(const Candle& candle) noexcept {
   prev_close = candle.close;
 }
 
-Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
-    : interval{interval},
-      candles{std::move(candles)},
+// Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
+//     : interval{interval},
+//       candles{std::move(candles)},
 
-      _ema9{this->candles, 9},
-      _ema21{this->candles, 21},
-      _ema50{this->candles, 50},
-      _rsi{this->candles},
-      _macd{this->candles},
-      _atr{this->candles},
+//       _ema9{this->candles, 9},
+//       _ema21{this->candles, 21},
+//       _ema50{this->candles, 50},
+//       _rsi{this->candles},
+//       _macd{this->candles},
+//       _atr{this->candles},
 
-      trends{*this},
+//       trends{*this},
 
-      support{*this},
-      resistance{*this},
+//       support{*this},
+//       resistance{*this},
 
-      memory{interval}  //
-{
-  get_stats();
-  signal = gen_signal(-1);
-  for (int i = -1 - memory.memory_length; i < -1; i++)
-    memory.push_back(gen_signal(i));
-}
+//       memory{interval},
+//       stats{*this}  //
+// {
+//   signal = Signal{*this};
+//   for (int i = -1 - memory.memory_length; i < -1; i++)
+//     memory.emplace_back(*this, i);
+// }
 
 void Indicators::push_back(const Candle& candle, bool new_candle) noexcept {
   if (new_candle)
-    memory.push_back(signal);
+    memory.emplace_back(std::move(signal));
 
   candles.push_back(candle);
 
@@ -221,7 +218,7 @@ void Indicators::push_back(const Candle& candle, bool new_candle) noexcept {
   _atr.push_back(candle);
 
   trends = Trends{*this};
-  signal = gen_signal(-1);
+  signal = Signal{*this};
 }
 
 void Indicators::pop_back() noexcept {
@@ -236,17 +233,11 @@ void Indicators::pop_back() noexcept {
   _atr.pop_back(close);
 
   trends = Trends{*this};
-  signal = gen_signal(-1);
+  signal = Signal{*this};
 }
 
 void Indicators::pop_memory() noexcept {
   memory.pop_back();
-}
-
-void Indicators::get_stats() {
-  Backtest bt{*this};
-  stats.get_reason_stats(bt);
-  stats.get_hint_stats(bt);
 }
 
 Signal Indicators::get_signal(int idx) const {
@@ -256,5 +247,5 @@ Signal Indicators::get_signal(int idx) const {
   if (idx < -1 && idx + 1 + memory.memory_length)
     return memory.past[idx + 1 + memory.memory_length];
 
-  return gen_signal(idx);
+  return Signal{*this, idx};
 }

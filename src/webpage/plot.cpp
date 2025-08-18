@@ -38,7 +38,7 @@ struct glz::meta<Zone> {
   static constexpr auto value = object(  //
       &T::hi,
       &T::lo,
-      &T::confidence,
+      &T::conf,
       &T::sps  //
   );
 };

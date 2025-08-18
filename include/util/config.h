@@ -46,7 +46,7 @@ struct PositionSizingConfig {
 
   double entry_score_cutoff = 0.6;
   double entry_risk_cutoff = 6.0;
-  double entry_confidence_cutoff = 0.6;
+  double entry_conf_cutoff = 0.6;
 
   int min_hold_days = 2;
   int max_hold_days = 15;
@@ -56,6 +56,9 @@ struct PositionSizingConfig {
   mutable double capital_usd = -1.0;
 
   double max_risk_amount() const { return capital_usd * max_risk_pct; }
+  double max_position_amount() const {
+    return capital_usd * max_capital_per_position;
+  }
 };
 
 struct SupportResistanceConfig {
@@ -64,10 +67,10 @@ struct SupportResistanceConfig {
 
   size_t lookback_days = 30;
   size_t n_zones = 6;
-  double min_zone_confidence = 0.5;
+  double min_zone_conf = 0.5;
 
   double zone_proximity_threshold = 0.007;
-  double strong_confidence_threshold = 0.75;
+  double strong_conf_threshold = 0.75;
 
   double break_buffer = 0.01;
 

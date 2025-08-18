@@ -1,8 +1,6 @@
 #include "core/portfolio.h"
-#include "util/config.h"
 #include "util/format.h"
 #include "util/gen_html_template.h"
-#include "util/times.h"
 
 #include <fstream>
 #include <thread>
@@ -79,7 +77,7 @@ inline std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
                   to_str<FormatTarget::HTML>(ticker.position_sizing)       //
       );
 
-  auto& sym = ticker.symbol;
+  auto& sym = ticker.si.symbol;
   return std::format(ticker_template,
                      sym,       //
                      sym,       //

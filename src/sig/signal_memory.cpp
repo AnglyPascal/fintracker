@@ -5,13 +5,8 @@
 
 inline auto& sig_config = config.sig_config;
 
-SignalMemory::SignalMemory(minutes interval) noexcept {
-  if (interval == H_1)
-    memory_length = 16;
-  else if (interval == H_4)
-    memory_length = 10;
-  else
-    memory_length = 6;
+SignalMemory::SignalMemory(minutes inv) noexcept {
+  memory_length = inv == H_1 ? 16 : inv == H_4 ? 10 : 6;
 }
 
 double SignalMemory::score() const {

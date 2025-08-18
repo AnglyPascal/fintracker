@@ -30,7 +30,7 @@ struct TrendLine {
   bool operator<(const TrendLine& other) const;
 };
 
-struct Indicators;
+struct IndicatorsCore;
 
 struct TrendLines {
   std::vector<TrendLine> top_trends;
@@ -38,7 +38,7 @@ struct TrendLines {
   TrendLines() noexcept = default;
 
   template <typename Func>
-  TrendLines(const Indicators& ind,
+  TrendLines(const IndicatorsCore& ind,
              Func f,
              int last_idx,
              size_t min_period,
@@ -61,9 +61,12 @@ struct Trends {
   TrendLines price, ema21, rsi;
 
   Trends() noexcept = default;
-  Trends(const Indicators& ind, int last_idx = -1) noexcept;
+  Trends(const IndicatorsCore& ind, int last_idx = -1) noexcept;
 
-  static TrendLines price_trends(const Indicators& ind, int last_idx) noexcept;
-  static TrendLines ema21_trends(const Indicators& ind, int last_idx) noexcept;
-  static TrendLines rsi_trends(const Indicators& ind, int last_idx) noexcept;
+  static TrendLines price_trends(const IndicatorsCore& ind,
+                                 int last_idx) noexcept;
+  static TrendLines ema21_trends(const IndicatorsCore& ind,
+                                 int last_idx) noexcept;
+  static TrendLines rsi_trends(const IndicatorsCore& ind,
+                               int last_idx) noexcept;
 };

@@ -135,19 +135,19 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
     };
 
     body += std::format(
-        index_row_template,                                                //
-        symbol,                                                            //
-        to_str<FormatTarget::HTML>(sig.type),                              //
-        hide(m, sig.type) ? "display:none;" : "",                          //
-        to_str<FormatTarget::HTML>(sig),                                   //
-        ticker.priority == 3 ? symbol : std::format("<b>{}</b>", symbol),  //
-        to_str<FormatTarget::HTML>(symbol, ticker.ev),                     //
-        str(Source::Price) + stop_str + str(Source::SR),                   //
-        str(Source::EMA),                                                  //
-        str(Source::RSI),                                                  //
-        str(Source::MACD),                                                 //
-        to_str<FormatTarget::HTML>(m.position, m.last_price()),            //
-        to_str<FormatTarget::HTML>(m, ticker.stop_loss)                    //
+        index_row_template,                                                   //
+        symbol,                                                               //
+        to_str<FormatTarget::HTML>(sig.type),                                 //
+        hide(m, sig.type) ? "display:none;" : "",                             //
+        to_str<FormatTarget::HTML>(sig),                                      //
+        ticker.si.priority == 3 ? symbol : std::format("<b>{}</b>", symbol),  //
+        to_str<FormatTarget::HTML>(symbol, ticker.ev),                        //
+        str(Source::Price) + stop_str + str(Source::SR),                      //
+        str(Source::EMA),                                                     //
+        str(Source::RSI),                                                     //
+        str(Source::MACD),                                                    //
+        to_str<FormatTarget::HTML>(m.position, m.last_price()),               //
+        to_str<FormatTarget::HTML>(m, ticker.stop_loss)                       //
     );
 
     std::string mem_str = "";

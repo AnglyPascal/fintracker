@@ -58,10 +58,6 @@ struct MACD {
   std::vector<double> histogram;
 
  private:
-  int fast_period = 12;
-  int slow_period = 26;
-  int signal_period = 9;
-
   EMA fast_ema;
   EMA slow_ema;
 
@@ -98,18 +94,28 @@ struct Pullback {
   double pb;
 };
 
+struct Indicators;
+
 struct Stats {
   std::map<ReasonType, SignalStats> reason;
   std::map<HintType, SignalStats> hint;
 
-  void get_reason_stats(const Backtest& bt);
-  void get_hint_stats(const Backtest& bt);
-};
-
-struct Indicators {
-  const minutes interval;
+  Stats() = default;
+  Stats(const Indicators& ind) : Stats{Backtest{ind}} {}
 
  private:
+  static std::map<ReasonType, SignalStats> get_reason_stats(const Backtest& bt);
+  static std::map<HintType, SignalStats> get_hint_stats(const Backtest& bt);
+
+  Stats(Backtest&& bt)
+      : reason{get_reason_stats(bt)}, hint{get_hint_stats(bt)} {}
+};
+
+struct IndicatorsCore {
+ public:
+  minutes interval;
+
+ protected:
   std::vector<Candle> candles;
 
   EMA _ema9, _ema21, _ema50;
@@ -117,41 +123,22 @@ struct Indicators {
   MACD _macd;
   ATR _atr;
 
-  Trends trends;
-
-  Support support;
-  Resistance resistance;
-
- public:
-  Signal signal;
-  SignalMemory memory;
-
-  void get_stats();
-  Stats stats;
-
-  friend struct Metrics;
-
- public:
-  Indicators(std::vector<Candle>&& candles, minutes interval) noexcept;
-
-  Indicators(const Indicators&) = delete;
-  Indicators& operator=(const Indicators&) = delete;
-  Indicators(Indicators&&) = default;
-  Indicators& operator=(Indicators&&) = default;
-
-  void push_back(const Candle& candle, bool new_candle) noexcept;
-  void pop_back() noexcept;
-  void pop_memory() noexcept;
-
-  LocalTimePoint plot(const std::string& sym, const std::string& time) const;
-
-  Signal gen_signal(int idx) const;
-  Forecast gen_forecast(int idx) const;
+  IndicatorsCore(std::vector<Candle>&& c, minutes inv) noexcept
+      : interval{inv},
+        candles{std::move(c)},
+        _ema9{candles, 9},
+        _ema21{candles, 21},
+        _ema50{candles, 50},
+        _rsi{candles},
+        _macd{candles},
+        _atr{candles}  //
+  {}
 
   size_t sanitize(int idx) const {
     return idx < 0 ? candles.size() + idx : idx;
   }
 
+ public:
   auto size() const { return candles.size(); }
   LocalTimePoint time(int idx) const { return candles[sanitize(idx)].time(); }
 
@@ -172,7 +159,22 @@ struct Indicators {
     return _macd.signal_ema.values[sanitize(idx)];
   }
   double hist(int idx) const { return macd(idx) - macd_signal(idx); }
+};
 
+struct IndicatorsTrends : public IndicatorsCore {
+ protected:
+  Trends trends;
+  Support support;
+  Resistance resistance;
+
+  IndicatorsTrends(std::vector<Candle>&& c, minutes inv) noexcept
+      : IndicatorsCore{std::move(c), inv},
+        trends{*this},
+        support{*this},
+        resistance{*this}  //
+  {}
+
+ public:
   TrendLine price_trend(int idx) const {
     return idx == -1 ? trends.price[0] : Trends::price_trends(*this, idx)[0];
   }
@@ -201,13 +203,45 @@ struct Indicators {
   auto nearest_resistance_above(int idx) const {
     return resistance.nearest_above(price(idx));
   }
+};
+
+struct Indicators : public IndicatorsTrends {
+ public:
+  Signal signal;
+  SignalMemory memory;
+  Stats stats;
+
+  friend struct Metrics;
+
+ public:
+  Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
+      : IndicatorsTrends{std::move(candles), interval},
+        memory{interval},
+        stats{*this}  //
+  {
+    signal = Signal{*this};
+    for (int i = -1 - memory.memory_length; i < -1; i++)
+      memory.emplace_back(*this, i);
+  }
+
+  Indicators(const Indicators&) = delete;
+  Indicators& operator=(const Indicators&) = delete;
+
+  Indicators(Indicators&&) = default;
+  Indicators& operator=(Indicators&&) = default;
+
+  void push_back(const Candle& candle, bool new_candle) noexcept;
+  void pop_back() noexcept;
+  void pop_memory() noexcept;
+
+  LocalTimePoint plot(const std::string& sym, const std::string& time) const;
 
   Signal get_signal(int idx) const;
 };
 
 struct Metrics {
   std::vector<Candle> candles;
-  const minutes interval;
+  minutes interval;
 
   Indicators ind_1h, ind_4h, ind_1d;
   const Position* position;
@@ -218,8 +252,9 @@ struct Metrics {
           const Position* position) noexcept;
 
   Metrics(const Metrics&) = delete;
-  Metrics(Metrics&&) = default;
   Metrics& operator=(const Metrics&) = delete;
+
+  Metrics(Metrics&&) = default;
   Metrics& operator=(Metrics&&) = default;
 
   bool push_back(const Candle& next, const Position* position) noexcept;
@@ -235,6 +270,12 @@ struct Metrics {
   Signal get_signal(minutes interval, int idx) const {
     return get_indicators(interval).get_signal(idx);
   }
+
+  auto& get_stats(minutes interval) const {
+    return get_indicators(interval).stats;
+  }
+
+  Forecast gen_forecast(int idx) const;
 
   bool has_position() const;
   void update_position(const Position* pos);

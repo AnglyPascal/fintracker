@@ -121,12 +121,6 @@ std::string to_str(const Recommendation& recom) {
 }
 
 template <>
-std::string to_str(const TimeframeRisk& risk) {
-  return std::format("Vol: {:.2f}%, Trend: {:.2f}%",  //
-                     risk.volatility_score, risk.trend_alignment * 100);
-}
-
-template <>
 std::string to_str<FormatTarget::Telegram>(const Signal& sig) {
   if (!sig.has_reasons() && !sig.has_hints())
     return "";
@@ -193,7 +187,7 @@ std::string to_str<FormatTarget::Telegram>(const Metrics& m) {
 
 template <>
 std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
-  auto& symbol = ticker.symbol;
+  auto& symbol = ticker.si.symbol;
   auto& metrics = ticker.metrics;
 
   auto& ind = metrics.ind_1h;

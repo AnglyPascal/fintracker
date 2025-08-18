@@ -2,62 +2,59 @@
 
 #include "calendar.h"
 #include "indicators.h"
-
 #include "sig/position_sizing.h"
 #include "sig/signals.h"
+#include "util/symbols.h"
 #include "util/times.h"
 
-#include <string>
-
 struct Ticker {
-  const std::string symbol;
-  const int priority;
+  const SymbolInfo si;
 
   TimePoint last_polled;
+  Event ev;
 
   Metrics metrics;
-  CombinedSignal signal;
-
   StopLoss stop_loss;
-  PositionSizing position_sizing;
 
-  Event ev;
+  CombinedSignal signal;
+  PositionSizing position_sizing;
 
  private:
   friend class Portfolio;
 
-  Ticker(const std::string& symbol,
-         int priority,
-         std::vector<Candle>&& candles,
-         minutes update_interval,
-         const Position* position,
-         const Event& ev) noexcept
-      : symbol{symbol},
-        priority{priority},
+  void calc_signal() {
+    stop_loss = StopLoss(metrics);
+    signal = CombinedSignal(metrics, stop_loss, ev, -1);
+    position_sizing = PositionSizing(metrics, signal, stop_loss);
+  }
+
+  template <typename... Args>
+  Ticker(const SymbolInfo& si, const Event& ev, Args&&... args) noexcept
+      : si{si},
         last_polled{Clock::now()},
-        metrics{std::move(candles), update_interval, position},
-        ev{ev}  //
+        ev{ev},
+        metrics{std::forward<Args>(args)...}  //
   {
-    calculate_signal();
+    calc_signal();
+  }
+
+  template <typename... Args>
+  void update_position(Args&&... args) {
+    metrics.update_position(std::forward<Args>(args)...);
+    calc_signal();
+  }
+
+  template <typename... Args>
+  void push_back(Args&&... args) {
+    metrics.push_back(std::forward<Args>(args)...);
+    calc_signal();
+  }
+
+  template <typename... Args>
+  void rollback(Args&&... args) {
+    metrics.rollback(std::forward<Args>(args)...);
+    calc_signal();
   }
 
   void write_plot_data() const;
-  CombinedSignal gen_signal(int idx = -1) const;
-
-  void update_position(const Position* pos) {
-    metrics.update_position(pos);
-    calculate_signal();
-  }
-
-  void push_back(const Candle& next, const Position* pos) {
-    metrics.push_back(next, pos);
-    calculate_signal();
-  }
-
-  void rollback() {
-    metrics.rollback();
-    calculate_signal();
-  }
-
-  void calculate_signal();
 };

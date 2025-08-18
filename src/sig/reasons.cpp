@@ -64,7 +64,7 @@ inline Reason broke_support_exit(const Indicators& ind, int idx) {
 
       // Current candle closed below zone with minimum penetration
       if (current_close < break_threshold) {
-        // Zone confidence filter - only signal on stronger zones
+        // Zone conf filter - only signal on stronger zones
         // Volume confirmation (if available) - break should have higher
         // volume
         // if (ind.volume(idx) > ind.avg_volume(idx, 10)) {
@@ -90,7 +90,7 @@ inline Reason broke_resistance_entry(const Indicators& ind, int idx) {
 
       // Current candle closed above zone with minimum penetration
       if (current_close > break_threshold) {
-        // Zone confidence filter
+        // Zone conf filter
         // Volume confirmation - breakout should have higher volume
         // if (ind.volume(idx) > ind.avg_volume(idx, 10)) {
         //   return ReasonType::BrokeResistance;
@@ -124,9 +124,11 @@ std::vector<Reason> reasons(const Indicators& ind, int idx) {
   return res;
 }
 
-void Stats::get_reason_stats(const Backtest& bt) {
+std::map<ReasonType, SignalStats> Stats::get_reason_stats(const Backtest& bt) {
+  std::map<ReasonType, SignalStats> reason;
   for (auto& f : reason_funcs) {
     auto [r, s] = bt.get_stats<ReasonType>(f);
     reason.try_emplace(r, s);
   }
+  return reason;
 }

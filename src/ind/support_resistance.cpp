@@ -19,7 +19,7 @@ bool Zone::is_near(double price) const {
 }
 
 bool Zone::is_strong() const {
-  return confidence >= sr_config.strong_confidence_threshold;
+  return conf >= sr_config.strong_conf_threshold;
 }
 
 struct Swing {
@@ -168,7 +168,7 @@ inline auto merge_zones(auto& raw_zones, auto max_zone_width) {
       prev.sps.insert(prev.sps.end(), next.sps.begin(), next.sps.end());
 
       auto w = n_merged / (n_merged + 1);
-      prev.confidence = prev.confidence * w + next.confidence * (1 - w);
+      prev.conf = prev.conf * w + next.conf * (1 - w);
       n_merged++;
     } else {
       zones.emplace_back(std::move(next));
@@ -235,9 +235,9 @@ inline auto calc_conf(auto& ind, auto& zone) {
 
 inline auto filter_zones(auto& raw_zones) {
   std::vector<Zone> zones;
-  auto min_conf = sr_config.min_zone_confidence;
+  auto min_conf = sr_config.min_zone_conf;
   for (auto& zone : raw_zones) {
-    if (zone.confidence < min_conf)
+    if (zone.conf < min_conf)
       continue;
     if (zone.hits.empty())
       continue;
@@ -247,9 +247,9 @@ inline auto filter_zones(auto& raw_zones) {
 }
 
 inline auto normalize_zones(auto& zones) {
-  double max_conf = zones.front().confidence;
+  double max_conf = zones.front().conf;
   for (auto& zone : zones)
-    zone.confidence /= max_conf;
+    zone.conf /= max_conf;
 }
 
 template <SR sr>
@@ -271,7 +271,7 @@ inline auto find_zones(auto& ind) {
 
   for (auto& swing : swings) {
     auto zone = to_zone<sr>(ind, swing);
-    zone.confidence = calc_conf(ind, zone);
+    zone.conf = calc_conf(ind, zone);
     zones.emplace_back(std::move(zone));
   }
 
@@ -280,7 +280,7 @@ inline auto find_zones(auto& ind) {
   zones = filter_zones(zones);
 
   std::sort(zones.begin(), zones.end(),
-            [](auto& l, auto& r) { return l.confidence > r.confidence; });
+            [](auto& l, auto& r) { return l.conf > r.conf; });
 
   size_t n_zones = std::min(sr_config.n_zones, zones.size());
   zones.resize(n_zones);
@@ -290,7 +290,7 @@ inline auto find_zones(auto& ind) {
 }
 
 template <SR sr>
-SupportResistance<sr>::SupportResistance(const Indicators& ind) noexcept
+SupportResistance<sr>::SupportResistance(const IndicatorsCore& ind) noexcept
     : zones{find_zones<sr>(ind)} {}
 
 template <SR sr>
@@ -317,3 +317,11 @@ ZoneOpt SupportResistance<sr>::nearest(double price, bool below) const {
     return zones[min_idx];
   return std::nullopt;
 }
+
+template ZoneOpt SupportResistance<SR::Support>::nearest(double, bool) const;
+template ZoneOpt SupportResistance<SR::Resistance>::nearest(double, bool) const;
+
+template SupportResistance<SR::Support>::SupportResistance(
+    const IndicatorsCore&) noexcept;
+template SupportResistance<SR::Resistance>::SupportResistance(
+    const IndicatorsCore&) noexcept;

@@ -213,9 +213,11 @@ std::vector<Hint> hints(const Indicators& ind, int idx) {
   return res;
 }
 
-void Stats::get_hint_stats(const Backtest& bt) {
+std::map<HintType, SignalStats> Stats::get_hint_stats(const Backtest& bt) {
+  std::map<HintType, SignalStats> hint;
   for (auto& f : hint_funcs) {
     auto [h, s] = bt.get_stats<HintType>(f);
     hint.try_emplace(h, s);
   }
+  return hint;
 }

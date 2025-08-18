@@ -4,6 +4,9 @@
 #include <spdlog/spdlog.h>
 #include <cmath>
 
+std::vector<Reason> reasons(const Indicators& ind, int idx);
+std::vector<Hint> hints(const Indicators& ind, int idx);
+
 bool Signal::is_interesting() const {
   if (type == Rating::Entry || type == Rating::Exit ||
       type == Rating::HoldCautiously)
@@ -96,21 +99,22 @@ inline double gen_score(double entry_w, double exit_w, double past_score) {
   return curr_score * alpha + past_score * (1 - alpha);
 }
 
-Signal Indicators::gen_signal(int idx) const {
-  Signal s;
-  s.tp = time(idx);
+Signal::Signal(const Indicators& ind, int idx) {
+  tp = ind.time(idx);
 
   double entry_w = 0.0, exit_w = 0.0;
   auto add_w = [&](auto cls, auto w) {
     (cls == SignalClass::Entry) ? entry_w += w : exit_w += w;
   };
 
+  auto& stats = ind.stats;
+
   // Hard signals
-  for (auto r : reasons(*this, idx)) {
+  for (auto r : ::reasons(ind, idx)) {
     if (r.type == ReasonType::None || r.cls() == SignalClass::None)
       continue;
 
-    s.reasons.emplace_back(r);
+    reasons.emplace_back(r);
 
     auto imp = 0.0;  // in [0, 1]
     if (auto it = stats.reason.find(r.type); it != stats.reason.end())
@@ -122,11 +126,11 @@ Signal Indicators::gen_signal(int idx) const {
   }
 
   // Hints
-  for (auto h : hints(*this, idx)) {
+  for (auto h : ::hints(ind, idx)) {
     if (h.type == HintType::None || h.cls() == SignalClass::None)
       continue;
 
-    s.hints.emplace_back(h);
+    hints.emplace_back(h);
     if (h.severity() < Severity::High)
       continue;
 
@@ -146,12 +150,11 @@ Signal Indicators::gen_signal(int idx) const {
     });
   };
 
-  sort(s.reasons);
-  sort(s.hints);
+  sort(reasons);
+  sort(hints);
 
-  auto past_score = memory.score();
-  s.type = gen_rating(entry_w, exit_w, past_score, s.reasons, s.hints);
-  s.score = gen_score(entry_w, exit_w, past_score);
-
-  return s;
+  auto past_score = ind.memory.score();
+  type = gen_rating(entry_w, exit_w, past_score, reasons, hints);
+  score = gen_score(entry_w, exit_w, past_score);
 }
+

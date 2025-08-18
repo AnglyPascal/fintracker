@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-inline double simple_confidence(const Signal& sig, const Stats& stats) {
+inline double simple_conf(const Signal& sig, const Stats& stats) {
   double total_importance = 0.0;
   double total_win_rate = 0.0;
   size_t total_weight = 0;
@@ -34,7 +34,10 @@ inline double simple_confidence(const Signal& sig, const Stats& stats) {
   return avg_win_rate * 0.5 + avg_importance * 0.5;
 }
 
-Forecast::Forecast(const Signal& sig, const Stats& stats) {
+Forecast::Forecast(const Metrics& m, int idx) {
+  auto sig = m.get_signal(H_1, idx);
+  auto& stats = m.get_stats(H_1);
+
   double ret_sum = 0.0, dd_sum = 0.0;
   double ret_imp = 0.0, dd_imp = 0.0;
   double n_candles_sum = 0.0, total_imp = 0.0;
@@ -77,17 +80,17 @@ Forecast::Forecast(const Signal& sig, const Stats& stats) {
   if (ret_imp == 0.0 || dd_imp == 0.0 || total_imp == 0.0)
     return;
 
-  expected_return = ret_sum / ret_imp;
-  expected_drawdown = dd_sum / dd_imp;
+  exp_ret = ret_sum / ret_imp;
+  exp_dd = dd_sum / dd_imp;
 
   n_min_candles =  //
       static_cast<int>(std::round(0.75 * n_candles_sum / total_imp));
   n_max_candles =  //
       static_cast<int>(std::round(1.5 * n_candles_sum / total_imp));
 
-  confidence = simple_confidence(sig, stats);
+  conf = simple_conf(sig, stats);
 }
 
-Forecast Indicators::gen_forecast(int idx) const {
-  return {get_signal(idx), stats};
-}
+// Forecast Metrics::gen_forecast(int idx) const {
+//   return {get_signal(idx), stats};
+// }
