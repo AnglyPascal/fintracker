@@ -31,6 +31,8 @@ Config::Config() {
   update();
 }
 
+double to_usd(double amount, const std::string& currency = "GBP") noexcept;
+
 void Config::update() {
   fs::remove("logs/configs.log");
 
@@ -39,6 +41,9 @@ void Config::update() {
   sizing_config = read<PositionSizingConfig>("private/sizing.json");
   sr_config = read<SupportResistanceConfig>("private/support_resistance.json");
   sig_config = read<SignalConfig>("private/signal.json");
+
+  sizing_config.capital_usd =
+      to_usd(sizing_config.capital, sizing_config.capital_currency);
 }
 
 void Config::read_args(int argc, char* argv[]) {
@@ -84,8 +89,7 @@ void Config::read_args(int argc, char* argv[]) {
       .default_value(8000)
       .scan<'d', int>();
 
-  auto def_nthreads =
-      static_cast<size_t>(std::thread::hardware_concurrency() / 2);
+  auto def_nthreads = static_cast<size_t>(std::thread::hardware_concurrency());
   program.add_argument("--nthreads")
       .help("Max number of concurrent threads")
       .default_value(def_nthreads)

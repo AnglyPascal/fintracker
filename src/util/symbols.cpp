@@ -1,6 +1,9 @@
-#include "core/portfolio.h"
+#include "util/symbols.h"
 
-#include <glaze/glaze.hpp>
+#include <fstream>
+#include <sstream>
+
+#include <spdlog/spdlog.h>
 
 Symbols::Symbols() noexcept {
   std::ifstream file("private/tickers.csv");
@@ -10,12 +13,14 @@ Symbols::Symbols() noexcept {
 
   while (std::getline(file, line)) {
     std::istringstream ss(line);
-    std::string push_back, symbol, tier_str, sector;
+    std::string add, symbol, tier_str, sector;
 
-    if (std::getline(ss, push_back, ',') && std::getline(ss, symbol, ',') &&
+    if (std::getline(ss, add, ',') && std::getline(ss, symbol, ',') &&
         std::getline(ss, tier_str, ',') && std::getline(ss, sector, ',')) {
-      if (push_back == "+")
-        arr.emplace_back(symbol, std::stoi(tier_str));
+      auto ch = add[0];
+      arr.emplace_back(ch, symbol, std::stoi(tier_str), sector);
     }
   }
+
+  spdlog::info("[init] {} symbols", arr.size());
 }

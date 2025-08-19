@@ -4,8 +4,8 @@
 #include <spdlog/spdlog.h>
 #include <cmath>
 
-std::vector<Reason> reasons(const Indicators& ind, int idx);
-std::vector<Hint> hints(const Indicators& ind, int idx);
+std::vector<Reason> reasons(const IndicatorsTrends& ind, int idx);
+std::vector<Hint> hints(const IndicatorsTrends& ind, int idx);
 
 bool Signal::is_interesting() const {
   if (type == Rating::Entry || type == Rating::Exit ||

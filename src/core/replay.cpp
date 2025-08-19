@@ -1,4 +1,6 @@
 #include "core/replay.h"
+#include "mt/sleeper.h"
+#include "mt/thread_pool.h"
 #include "util/config.h"
 
 #include <cpr/cpr.h>
@@ -26,11 +28,18 @@ Replay::Replay(TD& td, const Symbols& symbols) noexcept
     return;
   }
 
-  for (auto& [symbol, _] : symbols) {
+  std::mutex mtx;
+
+  auto func = [&, this](SymbolInfo&& si) {
+    if (sleeper.should_shutdown())
+      return false;
+
+    auto& symbol = si.symbol;
+
     auto candles = td.time_series(symbol, H_1);
     if (candles.empty()) {
-      spdlog::error("[replay] no candles fetched for {}", symbol.c_str());
-      continue;
+      spdlog::error("[init] ({}) no candles", symbol.c_str());
+      return true;
     }
 
     auto date = candles.back().day();
@@ -39,7 +48,18 @@ Replay::Replay(TD& td, const Symbols& symbols) noexcept
       idx--;
     idx++;
 
-    candles_by_sym.try_emplace(symbol, std::move(candles), idx);
+    {
+      std::lock_guard _{mtx};
+      candles_by_sym.try_emplace(symbol, std::move(candles), idx);
+    }
+
+    spdlog::info("[replay] fetched ({})", symbol.c_str());
+
+    return true;
+  };
+
+  {
+    thread_pool<SymbolInfo> pool{config.n_concurrency, func, symbols.arr};
   }
 
   write_candles(candles_fname, candles_by_sym);

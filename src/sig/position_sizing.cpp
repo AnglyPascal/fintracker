@@ -1,6 +1,5 @@
 #include "sig/position_sizing.h"
 #include "util/config.h"
-#include "util/format.h"
 
 #include <spdlog/spdlog.h>
 
@@ -118,24 +117,16 @@ inline double get_size_multiplier(const CombinedSignal& signal,
 PositionSizing::PositionSizing(const Metrics& m,
                                const CombinedSignal& sig,
                                const StopLoss& sl) {
-  current_price = m.last_price();
+  auto current_price = m.last_price();
   risk = calculate_risk(m.ind_1h, m.ind_4h, m.ind_1d);
 
   double risk_per_share = current_price - sl.final_stop;
   risk_pct = risk_per_share / current_price;
 
-  // Validate minimum risk threshold
-  if (risk_pct < 0.005)  // Less than 0.5%
-    warnings.push_back("stop loss too tight");
-
-  if (risk_pct > 0.035)  // More than 3.5%
-    warnings.push_back("stop loss too high");
-
   double base_shares = sizing_config.max_risk_amount() / risk_per_share;
   double size_multiplier = get_size_multiplier(sig, risk);
   rec_shares = round_to(base_shares * size_multiplier, 2);
 
-  // Ensure we don't exceed capital constraints: max 25% of capital per position
   rec_capital = rec_shares * current_price;
   auto max_position_amount = sizing_config.max_position_amount();
   if (rec_capital > max_position_amount) {
@@ -150,9 +141,8 @@ PositionSizing::PositionSizing(const Metrics& m,
   bool possible_entry = sig.type == Rating::Entry ||
                         (sig.type == Rating::Watchlist &&
                          sig.score > sizing_config.entry_score_cutoff);
-  bool maybe_buy =
-      possible_entry && risk <= sizing_config.entry_risk_cutoff &&
-      sig.forecast.conf > sizing_config.entry_conf_cutoff;
+  bool maybe_buy = possible_entry && risk <= sizing_config.entry_risk_cutoff &&
+                   sig.forecast.conf > sizing_config.entry_conf_cutoff;
 
   if (!maybe_buy)
     rec = Recommendation::Avoid;
@@ -164,11 +154,5 @@ PositionSizing::PositionSizing(const Metrics& m,
     rec = Recommendation::WeakBuy;
   else
     rec = Recommendation::Caution;
-
-  spdlog::trace("[pos] {}: {:.2f} w/ {:.2f}", to_str(rec).c_str(), rec_shares,
-                rec_capital);
 }
 
-bool PositionSizing::meets_minimum_criteria() const {
-  return rec != Recommendation::Avoid && risk_pct <= 0.02 && rec_shares > 0;
-}

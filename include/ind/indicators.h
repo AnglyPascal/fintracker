@@ -94,23 +94,6 @@ struct Pullback {
   double pb;
 };
 
-struct Indicators;
-
-struct Stats {
-  std::map<ReasonType, SignalStats> reason;
-  std::map<HintType, SignalStats> hint;
-
-  Stats() = default;
-  Stats(const Indicators& ind) : Stats{Backtest{ind}} {}
-
- private:
-  static std::map<ReasonType, SignalStats> get_reason_stats(const Backtest& bt);
-  static std::map<HintType, SignalStats> get_hint_stats(const Backtest& bt);
-
-  Stats(Backtest&& bt)
-      : reason{get_reason_stats(bt)}, hint{get_hint_stats(bt)} {}
-};
-
 struct IndicatorsCore {
  public:
   minutes interval;
@@ -205,6 +188,21 @@ struct IndicatorsTrends : public IndicatorsCore {
   }
 };
 
+struct Stats {
+  std::map<ReasonType, SignalStats> reason;
+  std::map<HintType, SignalStats> hint;
+
+  Stats() = default;
+  Stats(const IndicatorsTrends& ind) : Stats{Backtest{ind}} {}
+
+ private:
+  static std::map<ReasonType, SignalStats> get_reason_stats(const Backtest& bt);
+  static std::map<HintType, SignalStats> get_hint_stats(const Backtest& bt);
+
+  Stats(Backtest&& bt)
+      : reason{get_reason_stats(bt)}, hint{get_hint_stats(bt)} {}
+};
+
 struct Indicators : public IndicatorsTrends {
  public:
   Signal signal;
@@ -260,8 +258,8 @@ struct Metrics {
   bool push_back(const Candle& next, const Position* position) noexcept;
   void rollback() noexcept;
 
-  auto last_price() const { return candles.back().price(); }
-  auto last_updated() const { return candles.back().time(); }
+  auto last_price() const { return ind_1h.price(-1); }
+  auto last_updated() const { return ind_1h.time(-1); }
 
   const Indicators& get_indicators(minutes interval) const {
     return interval == H_1 ? ind_1h : (interval == H_4 ? ind_4h : ind_1d);

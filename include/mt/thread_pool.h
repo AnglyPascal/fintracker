@@ -47,25 +47,27 @@ class thread_pool {
         break;
       auto cont = func(std::move(*t_opt));
       if (!cont) {
-        {
-          std::lock_guard lk{mtx};
-          stopped = true;
-        }
-        cv.notify_all();
+        stop();
         break;
       }
     }
     latch.count_down();
   }
 
+  void stop() {
+    {
+      std::lock_guard lk{mtx};
+      stopped = true;
+    }
+    cv.notify_all();
+  }
+
  public:
-  template <typename... Args>
-    requires std::constructible_from<std::vector<T>, Args...>
-  thread_pool(size_t n_threads, Func func, Args&&... args) noexcept
+  thread_pool(size_t n_threads, Func func, std::vector<T> vec) noexcept
       : n_threads{n_threads},
         latch{static_cast<ptrdiff_t>(n_threads)},
         func{func},
-        vals{std::forward<Args>(args)...}  //
+        vals{std::move(vec)}  //
   {
     threads.reserve(n_threads);
     for (size_t i = 0; i < n_threads; i++)
@@ -78,11 +80,7 @@ class thread_pool {
   }
 
   ~thread_pool() {
-    {
-      std::lock_guard lk{mtx};
-      stopped = true;
-    }
-    cv.notify_all();
+    stop();
     latch.wait();
   }
 

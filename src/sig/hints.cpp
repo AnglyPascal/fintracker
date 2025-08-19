@@ -5,7 +5,7 @@
 inline auto& sig_config = config.sig_config;
 
 // Entry Hints
-inline Hint ema_converging_hint(const Indicators& m, int idx) {
+inline Hint ema_converging_hint(const IndicatorsTrends& m, int idx) {
   double prev_dist = std::abs(m.ema9(idx - 1) - m.ema21(idx - 1));
   double curr_dist = std::abs(m.ema9(idx) - m.ema21(idx));
 
@@ -17,25 +17,25 @@ inline Hint ema_converging_hint(const Indicators& m, int idx) {
   return HintType::None;
 }
 
-inline Hint rsi_approaching_50_hint(const Indicators& ind, int idx) {
+inline Hint rsi_approaching_50_hint(const IndicatorsTrends& ind, int idx) {
   if (ind.rsi(idx - 1) < ind.rsi(idx) && ind.rsi(idx) > 45 && ind.rsi(idx) < 50)
     return HintType::RsiConv50;
   return HintType::None;
 }
 
-inline Hint macd_histogram_rising_hint(const Indicators& ind, int idx) {
+inline Hint macd_histogram_rising_hint(const IndicatorsTrends& ind, int idx) {
   if (ind.hist(idx - 1) < ind.hist(idx) && ind.hist(idx) < 0)
     return HintType::MacdRising;
   return HintType::None;
 }
 
-inline Hint price_pullback_hint(const Indicators& m, int idx) {
+inline Hint price_pullback_hint(const IndicatorsTrends& m, int idx) {
   if (m.price(idx - 1) > m.ema21(idx - 1) && m.price(idx) < m.ema21(idx))
     return HintType::Pullback;
   return HintType::None;
 }
 
-inline Hint rsi_bullish_divergence(const Indicators& ind, int idx) {
+inline Hint rsi_bullish_divergence(const IndicatorsTrends& ind, int idx) {
   // Price made a lower low, RSI made a higher low -> bullish divergence
   if (ind.low(idx - 1) > ind.low(idx) && ind.rsi(idx - 1) < ind.rsi(idx) &&
       ind.rsi(idx - 1) < 40 && ind.rsi(idx) < 60)
@@ -44,7 +44,7 @@ inline Hint rsi_bullish_divergence(const Indicators& ind, int idx) {
   return HintType::None;
 }
 
-inline Hint macd_bullish_divergence(const Indicators& ind, int idx) {
+inline Hint macd_bullish_divergence(const IndicatorsTrends& ind, int idx) {
   // Price made a lower low, MACD made a higher low
   if (ind.low(idx) < ind.low(idx - 1) && ind.macd(idx) > ind.macd(idx - 1) &&
       ind.macd(idx - 1) < 0 && ind.macd(idx) < 0)
@@ -55,7 +55,7 @@ inline Hint macd_bullish_divergence(const Indicators& ind, int idx) {
 
 // Exit Hints
 
-inline Hint ema_diverging_hint(const Indicators& m, int idx) {
+inline Hint ema_diverging_hint(const IndicatorsTrends& m, int idx) {
   double prev_dist = std::abs(m.ema9(idx - 1) - m.ema21(idx - 1));
   double curr_dist = std::abs(m.ema9(idx) - m.ema21(idx));
 
@@ -67,20 +67,21 @@ inline Hint ema_diverging_hint(const Indicators& m, int idx) {
   return HintType::None;
 }
 
-inline Hint rsi_falling_from_overbought_hint(const Indicators& m, int idx) {
+inline Hint rsi_falling_from_overbought_hint(const IndicatorsTrends& m,
+                                             int idx) {
   double prev = m.rsi(idx - 1), now = m.rsi(idx);
   if (prev > 70 && now < prev && prev - now > 3.0)
     return HintType::RsiDropFromOverbought;
   return HintType::None;
 }
 
-inline Hint macd_histogram_peaking_hint(const Indicators& m, int idx) {
+inline Hint macd_histogram_peaking_hint(const IndicatorsTrends& m, int idx) {
   if (m.hist(idx - 2) < m.hist(idx - 1) && m.hist(idx - 1) > m.hist(idx))
     return HintType::MacdPeaked;
   return HintType::None;
 }
 
-inline Hint ema_flattens_hint(const Indicators& m, int idx) {
+inline Hint ema_flattens_hint(const IndicatorsTrends& m, int idx) {
   double slope = m.ema9(idx) - m.ema9(idx - 1);
   bool is_flat = std::abs(slope / m.ema9(idx)) < 0.001;
 
@@ -93,7 +94,7 @@ inline Hint ema_flattens_hint(const Indicators& m, int idx) {
   return HintType::None;
 }
 
-inline Hint rsi_bearish_divergence(const Indicators& ind, int idx) {
+inline Hint rsi_bearish_divergence(const IndicatorsTrends& ind, int idx) {
   // Price up but RSI down — loss of momentum
   if (ind.price(idx) > ind.price(idx - 1) && ind.rsi(idx) < ind.rsi(idx - 1) &&
       ind.rsi(idx) > 50)
@@ -104,7 +105,7 @@ inline Hint rsi_bearish_divergence(const Indicators& ind, int idx) {
 
 // Trends
 
-inline Hint price_trending(const Indicators& m, int idx) {
+inline Hint price_trending(const IndicatorsTrends& m, int idx) {
   auto best = m.price_trend(idx);
 
   if (best.slope() > 0.3 && best.r2 > 0.8)
@@ -119,7 +120,7 @@ inline Hint price_trending(const Indicators& m, int idx) {
   return HintType::None;
 }
 
-inline Hint ema21_trending(const Indicators& m, int idx) {
+inline Hint ema21_trending(const IndicatorsTrends& m, int idx) {
   auto best = m.ema21_trend(idx);
 
   if (best.slope() > 0.3 && best.r2 > 0.8)
@@ -134,7 +135,7 @@ inline Hint ema21_trending(const Indicators& m, int idx) {
   return HintType::None;
 }
 
-inline Hint rsi_trending(const Indicators& m, int idx) {
+inline Hint rsi_trending(const IndicatorsTrends& m, int idx) {
   auto best = m.rsi_trend(idx);
 
   if (best.slope() > 0.3 && best.r2 > 0.85)
@@ -152,7 +153,7 @@ inline Hint rsi_trending(const Indicators& m, int idx) {
 // SR Proximity
 
 // Support/Resistance Hints
-inline Hint near_support_resistance_hint(const Indicators& ind, int idx) {
+inline Hint near_support_resistance_hint(const IndicatorsTrends& ind, int idx) {
   auto price = ind.price(idx);
 
   auto support_opt = ind.nearest_support_below(idx);
@@ -205,7 +206,7 @@ inline constexpr hint_f hint_funcs[] = {
     near_support_resistance_hint,
 };
 
-std::vector<Hint> hints(const Indicators& ind, int idx) {
+std::vector<Hint> hints(const IndicatorsTrends& ind, int idx) {
   std::vector<Hint> res;
   for (auto f : hint_funcs) {
     res.push_back(f(ind, idx));

@@ -86,28 +86,50 @@ TimeSeriesRes read_candles_json(const std::string& str) {
 
   APIRes ts_res;
   auto ec = glz::read<opts>(ts_res, str);
-  if (ec)
+  if (ec) {
     spdlog::error("[td] time_series json error: {}", glz::format_error(ec));
+    return {};
+  }
 
   return ts_res.values;
 }
 
-struct curr_res_t {
-  double amount = -1;
+struct fx_res_t {
+  std::unordered_map<std::string, double> rates;
 };
 
-double get_amount_json(const std::string& currency, const std::string& str) {
-  curr_res_t curr_res;
+double get_amount_json(double amount,
+                       const std::string& currency,
+                       const std::string& str) {
+  try {
+    constexpr auto opts = glz::opts{
+        .error_on_unknown_keys = false,
+    };
 
-  constexpr auto opts = glz::opts{
-      .error_on_unknown_keys = false,
-      .partial_read = true,
-  };
+    fx_res_t resp;
+    auto ec = glz::read<opts>(resp, str);
+    if (ec) {
+      spdlog::error("[fx] glaze parse error: {}", glz::format_error(ec, str));
+      return amount;
+    }
 
-  auto ec = glz::read<opts>(curr_res, str);
-  if (ec)
-    spdlog::error("[td] {}/USD json error: {}", currency,
-                  glz::format_error(ec).c_str());
+    // Convert: currency -> GBP -> USD
+    // If request base is GBP, rates["USD"] gives GBP -> USD
+    if (currency == "GBP") {
+      auto it = resp.rates.find("USD");
+      if (it != resp.rates.end())
+        return amount * it->second;
+    } else {
+      auto it_from = resp.rates.find(currency);
+      auto it_usd = resp.rates.find("USD");
+      if (it_from != resp.rates.end() && it_usd != resp.rates.end()) {
+        double gbp_per_currency = 1.0 / it_from->second;
+        return amount * gbp_per_currency * it_usd->second;
+      }
+    }
+  } catch (const std::exception& ex) {
+    spdlog::error("[fx] {}->USD error: {}", currency, ex.what());
+  }
 
-  return curr_res.amount;
+  return amount;
 }

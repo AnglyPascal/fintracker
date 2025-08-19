@@ -26,7 +26,7 @@ class TD {
 
  private:
   int try_get_key();
-  const std::string& get_key();
+  std::string get_key();
 
   TimeSeriesRes api_call(const std::string& symbol,
                          minutes timeframe,
@@ -35,16 +35,9 @@ class TD {
  public:
   TD(size_t n_tickers);
 
-  double to_usd(double amount, const std::string& currency = "GBP") noexcept;
-
   TimeSeriesRes time_series(const std::string& symbol,
                             minutes timeframe = H_1) noexcept;
   RealTimeRes real_time(const std::string& symbol,
                         minutes timeframe = H_1) noexcept;
   LocalTimePoint latest_datetime() noexcept;
 };
-
-bool wait_for_file(const std::string& path,
-                   seconds freshness = seconds{120},
-                   seconds timeout = seconds{30},
-                   milliseconds poll_interval = milliseconds{500});

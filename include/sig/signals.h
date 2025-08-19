@@ -6,11 +6,12 @@
 #include <deque>
 #include <vector>
 
+struct IndicatorsTrends;
 struct Indicators;
 struct Metrics;
 
-using signal_f = Reason (*)(const Indicators&, int idx);
-using hint_f = Hint (*)(const Indicators&, int idx);
+using signal_f = Reason (*)(const IndicatorsTrends&, int);
+using hint_f = Hint (*)(const IndicatorsTrends&, int);
 using conf_f = Confirmation (*)(const Metrics&);
 
 struct Signal {
@@ -83,5 +84,5 @@ struct CombinedSignal {
   CombinedSignal(const Metrics& m,
                  const StopLoss& sl,
                  const Event& ev,
-                 int idx);
+                 int idx = -1);
 };

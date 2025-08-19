@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-Backtest::Backtest(const Indicators& _ind, size_t max_candles) : ind{_ind} {
+Backtest::Backtest(const IndicatorsTrends& _ind, size_t max_candles) : ind{_ind} {
   size_t n = ind.size();
   lookahead.reserve(n);
 

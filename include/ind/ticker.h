@@ -5,12 +5,9 @@
 #include "sig/position_sizing.h"
 #include "sig/signals.h"
 #include "util/symbols.h"
-#include "util/times.h"
 
 struct Ticker {
   const SymbolInfo si;
-
-  TimePoint last_polled;
   Event ev;
 
   Metrics metrics;
@@ -23,15 +20,14 @@ struct Ticker {
   friend class Portfolio;
 
   void calc_signal() {
-    stop_loss = StopLoss(metrics);
-    signal = CombinedSignal(metrics, stop_loss, ev, -1);
-    position_sizing = PositionSizing(metrics, signal, stop_loss);
+    stop_loss = StopLoss{metrics};
+    signal = CombinedSignal{metrics, stop_loss, ev};
+    position_sizing = PositionSizing{metrics, signal, stop_loss};
   }
 
   template <typename... Args>
   Ticker(const SymbolInfo& si, const Event& ev, Args&&... args) noexcept
       : si{si},
-        last_polled{Clock::now()},
         ev{ev},
         metrics{std::forward<Args>(args)...}  //
   {

@@ -1,10 +1,12 @@
 #include "ind/candle.h"
 #include "mt/api.h"
+#include "mt/sleeper.h"
 #include "util/config.h"
 #include "util/times.h"
 
 #include <cpr/cpr.h>
 #include <spdlog/spdlog.h>
+#include <glaze/glaze.hpp>
 
 #include <unordered_map>
 
@@ -57,14 +59,16 @@ int TD::try_get_key() {
   return -1;
 }
 
-const std::string& TD::get_key() {
+std::string TD::get_key() {
   auto _ = std::lock_guard{mtx};
 
   int k = -1;
-  while ((k = try_get_key()) == -1)
-    std::this_thread::sleep_for(seconds(30));
+  while ((k = try_get_key()) == -1) {
+    auto slept = sleeper.sleep_for(seconds(30));
+    if (!slept)
+      return "";
+  }
 
-  spdlog::trace("[api_key] {}", k);
   auto& api_key = keys[k];
   api_key.daily_calls++;
   api_key.call_timestamps.push_back(Clock::now());
@@ -84,43 +88,14 @@ inline std::string interval_to_str(minutes interval) {
   return it->second;
 }
 
-double get_amount_json(const std::string& currency, const std::string& str);
-
-double TD::to_usd(double amount, const std::string& currency) noexcept {
-  if (currency == "USD")
-    return amount;
-
-  try {
-    auto symbol = currency + "/USD";
-    auto api_key = get_key();
-
-    cpr::Parameters params{{"symbol", symbol},
-                           {"amount", std::to_string(amount)},
-                           {"apikey", api_key}};
-
-    auto res = cpr::Get(
-        cpr::Url{"https://api.twelvedata.com/currency_conversion"}, params);
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    if (res.status_code != 200) {
-      spdlog::error("[td] {}/USD http error {}", currency, res.status_code);
-      return amount;
-    }
-
-    amount = get_amount_json(currency, res.text);
-  } catch (std::exception& ex) {
-    spdlog::error("[td] {}/USD error: {}", currency, ex.what());
-  }
-  return amount;
-}
-
 TimeSeriesRes read_candles_json(const std::string& str);
 
 TimeSeriesRes TD::api_call(const std::string& symbol,
                            minutes timeframe,
                            size_t output_size) {
   auto api_key = get_key();
+  if (api_key == "")
+    return {};
 
   if (output_size > MAX_OUTPUT_SIZE)
     spdlog::error("[td] outputsize exceeds limit");
@@ -134,9 +109,8 @@ TimeSeriesRes TD::api_call(const std::string& symbol,
   auto res =
       cpr::Get(cpr::Url{"https://api.twelvedata.com/time_series"}, params);
 
-  std::this_thread::sleep_for(milliseconds(1500));
-
-  if (res.status_code != 200) {
+  auto slept = sleeper.sleep_for(milliseconds(1500));
+  if (!slept || res.status_code != 200) {
     spdlog::error("[td] ({}) time_series http error {}",  //
                   symbol.c_str(), res.status_code);
     return {};
@@ -161,7 +135,8 @@ RealTimeRes TD::real_time(const std::string& symbol,
   RealTimeRes res;
   try {
     auto candles = api_call(symbol, timeframe, 2);
-    res = {candles[candles.size() - 2], candles[candles.size() - 1]};
+    if (!candles.empty())
+      res = {candles[candles.size() - 2], candles[candles.size() - 1]};
   } catch (const std::exception& ex) {
     spdlog::error("[rt] ({}) error: {}", symbol.c_str(), ex.what());
   }
@@ -171,32 +146,28 @@ RealTimeRes TD::real_time(const std::string& symbol,
 LocalTimePoint TD::latest_datetime() noexcept {
   LocalTimePoint tp;
   try {
-    tp = api_call("NVDA", interval, 1).back().time();
+    auto vec = api_call("NVDA", interval, 1);
+    if (!vec.empty())
+      tp = vec.back().time();
   } catch (const std::exception& ex) {
     spdlog::error("[datetime] error: {}", ex.what());
   }
   return tp;
 }
 
-bool wait_for_file(const std::string& path,
-                   seconds freshness,
-                   seconds timeout,
-                   milliseconds poll_interval) {
-  fs::path file_path(path);
-  auto deadline = Clock::now() + timeout;
+double get_amount_json(double amount,
+                       const std::string& currency,
+                       const std::string& str);
 
-  while (Clock::now() < deadline) {
-    if (fs::exists(file_path)) {
-      auto mod_time = fs::last_write_time(file_path);
-      auto sys_mod_time = clock_cast<SysClock>(mod_time);
-      auto now = SysClock::now();
+double to_usd(double amount, const std::string& currency) noexcept {
+  if (currency == "USD")
+    return amount;
 
-      if (now - sys_mod_time <= freshness)
-        return true;
-    }
-
-    std::this_thread::sleep_for(poll_interval);
+  auto res = cpr::Get(cpr::Url{"https://open.er-api.com/v6/latest/GBP"});
+  if (res.status_code != 200) {
+    spdlog::error("[fx] {}->USD http error {}", currency, res.status_code);
+    return amount;
   }
 
-  return false;
+  return get_amount_json(amount, currency, res.text);
 }

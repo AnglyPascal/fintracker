@@ -6,19 +6,19 @@ inline auto& sig_config = config.sig_config;
 
 // Entry reasons
 
-inline Reason ema_crossover_entry(const Indicators& m, int idx) {
+inline Reason ema_crossover_entry(const IndicatorsTrends& m, int idx) {
   if (m.ema9(idx - 1) <= m.ema21(idx - 1) && m.ema9(idx) > m.ema21(idx))
     return ReasonType::EmaCrossover;
   return ReasonType::None;
 }
 
-inline Reason rsi_cross_50_entry(const Indicators& m, int idx) {
+inline Reason rsi_cross_50_entry(const IndicatorsTrends& m, int idx) {
   if (m.rsi(idx - 1) < 50 && m.rsi(idx) >= 50)
     return ReasonType::RsiCross50;
   return ReasonType::None;
 }
 
-inline Reason pullback_bounce_entry(const Indicators& m, int idx) {
+inline Reason pullback_bounce_entry(const IndicatorsTrends& m, int idx) {
   bool dipped_below_ema21 = m.price(idx - 1) < m.ema21(idx - 1);
   bool recovered_above_ema21 = m.price(idx) > m.ema21(idx);
   bool ema9_above_ema21 = m.ema9(idx) > m.ema21(idx);
@@ -29,7 +29,7 @@ inline Reason pullback_bounce_entry(const Indicators& m, int idx) {
   return ReasonType::None;
 }
 
-inline Reason macd_histogram_cross_entry(const Indicators& m, int idx) {
+inline Reason macd_histogram_cross_entry(const IndicatorsTrends& m, int idx) {
   if (m.hist(idx - 1) < 0 && m.hist(idx) >= 0)
     return ReasonType::MacdHistogramCross;
   return ReasonType::None;
@@ -37,13 +37,13 @@ inline Reason macd_histogram_cross_entry(const Indicators& m, int idx) {
 
 // Exit reasons
 
-inline Reason ema_crossdown_exit(const Indicators& m, int idx) {
+inline Reason ema_crossdown_exit(const IndicatorsTrends& m, int idx) {
   if (m.ema9(idx - 1) >= m.ema21(idx - 1) && m.ema9(idx) < m.ema21(idx))
     return ReasonType::EmaCrossdown;
   return ReasonType::None;
 }
 
-inline Reason macd_bearish_cross_exit(const Indicators& ind, int idx) {
+inline Reason macd_bearish_cross_exit(const IndicatorsTrends& ind, int idx) {
   if (ind.macd(idx - 1) >= ind.macd_signal(idx - 1) &&
       ind.macd(idx) < ind.macd_signal(idx))
     return ReasonType::MacdBearishCross;
@@ -53,7 +53,7 @@ inline Reason macd_bearish_cross_exit(const Indicators& ind, int idx) {
 // SR breaks
 //
 // Support/Resistance Reasons (actual signals)
-inline Reason broke_support_exit(const Indicators& ind, int idx) {
+inline Reason broke_support_exit(const IndicatorsTrends& ind, int idx) {
   double current_close = ind.price(idx);
   double prev_close = ind.price(idx - 1);
 
@@ -79,7 +79,7 @@ inline Reason broke_support_exit(const Indicators& ind, int idx) {
   return ReasonType::None;
 }
 
-inline Reason broke_resistance_entry(const Indicators& ind, int idx) {
+inline Reason broke_resistance_entry(const IndicatorsTrends& ind, int idx) {
   double current_close = ind.price(idx);
   double prev_close = ind.price(idx - 1);
 
@@ -116,7 +116,7 @@ inline constexpr signal_f reason_funcs[] = {
     broke_support_exit,
 };
 
-std::vector<Reason> reasons(const Indicators& ind, int idx) {
+std::vector<Reason> reasons(const IndicatorsTrends& ind, int idx) {
   std::vector<Reason> res;
   for (auto f : reason_funcs) {
     res.push_back(f(ind, idx));

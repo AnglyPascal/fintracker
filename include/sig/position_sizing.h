@@ -15,6 +15,8 @@ enum class Recommendation {
 };
 
 struct PositionSizing {
+  Recommendation rec = Recommendation::Avoid;
+
   double rec_shares = 0.0;
   double rec_capital = 0.0;
 
@@ -22,20 +24,8 @@ struct PositionSizing {
   double risk_pct = 0.0;
   double risk_amount = 0.0;
 
-  Recommendation rec = Recommendation::Avoid;
-  std::vector<std::string> warnings;
-
   PositionSizing() = default;
   PositionSizing(const Metrics& metrics,
                  const CombinedSignal& signal,
                  const StopLoss& stop_loss);
-
-  bool meets_minimum_criteria() const;
-  double calculate_position_value() const {
-    return rec_shares * get_current_price();
-  }
-
- private:
-  double current_price = 0.0;
-  double get_current_price() const { return current_price; }
 };

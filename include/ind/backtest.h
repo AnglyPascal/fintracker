@@ -27,13 +27,13 @@ struct SignalStats {
               size_t n_candles) noexcept;
 };
 
-struct Indicators;
+struct IndicatorsTrends;
 
 struct Backtest {
-  const Indicators& ind;
+  const IndicatorsTrends& ind;
   std::vector<LookaheadStats> lookahead;
 
-  Backtest(const Indicators& ind, size_t max_candles = 8 * 10);
+  Backtest(const IndicatorsTrends& ind, size_t max_candles = 8 * 10);
 
   template <typename T, typename Func>
   std::pair<T, SignalStats> get_stats(Func signal_fn) const;

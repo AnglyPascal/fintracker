@@ -74,14 +74,6 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
                      (int)std::round(s.score * 10));
 }
 
-template <>
-std::string to_str<FormatTarget::HTML>(const Forecast& f) {
-  return std::format("<b>Forecast</b>: <b>{} / {}</b>, {:.2f}",  //
-                     colored("green", f.exp_ret),        //
-                     colored("red", f.exp_dd),        //
-                     f.conf);
-}
-
 inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
   constexpr std::string_view div = R"(
   <li><b>{}</b>
@@ -174,28 +166,15 @@ std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
   constexpr std::string_view templ = R"(
     <div><b>{}</b>: {} w/ {:.2f}</div>
     <div><b>Risk</b>: {} ({:.2f}%), {:.1f}</div>
-    {}
   )";
 
-  std::string warnings = "";
-  if (!sizing.warnings.empty()) {
-    for (auto& warning : sizing.warnings) {
-      warnings += warning + ", ";
-    }
-    warnings.pop_back();
-    warnings.pop_back();
-
-    warnings = std::format("<div><b>Warnings:</b> {}</div>", warnings);
-  }
-
-  return std::format(templ,                                      //
-                     to_str<FormatTarget::HTML>(sizing.rec),     //
-                     colored("yellow", sizing.rec_shares),       //
-                     sizing.rec_capital,                         //
-                     colored("red", sizing.risk_amount),  //
-                     sizing.risk_pct * 100,               //
-                     sizing.risk,                                //
-                     warnings                                    //
+  return std::format(templ,                                   //
+                     to_str<FormatTarget::HTML>(sizing.rec),  //
+                     colored("yellow", sizing.rec_shares),    //
+                     sizing.rec_capital,                      //
+                     colored("red", sizing.risk_amount),      //
+                     sizing.risk_pct * 100,                   //
+                     sizing.risk                              //
   );
 }
 
@@ -271,6 +250,14 @@ inline constexpr std::string_view combined_signal_template = R"(
   <td class="signal-4h">{}</td>
   <td class="signal-1d">{}</td>
 )";
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Forecast& f) {
+  return std::format("<b>Forecast</b>: <b>{} / {}</b>, {:.2f}",  //
+                     colored("green", f.exp_ret),                //
+                     colored("red", f.exp_dd),                   //
+                     f.conf);
+}
 
 template <>
 std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
