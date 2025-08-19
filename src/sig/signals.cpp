@@ -156,5 +156,6 @@ Signal::Signal(const Indicators& ind, int idx) {
   auto past_score = ind.memory.score();
   type = gen_rating(entry_w, exit_w, past_score, reasons, hints);
   score = gen_score(entry_w, exit_w, past_score);
-}
 
+  std::cout << score << " " << (int)std::round(score * 10) << std::endl;
+}

@@ -180,7 +180,8 @@ void ATR::push_back(const Candle& candle) noexcept {
   prev_close = candle.close;
 }
 
-// Indicators::Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
+// Indicators::Indicators(std::vector<Candle>&& candles, minutes interval)
+// noexcept
 //     : interval{interval},
 //       candles{std::move(candles)},
 
@@ -240,12 +241,16 @@ void Indicators::pop_memory() noexcept {
   memory.pop_back();
 }
 
-Signal Indicators::get_signal(int idx) const {
-  if (idx == -1)
+// memlen - 1  ==  size - 2
+// 0 == size - memlen - 1
+Signal Indicators::get_signal(int _idx) const {
+  auto idx = _idx < 0 ? size() + _idx : static_cast<size_t>(_idx);
+  if (idx == size() - 1)
     return signal;
 
-  if (idx < -1 && idx + 1 + memory.memory_length)
-    return memory.past[idx + 1 + memory.memory_length];
+  auto memlen = memory.past.size();
+  if (idx >= size() - 1 - memlen)
+    return memory.past[idx + 1 + memlen - size()];
 
-  return Signal{*this, idx};
+  return Signal{*this, static_cast<int>(idx)};
 }

@@ -7,9 +7,9 @@ inline auto& sig_config = config.sig_config;
 // Entry confirmations
 
 Confirmation higher_timeframe_alignment_confirmation(const Metrics& metrics) {
-  auto sig_1h = metrics.get_signal(H_1, -1);
-  auto sig_4h = metrics.get_signal(H_4, -1);
-  auto sig_1d = metrics.get_signal(D_1, -1);
+  auto sig_1h = metrics.get_signal(H_1);
+  auto sig_4h = metrics.get_signal(H_4);
+  auto sig_1d = metrics.get_signal(D_1);
 
   if (sig_1h.type == Rating::Entry) {
     if (sig_4h.type == Rating::Entry || sig_4h.type == Rating::Watchlist)

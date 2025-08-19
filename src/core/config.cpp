@@ -15,7 +15,8 @@ T read(const char* path) {
 
   auto ec = glz::read_file_json(t, path, std::string{});
   if (ec)
-    std::cerr << glz::format_error(ec) << std::endl;
+    std::cerr << std::format("[config] {} error {}\n", path,
+                             glz::format_error(ec));
 
   if (T::debug) {
     std::ofstream log{"logs/configs.log", std::ios::app};

@@ -22,7 +22,16 @@ struct IndicatorsConfig {
   size_t ema21_trend_min_candles = 15;
   size_t ema21_trend_max_candles = 75;
 
-  double stats_importance_kappa = 0.25;
+  size_t backtest_lookback_1h = 3000;
+  size_t backtest_lookback_4h = 700;
+  size_t backtest_lookback_1d = 400;
+  double backtest_memory_decay = 0.75;
+
+  size_t backtest_lookback(minutes inv) const {
+    return inv == H_1   ? backtest_lookback_1h
+           : inv == H_4 ? backtest_lookback_4h
+                        : backtest_lookback_1d;
+  }
 };
 
 struct PositionSizingConfig {
@@ -37,6 +46,7 @@ struct PositionSizingConfig {
 
   double stop_pct = 0.025;
   double stop_atr_multiplier = 3.0;
+  double profit_pct = 0.045;
 
   double trailing_trigger_atr = 1.5;
   double trailing_atr_multiplier = 3.0;

@@ -86,23 +86,17 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
   std::string body = "";
   for (auto& r : lst)
     if (r.cls() == cls && r.source() != Source::Trend) {
-      auto colored_stats = [&, cls](auto gain, auto loss, auto win) {
-        auto g_str = colored("green", gain);
-        auto l_str = colored("red", loss);
-
-        if (cls == SignalClass::Entry)
-          return std::format("<b>{}</b> / {}, <b>{:.2f}</b>", g_str, l_str,
-                             win);
-        else
-          return std::format("{} / <b>{}</b>, <b>{:.2f}</b>", g_str, l_str,
-                             1 - win);
+      auto colored_stats = [&](auto pnl, auto imp) {
+        auto p_str = colored(pnl > 0 ? "green" : "red", pnl);
+        return std::format("<b>{}</b>, <b>{:.2f}</b>", p_str, imp);
       };
 
       std::string stat_str = "";
       auto it = stats.find(r.type);
       if (it != stats.end()) {
-        auto [_, ret, dd, w, _, _] = it->second;
-        stat_str = ": " + colored_stats(ret, dd, w);
+        auto pnl = it->second.avg_pnl;
+        auto imp = it->second.imp;
+        stat_str = ": " + colored_stats(pnl, imp);
       }
       body += std::format("<li>{}<span class=\"stats-details\">{}</span></li>",
                           to_str(r), stat_str);
@@ -253,9 +247,8 @@ inline constexpr std::string_view combined_signal_template = R"(
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Forecast& f) {
-  return std::format("<b>Forecast</b>: <b>{} / {}</b>, {:.2f}",  //
-                     colored("green", f.exp_ret),                //
-                     colored("red", f.exp_dd),                   //
+  return std::format("<b>Forecast</b>: <b>{}</b>, {:.2f}",                 //
+                     colored(f.exp_pnl > 0 ? "green" : "red", f.exp_pnl),  //
                      f.conf);
 }
 

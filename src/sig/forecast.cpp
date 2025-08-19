@@ -1,4 +1,5 @@
 #include "ind/indicators.h"
+#include "util/config.h"
 
 #include <cmath>
 
@@ -38,37 +39,25 @@ Forecast::Forecast(const Metrics& m, int idx) {
   auto sig = m.get_signal(H_1, idx);
   auto& stats = m.get_stats(H_1);
 
-  double ret_sum = 0.0, dd_sum = 0.0;
-  double ret_imp = 0.0, dd_imp = 0.0;
-  double n_candles_sum = 0.0, total_imp = 0.0;
+  auto sig_4h = m.get_signal(H_4, idx);
+  auto sig_1d = m.get_signal(D_1, idx);
+
+  double pnl_sum = 0.0;
+  double holding_period_sum = 0.0, total_imp = 0.0;
 
   auto process = [&](auto& obj, auto& stats_map, double base_weight) {
     auto it = stats_map.find(obj.type);
     if (it == stats_map.end())
       return;
 
-    auto& [_, avg_ret, avg_dd, _, imp, n_candles] = it->second;
+    auto& [trig_rate, avg_pnl, win_rate, _, _, vol, imp, sample_sz,
+           avg_holding] = it->second;
     if (imp == 0.0)
       return;
 
     auto m_imp = imp * base_weight;
-    auto s_imp = (1 - imp) * base_weight;
-
-    if (obj.cls() == SignalClass::Entry) {
-      ret_sum += avg_ret * m_imp;
-      ret_imp += m_imp;
-
-      dd_sum += avg_dd * s_imp;
-      dd_imp += s_imp;
-    } else {
-      dd_sum += avg_dd * m_imp;
-      dd_imp += m_imp;
-
-      ret_sum += avg_ret * s_imp;
-      ret_imp += s_imp;
-    }
-
-    n_candles_sum += 0.7 * n_candles * m_imp;
+    pnl_sum += avg_pnl * m_imp;
+    holding_period_sum += avg_holding;
     total_imp += m_imp;
   };
 
@@ -77,20 +66,21 @@ Forecast::Forecast(const Metrics& m, int idx) {
   for (auto& h : sig.hints)
     process(h, stats.hint, 0.75);
 
-  if (ret_imp == 0.0 || dd_imp == 0.0 || total_imp == 0.0)
+  if (total_imp == 0.0)
     return;
 
-  exp_ret = ret_sum / ret_imp;
-  exp_dd = dd_sum / dd_imp;
-
+  exp_pnl = pnl_sum / total_imp;
   n_min_candles =  //
-      static_cast<int>(std::round(0.75 * n_candles_sum / total_imp));
+      static_cast<int>(std::round(0.75 * holding_period_sum / total_imp));
   n_max_candles =  //
-      static_cast<int>(std::round(1.5 * n_candles_sum / total_imp));
+      static_cast<int>(std::round(1.5 * holding_period_sum / total_imp));
 
   conf = simple_conf(sig, stats);
+  auto decay = config.ind_config.backtest_memory_decay;
+  auto weight = 1;
+  auto& mem = m.get_memories(H_1);
+  for (auto it = mem.past.rbegin(); it != mem.past.rend(); it++) {
+    conf += simple_conf(*it, stats) * weight;
+    weight *= decay;
+  }
 }
-
-// Forecast Metrics::gen_forecast(int idx) const {
-//   return {get_signal(idx), stats};
-// }

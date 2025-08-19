@@ -142,6 +142,11 @@ struct IndicatorsCore {
     return _macd.signal_ema.values[sanitize(idx)];
   }
   double hist(int idx) const { return macd(idx) - macd_signal(idx); }
+
+  size_t candles_per_day() const {
+    minutes day{D_1 + interval - minutes{1}};
+    return day / interval;
+  }
 };
 
 struct IndicatorsTrends : public IndicatorsCore {
@@ -265,8 +270,12 @@ struct Metrics {
     return interval == H_1 ? ind_1h : (interval == H_4 ? ind_4h : ind_1d);
   }
 
-  Signal get_signal(minutes interval, int idx) const {
+  Signal get_signal(minutes interval, int idx = -1) const {
     return get_indicators(interval).get_signal(idx);
+  }
+
+  const SignalMemory& get_memories(minutes interval) const {
+    return get_indicators(interval).memory;
   }
 
   auto& get_stats(minutes interval) const {

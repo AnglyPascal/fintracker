@@ -21,22 +21,14 @@ inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
     for (const auto& [rtype, stat] : stats) {
       if (rtype == S::none)
         continue;
-      auto [_, ret, dd, winrate, _, _] = stat;
 
       S r{rtype};
-      auto ret_str = colored("green", ret);
-      auto dd_str = colored("red", dd);
+      auto pnl_str = colored(stat.avg_pnl > 0 ? "green" : "red", stat.avg_pnl);
 
-      if (r.cls() == SignalClass::Entry)
-        ret_str = std::format("<b>{}</b>", ret_str);
-      else {
-        winrate = 1 - winrate;
-        dd_str = std::format("<b>{}</b>", dd_str);
-      }
-
-      html += std::format("<li class=\"{}\">{}: {} / {}, <b>{:.2f}</b></li>",
-                          r.cls() == SignalClass::Entry ? "entry" : "exit",
-                          to_str(r), ret_str, dd_str, winrate);
+      html += std::format(
+          "<li class=\"{}\">{}: <b>{}</b>, {:.2f} / {:.2f}, <b>{:.2f}</b></li>",
+          r.cls() == SignalClass::Entry ? "entry" : "exit", to_str(r), pnl_str,
+          stat.avg_profit, stat.avg_loss, stat.win_rate);
     }
     return html;
   };

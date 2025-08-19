@@ -57,8 +57,7 @@ struct SignalMemory {
 struct Stats;
 
 struct Forecast {
-  double exp_ret = 0.0;
-  double exp_dd = 0.0;
+  double exp_pnl = 0.0;
   int n_min_candles = 0;
   int n_max_candles = 0;
   double conf = 0.0;
