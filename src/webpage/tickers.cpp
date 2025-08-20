@@ -16,8 +16,44 @@ template <>
 inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
   auto& sig = ind.signal;
 
-  auto stats_html = []<typename S>(auto& stats, S) {
-    std::string html;
+  constexpr std::string_view row_templ = R"(
+        <tr>
+          <td>
+            <div class="eventful">
+              <div class="{}_signal">{}</div>
+              <div class="eventful"> 
+                <div class="stats_imp"><b>{}</b></div>
+                <div><b>{}</b></div>
+              </div>
+            </div>
+          </td> 
+          <td><b>{}</b></td> 
+          <td>{:.2f}</td> 
+          <td>{} | {}</td> 
+          <td>{}</td> 
+        </tr>
+      )";
+
+  const std::string header = R"(
+        <tr class="stats_table_hd">
+          <th>
+            <div class="eventful">
+              <div>sig</div>
+              <div class="eventful"> 
+                <div class="stats_imp">imp</div>
+                <div>wr</div>
+              </div>
+            </div>
+          </th> 
+          <th>pnl</th> 
+          <th>vol</th> 
+          <th>avg_p | avg_l</th> 
+          <th>days</th> 
+        </tr>
+  )";
+
+  auto stats_html = [row_templ, header, &ind]<typename S>(auto& stats, S) {
+    auto html = header;
     for (const auto& [rtype, stat] : stats) {
       if (rtype == S::none)
         continue;
@@ -25,10 +61,18 @@ inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
       S r{rtype};
       auto pnl_str = colored(stat.avg_pnl > 0 ? "green" : "red", stat.avg_pnl);
 
+      auto holding_candles = stat.avg_winning_holding_period;
+      auto holding_days =
+          holding_candles / ((D_1 + ind.interval - minutes{1}) / ind.interval);
+
       html += std::format(
-          "<li class=\"{}\">{}: <b>{}</b>, {:.2f} / {:.2f}, <b>{:.2f}</b></li>",
-          r.cls() == SignalClass::Entry ? "entry" : "exit", to_str(r), pnl_str,
-          stat.avg_profit, stat.avg_loss, stat.win_rate);
+          row_templ,
+          r.cls() == SignalClass::Entry ? "entry" : "exit",  //
+          to_str(r), colored("blue", stat.imp),
+          colored("border", stat.win_rate), pnl_str, stat.pnl_volatility,
+          colored("green", stat.avg_profit), colored("red", stat.avg_loss),
+          holding_days  //
+      );
     }
     return html;
   };

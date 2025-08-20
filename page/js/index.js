@@ -33,7 +33,8 @@ function showAllSignals() {
 }
 
 function toggleStats() {
-  const spans = document.querySelectorAll('.stats-details');
+  const spans = document.querySelectorAll('.stats-details, .signal-score-details');
+
   const button = document.querySelector('.stats-details-button');
   const currentlyVisible = spans[0].style.display === 'inline';
 

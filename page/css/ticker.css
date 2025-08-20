@@ -19,12 +19,14 @@
   --color-signal-watchlist-bg: #88c0d0;
   --color-signal-caution-bg: #ebcb8b;
   --color-signal-mixed-bg: #d8dee9;
-  --color-signal-none-bg: #4c566a;
+  --color-signal-none-bg: #202027;
 
-  --color-black: #2e3440;
   --color-green: #a3be8c;
   --color-red: #bf616a;
+  --color-blue: #88c0d0;
   --color-yellow: #ebcb8b;
+  --color-black: #2e3440;
+  --color-white: #eceff4;
 
   --color-link: #8fbcbb;
 }
@@ -53,7 +55,6 @@ th, td {
 
 th {
   background-color: var(--color-header);
-  cursor: pointer;
   user-select: none;
 }
 
@@ -66,16 +67,32 @@ td.curr-signal {
   padding: 8px !important;
 }
 
-div.signal {
-  display: flex; 
+div.signal-div {
+  display: flex !important; 
   justify-content: space-between;
   padding: 5px;
-  vertical-align: top;
+  align-items: center;
 }
 
 td.signal-td {
   padding: 5px;
   vertical-align: top;
+}
+
+div.signal-score {
+  display: flex;
+  align-items: center;
+}
+
+div.signal-score-details {
+  font-size: 90%;
+  padding-left: 8px;
+  opacity: 60%;
+}
+
+div.signal-time {
+  font-size: 90%;
+  opacity: 60%;
 }
 
 div.signal-entry { background-color: var(--color-signal-entry-bg); }
@@ -93,6 +110,31 @@ div.signal-caution,
 div.signal-holdcautiously,
 div.signal-mixed {
   color: #000 !important;
+}
+
+div.eventful {
+  display: flex; 
+  justify-content: space-between;
+}
+
+div.entry_signal {
+  color: var(--color-green);
+}
+
+div.exit_signal {
+  color: var(--color-red);
+}
+
+div.stats_imp {
+  margin-right: 10px;
+}
+
+table.stats_table {
+  margin-top: 1em;
+}
+
+table.stats_table td {
+  border: 0.1px solid var(--color-black);
 }
 
 td .inner-div {
@@ -124,27 +166,6 @@ td .inner-div {
   margin-top:2em;
   margin-bottom:2em;
   max-width:none;
-}
-
-li.entry,
-li.exit {
-  list-style: none; /* Remove default bullets */
-  position: relative;
-  padding-left: 1.2em; /* Space for custom symbol */
-}
-
-li.entry::before {
-  content: "+";       /* Entry symbol */
-  position: absolute;
-  left: 0;
-  color: var(--color-green);
-}
-
-li.exit::before {
-  content: "−";       /* Exit symbol (Unicode minus, not hyphen) */
-  position: absolute;
-  left: 0;
-  color: var(--color-red);
 }
 
 button {

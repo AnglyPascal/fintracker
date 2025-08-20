@@ -14,9 +14,18 @@ using signal_f = Reason (*)(const IndicatorsTrends&, int);
 using hint_f = Hint (*)(const IndicatorsTrends&, int);
 using conf_f = Confirmation (*)(const Metrics&);
 
+struct Score {
+  double entry = 0.0;
+  double exit = 0.0;
+  double past = 0.0;
+  double final = 0.0;
+
+  operator double() const { return final; }
+};
+
 struct Signal {
   Rating type = Rating::None;
-  double score;
+  Score score;
   LocalTimePoint tp;
 
   std::vector<Reason> reasons;
@@ -50,7 +59,7 @@ struct SignalMemory {
       past.pop_back();
   }
 
-  double score() const;
+  Score score() const;
   int rating_score() const;
 };
 
@@ -58,12 +67,11 @@ struct Stats;
 
 struct Forecast {
   double exp_pnl = 0.0;
-  int n_min_candles = 0;
-  int n_max_candles = 0;
+  size_t holding_period = 0;
   double conf = 0.0;
 
   Forecast() = default;
-  Forecast(const Metrics& m, int idx);
+  Forecast(const Signal& sig, const Stats& stats);
 };
 
 struct StopLoss;
@@ -71,7 +79,7 @@ struct Event;
 
 struct CombinedSignal {
   Rating type = Rating::None;
-  double score;
+  Score score;
 
   StopHit stop_hit;
   Filters filters;

@@ -9,17 +9,22 @@ SignalMemory::SignalMemory(minutes inv) noexcept {
   memory_length = inv == H_1 ? 16 : inv == H_4 ? 10 : 6;
 }
 
-double SignalMemory::score() const {
-  double scr = 0.0;
+Score SignalMemory::score() const {
+  double entry = 0.0, exit = 0.0, final = 0.0;
   double weight = 0.0;
 
   double lambda = sig_config.score_memory_lambda;
   for (auto& sig : past) {
-    scr = scr * lambda + sig.score;
-    weight = weight * lambda + lambda;
+    entry = entry * lambda + sig.score.entry;
+    exit = exit * lambda + sig.score.exit;
+    final = final * lambda + sig.score.final;
+    weight = weight * lambda + 1;
   }
 
-  return weight > 0.0 ? scr / weight : 0.0;
+  if (weight == 0.0)
+    return {};
+
+  return {entry / weight, exit / weight, 0.0, final / weight};
 }
 
 int SignalMemory::rating_score() const {

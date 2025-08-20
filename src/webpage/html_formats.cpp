@@ -3,6 +3,7 @@
 #include "util/times.h"
 
 #include <cmath>
+#include <string_view>
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Hint& h) {
@@ -40,18 +41,38 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
   }
 }
 
+inline constexpr std::string_view score_div_template = R"(
+  <div>{}</div> <div class="signal-score-details">[{}, {}, {:+}]</div>
+)";
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Score& scr) {
+  std::string scr_str = "";
+  if (std::abs(scr) > 4)
+    scr_str = std::format("<b>{:+}</b>", (int)std::round(scr.final * 10));
+  else
+    scr_str = std::format("{:+}", (int)std::round(scr.final * 10));
+
+  return std::format(score_div_template,               //
+                     scr_str,                          //
+                     (int)std::round(scr.entry * 10),  //
+                     (int)std::round(scr.exit * 10),   //
+                     (int)std::round(scr.past * 10)    //
+  );
+}
+
 inline constexpr std::string_view signal_div_template = R"(
-  <div class="signal {}">
+  <div class="signal-div {}">
     <div class="signal-text">{}</div> 
     <div class="signal-time">{:%a, %b %d, %H:%M}</div>
-    <div class="signal-score">{:+}</div>
+    <div class="signal-score">{}</div>
   </div>
 )";
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Signal& s) {
   return std::format(signal_div_template, to_str<FormatTarget::HTML>(s.type),
-                     to_str(s.type), s.tp, (int)std::round(s.score * 10));
+                     to_str(s.type), s.tp, to_str<FormatTarget::HTML>(s.score));
 }
 
 template <>
@@ -71,7 +92,7 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
   return std::format(signal_div_template,  //
                      to_str<FormatTarget::HTML>(s.type),
                      to_str(s.type) + conf_str, now_ny_time(),
-                     (int)std::round(s.score * 10));
+                     to_str<FormatTarget::HTML>(s.score));
 }
 
 inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
@@ -86,18 +107,19 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
   std::string body = "";
   for (auto& r : lst)
     if (r.cls() == cls && r.source() != Source::Trend) {
-      auto colored_stats = [&](auto pnl, auto imp) {
-        auto p_str = colored(pnl > 0 ? "green" : "red", pnl);
-        return std::format("<b>{}</b>, <b>{:.2f}</b>", p_str, imp);
+      auto colored_stats = [&](auto& stats) {
+        return std::format(
+            ": <b>{}</b> ({}) <b>{}</b>",
+            colored(stats.avg_pnl > 0 ? "green" : "red", stats.avg_pnl),  //
+            colored("white", stats.pnl_volatility),                       //
+            colored("blue", stats.imp)                                    //
+        );
       };
 
       std::string stat_str = "";
       auto it = stats.find(r.type);
-      if (it != stats.end()) {
-        auto pnl = it->second.avg_pnl;
-        auto imp = it->second.imp;
-        stat_str = ": " + colored_stats(pnl, imp);
-      }
+      if (it != stats.end())
+        stat_str = colored_stats(it->second);
       body += std::format("<li>{}<span class=\"stats-details\">{}</span></li>",
                           to_str(r), stat_str);
     }

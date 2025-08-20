@@ -26,19 +26,19 @@ Backtest::Backtest(const IndicatorsTrends& _ind, size_t max_candles)
     for (size_t j = i + 1; j <= end_idx; ++j) {
       double ret = (ind.price(j) - entry) / entry;
 
-      if (ret > 0 && ret > best)
+      if (ret > best)
         best = ret;
-      else if (ret < 0 && -ret > worst)
-        worst = -ret;
+      else if (ret < worst)
+        worst = ret;
 
-      if (ret >= profit_target && !profit_hit) {
+      if (ret >= profit_target) {
         profit_hit = true;
         exit_candles = j - i;
         final_pnl = ret * 100;
         break;
       }
 
-      if (-ret >= stop_loss && !stop_hit) {
+      if (-ret >= stop_loss) {
         stop_hit = true;
         exit_candles = j - i;
         final_pnl = ret * 100;  // Will be negative
@@ -51,7 +51,7 @@ Backtest::Backtest(const IndicatorsTrends& _ind, size_t max_candles)
       final_pnl = ret * 100;
     }
 
-    lookahead[i] = {best * 100, worst * 100, final_pnl, exit_candles,
+    lookahead[i] = {best * 100, -worst * 100, final_pnl, exit_candles,
                     profit_hit && !stop_hit};
   }
 }
@@ -146,7 +146,7 @@ double SignalStats::calculate_importance() const {
   if (sample_size < 3)
     return 0.0;
 
-  // 1. Profitability component (50% weight)
+  // Profitability component (50% weight)
   //
   double profitability_score = 0.0;
   auto profit_factor = avg_loss > 0.001 ? avg_profit / avg_loss : 0.0;
@@ -155,7 +155,7 @@ double SignalStats::calculate_importance() const {
     profitability_score = 1.0 / (1.0 + std::exp(-3 * (profit_factor - 1.5)));
   }
 
-  // 2. Consistency component (30% weight)
+  // Consistency component (30% weight)
   // Lower P&L volatility is better (more consistent)
   //
   double consistency_score = 0.0;
@@ -164,7 +164,7 @@ double SignalStats::calculate_importance() const {
     consistency_score = std::tanh(consistency_ratio / 2.0);
   }
 
-  // 3. Frequency component (20% weight)
+  // Frequency component (20% weight)
   // Sweet spot around 5-15% trigger rate
   //
   double frequency_score = 0.0;

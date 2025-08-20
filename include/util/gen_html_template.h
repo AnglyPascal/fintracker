@@ -109,11 +109,11 @@ inline constexpr std::string_view indicators_template = R"(
       <td class="stats curr-signal">{}</td>
       <td class="stats">
         <div><b>Reason</b></div>
-        <ul>{}</ul>
+        <table class="stats_table">{}</table>
       </td>
       <td class="stats">
         <div><b>Hint</b></div>
-        <ul>{}</ul>
+        <table class="stats_table">{}</table>
       </td>
     </tr>
   </table>

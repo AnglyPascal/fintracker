@@ -48,7 +48,7 @@ inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
   Rating base_rating = sig_1h.type;
   int score_mod = 0;
 
-  if (stop_hit.type != StopHitType::None && disqualify(filters))
+  if (stop_hit.type == StopHitType::None && disqualify(filters))
     return {Rating::Skip, score_mod};
 
   if (base_rating == Rating::Caution && has_position)
@@ -104,21 +104,23 @@ inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
   return {base_rating, score_mod};
 }
 
-inline double weighted_score(double score_1h,
-                             double score_4h,
-                             double score_1d) {
-  double base_score = score_1h;
+inline Score weighted_score(Score score_1h,
+                            Score score_4h,
+                            Score score_1d,
+                            double mod) {
+  auto [entry, exit, past, final] = score_1h;
 
   if ((score_1h > 0 && score_4h > 0) || (score_1h > 0 && score_1d > 0))
-    base_score *= sig_config.score_mod_4h_1d_agree;
+    final *= sig_config.score_mod_4h_1d_agree;
 
   if (score_1h > 0 && score_4h > 0 && score_1d > 0)
-    base_score *= sig_config.score_mod_4h_1d_align;
+    final *= sig_config.score_mod_4h_1d_align;
 
   if ((score_1h > 0 && score_4h < -0.5) || (score_1h > 0 && score_1d < -0.5))
-    base_score *= sig_config.score_mod_4h_1d_conflict;
+    final *= sig_config.score_mod_4h_1d_conflict;
 
-  return base_score;
+  final += mod;
+  return {entry, exit, past, final};
 }
 
 StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss);
@@ -128,21 +130,20 @@ std::vector<Confirmation> confirmations(const Metrics& m);
 CombinedSignal::CombinedSignal(const Metrics& m,
                                const StopLoss& sl,
                                const Event& ev,
-                               int idx) {
+                               [[maybe_unused]] int idx) {
   auto& ind_1h = m.ind_1h;
   auto& ind_4h = m.ind_4h;
   auto& ind_1d = m.ind_1d;
 
   stop_hit = stop_loss_hits(m, sl);
-  forecast = Forecast{m, idx};
+  forecast = Forecast{ind_1h.signal, ind_1h.stats};
 
   filters = evaluate_filters(m);
   auto [t, mod] = contextual_rating(ind_1h, ind_4h, ind_1d, stop_hit, filters,
                                     m.has_position());
   type = t;
   score = weighted_score(ind_1h.signal.score, ind_4h.signal.score,
-                         ind_1d.signal.score) +
-          mod;
+                         ind_1d.signal.score, mod);
 
   if (type == Rating::Entry) {
     for (auto conf : confirmations(m))

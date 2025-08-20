@@ -25,7 +25,7 @@
   --color-red: #bf616a;
   --color-blue: #88c0d0;
   --color-yellow: #ebcb8b;
-  --color-black: #2e3440;
+  --color-black: #202027;
   --color-white: #eceff4;
 
   /* Signal Colors */
@@ -47,6 +47,7 @@ body {
   margin: 0.5em;
   background-color: var(--color-bg);
   color: var(--color-fg);
+  zoom: 90%;
 }
 
 /* ======================
@@ -88,10 +89,10 @@ body {
   justify-content: space-between;
 }
 
-.signal-th    { width: 13%; }
-.symbol-th    { width: 12%; }
-.position-th  { width: 22%; }
-.stop-th      { width: 16%; }
+.signal-th    { width: 17%; }
+.symbol-th    { width: 13%; }
+.position-th  { width: 20%; }
+.stop-th      { width: 15%; }
 
 /* ======================
    FILTER BUTTONS
@@ -256,12 +257,33 @@ table.signal {
   margin-top: 5px;
 }
 
-div.signal-time {
-  display: none;
+div.signal-div {
+  display: flex !important;
+  justify-content: space-between;
+  padding: 5px;
+  align-items: center;
 }
 
-.signal-memory-tr div.signal-time {
+.signal-table div.signal-time {
   display: block !important;
+}
+
+div.signal-score {
+  display: flex;
+  align-items: center;
+}
+
+div.signal-score-details {
+  display: none;
+  font-size: 90%;
+  padding-left: 8px;
+  opacity: 60%;
+}
+
+div.signal-time {
+  display: none;
+  font-size: 90%;
+  opacity: 60%;
 }
 
 .overview > div {
@@ -277,13 +299,6 @@ div.signal-time {
   margin: 0em;
 }
 
-/* Signal component styling */
-div.signal {
-  display: flex; 
-  justify-content: space-between;
-  padding: 3px;
-}
-
 td.signal-table {
   padding: 5px;
 }
@@ -293,8 +308,10 @@ td.signal-table {
   padding-left: 1.5em;
 }
 
+
 .signal-list ul ul {
-  padding-left: 2.5em; 
+  padding-left: 1em; 
+  padding-top: .5em;
 }
 
 .signal-list > ul > li {
