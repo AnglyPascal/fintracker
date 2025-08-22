@@ -9,7 +9,22 @@ const app = express();
 
 const CSV_PATH = '../private/trades.csv';
 
-const liveReloadServer = livereload.createServer();
+let PORT = 8000;
+let RELOAD_PORT = 35729;
+process.argv.forEach((arg, index) => {
+  if (arg === '--port' && process.argv[index + 1]) {
+    PORT = process.argv[index + 1];
+  }
+  if (arg === '--reload-port' && process.argv[index + 1]) {
+    RELOAD_PORT = process.argv[index + 1];
+  }
+});
+
+
+const liveReloadServer = livereload.createServer({
+  port: RELOAD_PORT,
+});
+
 liveReloadServer.watch([
   "public",
   "css",
@@ -22,7 +37,9 @@ liveReloadServer.server.once("connection", () => {
   }, 100);
 });
 
-app.use(connectLivereload());
+app.use(connectLivereload({
+  port: RELOAD_PORT
+}));
 app.use(express.json());
 app.use(express.static('public'));
 app.use("/css", express.static("css"));
@@ -121,13 +138,7 @@ app.put('/api/update-rating', async (req, res) => {
   res.json({ success: true });
 });
 
-let PORT = 8000;
-process.argv.forEach((arg, index) => {
-  if (arg === '--port' && process.argv[index + 1]) {
-    PORT = process.argv[index + 1];
-  }
-});
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running at http://localhost:${PORT} listening ${RELOAD_PORT}`);
 });

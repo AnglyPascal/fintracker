@@ -23,6 +23,9 @@ CloudflareEndpoint::CloudflareEndpoint() noexcept
         error{PIPE}},
       failed{false}  //
 {
+  if (!config.tg_en)
+    return;
+
   t = std::thread{[&]() {
     auto child_err = p.error();
     int fd = fileno(child_err);
@@ -81,6 +84,9 @@ CloudflareEndpoint::CloudflareEndpoint() noexcept
 }
 
 CloudflareEndpoint::~CloudflareEndpoint() noexcept {
+  if (!config.tg_en)
+    return;
+
   stop();
   if (t.joinable())
     t.join();

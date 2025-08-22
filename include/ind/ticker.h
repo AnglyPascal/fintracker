@@ -4,6 +4,7 @@
 #include "indicators.h"
 #include "sig/position_sizing.h"
 #include "sig/signals.h"
+#include "stop_loss.h"
 #include "util/symbols.h"
 
 struct Ticker {
@@ -12,6 +13,7 @@ struct Ticker {
 
   Metrics metrics;
   StopLoss stop_loss;
+  ProfitTarget profit_target;
 
   CombinedSignal signal;
   PositionSizing position_sizing;
@@ -21,6 +23,7 @@ struct Ticker {
 
   void calc_signal() {
     stop_loss = StopLoss{metrics};
+    profit_target = ProfitTarget{metrics, stop_loss};
     signal = CombinedSignal{metrics, stop_loss, ev};
     position_sizing = PositionSizing{metrics, signal, stop_loss};
   }

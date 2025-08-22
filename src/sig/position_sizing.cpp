@@ -1,4 +1,5 @@
 #include "sig/position_sizing.h"
+#include "ind/stop_loss.h"
 #include "util/config.h"
 
 #include <spdlog/spdlog.h>
@@ -105,11 +106,11 @@ inline double get_size_multiplier(const CombinedSignal& signal,
   // Never go below 20% of base
   base_multiplier *= std::max(risk_adjustment, 0.2);
 
-  // Adjust based on number of confirmations
-  if (signal.confs.size() >= 3)
-    base_multiplier *= 1.05;
-  else if (signal.confs.empty())
-    base_multiplier *= 0.85;
+  // // Adjust based on number of confirmations
+  // if (signal.confs.size() >= 3)
+  //   base_multiplier *= 1.05;
+  // else if (signal.confs.empty())
+  //   base_multiplier *= 0.85;
 
   return std::clamp(base_multiplier, 0.1, 1.0);
 }

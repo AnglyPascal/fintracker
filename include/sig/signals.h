@@ -3,6 +3,7 @@
 #include "signal_types.h"
 #include "util/times.h"
 
+#include <cmath>
 #include <deque>
 #include <vector>
 
@@ -21,6 +22,19 @@ struct Score {
   double final = 0.0;
 
   operator double() const { return final; }
+  static int pretty(double v) { return static_cast<int>(std::round(v * 10)); }
+};
+
+struct Stats;
+struct Signal;
+
+struct Forecast {
+  double exp_pnl = 0.0;
+  size_t holding_days = 0;
+  double conf = 0.0;
+
+  Forecast() = default;
+  Forecast(minutes timeframe, const Signal& sig, const Stats& stats);
 };
 
 struct Signal {
@@ -30,6 +44,7 @@ struct Signal {
 
   std::vector<Reason> reasons;
   std::vector<Hint> hints;
+  Forecast forecast;
 
   bool has_rating() const { return type != Rating::None; }
   bool has_reasons() const { return !reasons.empty(); }
@@ -63,28 +78,16 @@ struct SignalMemory {
   int rating_score() const;
 };
 
-struct Stats;
-
-struct Forecast {
-  double exp_pnl = 0.0;
-  size_t holding_period = 0;
-  double conf = 0.0;
-
-  Forecast() = default;
-  Forecast(const Signal& sig, const Stats& stats);
-};
-
 struct StopLoss;
 struct Event;
 
 struct CombinedSignal {
   Rating type = Rating::None;
   Score score;
+  std::string rationale;
 
   StopHit stop_hit;
   Filters filters;
-  std::vector<Confirmation> confs;
-
   Forecast forecast;
 
   CombinedSignal() = default;

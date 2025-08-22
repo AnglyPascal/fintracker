@@ -27,7 +27,8 @@ Message NPMEndpoint::parse(const std::string& line) const {
 
 NPMEndpoint::NPMEndpoint() noexcept
     : Endpoint{NPM_ID},
-      p{{"npm", "start", "--", "--port", std::format("{}", config.port)},
+      p{{"npm", "start", "--", "--port", std::format("{}", config.port),
+         "--reload-port", std::format("{}", config.reload_port)},
         cwd{"./page"},
         output{PIPE},
         input{PIPE},
@@ -38,7 +39,7 @@ NPMEndpoint::NPMEndpoint() noexcept
     char buf[256];
     for (int i = 0; i < 5; i++) {
       fgets(buf, sizeof(buf), child_out);
-      std::cerr << buf;
+      // std::cerr << buf;
     }
   }
 

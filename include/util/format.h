@@ -3,47 +3,6 @@
 #include <format>
 #include <string>
 
-// Reset code
-inline constexpr std::string RESET = "\033[0m";
-
-// Foreground colors
-inline constexpr std::string BLACK = "\033[30m";
-inline constexpr std::string RED = "\033[31m";
-inline constexpr std::string GREEN = "\033[32m";
-inline constexpr std::string YELLOW = "\033[33m";
-inline constexpr std::string BLUE = "\033[34m";
-inline constexpr std::string MAGENTA = "\033[35m";
-inline constexpr std::string CYAN = "\033[36m";
-inline constexpr std::string WHITE = "\033[37m";
-
-inline constexpr std::string BRIGHT_BLACK = "\033[90m";
-inline constexpr std::string BRIGHT_RED = "\033[91m";
-inline constexpr std::string BRIGHT_GREEN = "\033[92m";
-inline constexpr std::string BRIGHT_YELLOW = "\033[93m";
-inline constexpr std::string BRIGHT_BLUE = "\033[94m";
-inline constexpr std::string BRIGHT_MAGENTA = "\033[95m";
-inline constexpr std::string BRIGHT_CYAN = "\033[96m";
-inline constexpr std::string BRIGHT_WHITE = "\033[97m";
-
-// Background colors
-inline constexpr std::string BLACK_BG = "\033[40m";
-inline constexpr std::string RED_BG = "\033[41m";
-inline constexpr std::string GREEN_BG = "\033[42m";
-inline constexpr std::string YELLOW_BG = "\033[43m";
-inline constexpr std::string BLUE_BG = "\033[44m";
-inline constexpr std::string MAGENTA_BG = "\033[45m";
-inline constexpr std::string CYAN_BG = "\033[46m";
-inline constexpr std::string WHITE_BG = "\033[47m";
-
-inline constexpr std::string BRIGHT_BLACK_BG = "\033[100m";
-inline constexpr std::string BRIGHT_RED_BG = "\033[101m";
-inline constexpr std::string BRIGHT_GREEN_BG = "\033[102m";
-inline constexpr std::string BRIGHT_YELLOW_BG = "\033[103m";
-inline constexpr std::string BRIGHT_BLUE_BG = "\033[104m";
-inline constexpr std::string BRIGHT_MAGENTA_BG = "\033[105m";
-inline constexpr std::string BRIGHT_CYAN_BG = "\033[106m";
-inline constexpr std::string BRIGHT_WHITE_BG = "\033[107m";
-
 inline constexpr std::string HASKELL = "haskell";
 inline constexpr std::string DIFF = "diff";
 inline constexpr std::string TEXT = "text";
@@ -63,11 +22,14 @@ std::string to_str(const T& t);
 template <FormatTarget target, typename T, typename S>
 std::string to_str(const T& t, const S& s);
 
+template <FormatTarget target, typename T, typename S, typename U>
+std::string to_str(const T& t, const S& s, const U& u);
+
 template <typename T>
 std::string to_str(const T& t);
 
-template <typename It, FormatTarget target = FormatTarget::None>
-inline std::string join(It start, It end, std::string sep = ",") {
+template <FormatTarget target = FormatTarget::None>
+inline std::string join(auto start, auto end, std::string sep = ", ") {
   std::string result;
 
   for (auto it = start; it != end; it++) {
@@ -76,7 +38,8 @@ inline std::string join(It start, It end, std::string sep = ",") {
     else
       result += to_str<target>(*it);
 
-    if (it != end - 1)
+    auto _end = end;
+    if (it != --_end)
       result += sep;
   }
 
@@ -92,4 +55,49 @@ inline std::string colored(std::string_view color, Arg&& arg) {
 inline std::string colored(std::string_view color, double arg) {
   return std::format("<span style='color: var(--color-{});'>{:.2f}</span>",  //
                      color, arg);
+}
+
+enum HTMLTags {
+  BOLD,
+  UL,
+  IT,
+  EM,
+  GREEN,
+  RED,
+  YELLOW,
+  BLUE,
+  GRAY,
+};
+
+inline std::string apply_tag(std::string str, HTMLTags tag) {
+  switch (tag) {
+    case BOLD:
+      return std::format("<b>{}</b>", str);
+    case UL:
+      return std::format("<u>{}</u>", str);
+    case IT:
+      return std::format("<i>{}</i>", str);
+    case EM:
+      return std::format("<em>{}</em>", str);
+
+    case GREEN:
+      return colored("green", str);
+    case RED:
+      return colored("red", str);
+    case YELLOW:
+      return colored("yellow", str);
+    case BLUE:
+      return colored("blue", str);
+    case GRAY:
+      return colored("gray", str);
+
+    default:
+      return str;
+  }
+}
+
+template <typename... Tags>
+inline std::string tagged(std::string str, Tags... tags) {
+  ((str = apply_tag(std::move(str), tags)), ...);
+  return str;
 }

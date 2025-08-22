@@ -40,9 +40,9 @@ struct PositionSizingConfig {
 
   double capital = 4000.0;
   std::string capital_currency = "GBP";
-  double max_risk_pct = 0.015;
 
-  double max_capital_per_position = 0.25;
+  double max_capital_per_position = 0.18;
+  double max_risk_pct = 0.015;
 
   double stop_pct = 0.025;
   double stop_atr_multiplier = 3.0;
@@ -86,15 +86,15 @@ struct SupportResistanceConfig {
   double break_buffer = 0.01;
 
   size_t swing_window_1h = 3;
-  double zone_width_1h = 0.004;
-  size_t n_candles_in_zone_1h = 5;
-
   size_t swing_window_4h = 2;
-  double zone_width_4h = 0.008;
-  size_t n_candles_in_zone_4h = 5;
-
   size_t swing_window_1d = 2;
+
+  double zone_width_1h = 0.004;
+  double zone_width_4h = 0.008;
   double zone_width_1d = 0.015;
+
+  size_t n_candles_in_zone_1h = 5;
+  size_t n_candles_in_zone_4h = 5;
   size_t n_candles_in_zone_1d = 2;
 
   auto swing_window(minutes interval) const {
@@ -136,10 +136,11 @@ struct SignalConfig {
 
   double entry_min = 1.0;
   double exit_min = 1.0;
+
   double entry_threshold = 3.5;
   double exit_threshold = 3.0;
-  double mixed_min = 1.2;
   double watchlist_threshold = 3.5;
+  double mixed_min = 1.2;
 
   double score_entry_weight = 0.6;
   double score_curr_alpha = 0.7;
@@ -163,6 +164,13 @@ struct SignalConfig {
 
   int stop_max_holding_days = 20;
   double stop_atr_proximity = 0.75;
+
+  // Reasons configs
+  int ema_cross_lookback = 6;
+  int macd_cross_lookback = 3;
+  int rsi_cross_lookback = 4;
+  int pullback_bounce_lookback = 6;
+  int pullback_scan_lookback = 8;
 };
 
 struct APIConfig {
@@ -177,8 +185,12 @@ struct APIConfig {
 };
 
 struct Config {
+  static constexpr int PORT_DEFAULT = 8000;
+  static constexpr int RELOAD_PORT_DEFAULT = 35729;
+
   bool debug_en = false;
-  int port = 8000;
+  int port = PORT_DEFAULT;
+  int reload_port = RELOAD_PORT_DEFAULT;
 
   bool tg_en = true;
   bool plot_en = true;

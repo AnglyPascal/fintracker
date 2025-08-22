@@ -2,157 +2,309 @@
 #include "ind/indicators.h"
 #include "sig/signals.h"
 #include "util/config.h"
+#include "util/format.h"
 
 #include <spdlog/spdlog.h>
 
 inline auto& sig_config = config.sig_config;
 
+// More lenient disqualification for swing trades
 inline bool disqualify(auto& filters) {
   int strongBearish1D = 0;
-  int weakBearish1D = 0;
-  int bearish4H = 0;
+  [[maybe_unused]] int mediumBearish1D = 0;
+  int strongBearish4H = 0;
 
   for (auto& f : filters.at(D_1.count())) {
     if (f.trend == Trend::Bearish) {
       if (f.conf == Confidence::High)
         ++strongBearish1D;
       else
-        ++weakBearish1D;
+        ++mediumBearish1D;
     }
   }
 
   for (auto& f : filters.at(H_4.count())) {
-    if (f.trend == Trend::Bearish)
-      ++bearish4H;
+    if (f.trend == Trend::Bearish && f.conf == Confidence::High)
+      ++strongBearish4H;
   }
 
-  if (strongBearish1D > 0)
-    return true;
-  if (bearish4H >= 2 && weakBearish1D > 0)
+  // Only disqualify on strong 1D bearish trend
+  if (strongBearish1D >= 2)
     return true;
 
-  // allow if only 4H is weakly bearish and daily is neutral/bullish
+  // Or multiple strong bearish signals across timeframes
+  if (strongBearish1D >= 1 && strongBearish4H >= 2)
+    return true;
+
   return false;
 }
 
-inline std::pair<Rating, int> contextual_rating(auto& ind_1h,
-                                                auto& ind_4h,
-                                                auto& ind_1d,
-                                                auto& stop_hit,
-                                                auto& filters,
-                                                bool has_position) {
-  auto& sig_1h = ind_1h.signal;
-  auto& sig_4h = ind_4h.signal;
-  auto& sig_1d = ind_1d.signal;
+struct FilterBias {
+  double net_bullish = 0.0;
+  double net_bearish = 0.0;
+  int strong_bullish = 0;
+  int strong_bearish = 0;
+  std::string key_signals;
 
+  FilterBias(const Filters& filters) {
+    std::vector<std::string> key_items;
+
+    for (auto& [timeframe, filter_list] : filters) {
+      std::string tf_label = timeframe == H_1.count()   ? "1h"
+                             : timeframe == H_4.count() ? "4h"
+                                                        : "1d";
+
+      for (auto& f : filter_list) {
+        double weight = (f.conf == Confidence::High)     ? 1.0
+                        : (f.conf == Confidence::Medium) ? 0.6
+                                                         : 0.3;
+
+        if (f.trend == Trend::StrongUptrend ||
+            f.trend == Trend::ModerateUptrend) {
+          net_bullish += weight;
+          if (f.conf == Confidence::High) {
+            strong_bullish++;
+            if (!f.str.empty())
+              key_items.push_back(std::format("{}:{}", tf_label, f.str));
+          }
+        } else if (f.trend == Trend::Bearish) {
+          net_bearish += weight;
+          if (f.conf == Confidence::High) {
+            strong_bearish++;
+            if (!f.str.empty())
+              key_items.push_back(std::format("{}:{}", tf_label, f.str));
+          }
+        }
+      }
+    }
+
+    // Keep only top 3 most significant signals
+    if (key_items.size() > 3)
+      key_items.resize(3);
+
+    key_signals = "";
+    for (size_t i = 0; i < key_items.size(); ++i) {
+      if (i > 0)
+        key_signals += " ";
+      key_signals += key_items[i];
+    }
+  }
+};
+
+inline int count_filters(auto& filters, Trend trend_type, Confidence min_conf) {
+  return std::count_if(filters.begin(), filters.end(), [=](auto& f) {
+    return f.trend == trend_type && f.conf >= min_conf;
+  });
+}
+
+inline std::tuple<Rating, double, std::string> contextual_rating(
+    auto& sig_1h,
+    auto& sig_4h,
+    auto& sig_1d,
+    auto& stop_hit,
+    auto& filters,
+    bool has_position  //
+) {
   Rating base_rating = sig_1h.type;
-  int score_mod = 0;
+  double score_mod = 0.0;
+  std::string rationale;
 
-  if (stop_hit.type == StopHitType::None && disqualify(filters))
-    return {Rating::Skip, score_mod};
+  FilterBias filter_bias{filters};
 
-  if (base_rating == Rating::Caution && has_position)
-    base_rating = Rating::HoldCautiously;
+  if (base_rating == Rating::Entry) {
+    rationale += std::format("1h {}. ", tagged("entry", GREEN, BOLD));
 
-  if (base_rating == Rating::Exit && !has_position)
-    base_rating = Rating::Caution;
+    // Check 1d confirmation first (most important for swing trades)
+    if (sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist) {
+      rationale +=
+          std::format("1d confirms {}. ", tagged("strongly", GREEN, BOLD));
+      score_mod += 0.04;
+    } else if (sig_1d.type == Rating::Exit || sig_1d.type == Rating::Caution) {
+      rationale += std::format("1d {} → {}. ", tagged("conflicts", RED, BOLD),
+                               tagged("downgrading", YELLOW, IT));
+      base_rating = Rating::Watchlist;
+      score_mod -= 0.05;
+    }
 
-  if (stop_hit.type == StopHitType::TimeExit ||
-      stop_hit.type == StopHitType::StopLossHit)
-    base_rating = Rating::Exit;
-  else if (stop_hit.type == StopHitType::StopInATR)
-    base_rating = Rating::HoldCautiously;
-  else if (stop_hit.type == StopHitType::StopProximity) {
-    if (base_rating == Rating::Watchlist)
+    // Then 4h confirmation
+    if (sig_4h.type == Rating::Entry || sig_4h.type == Rating::Watchlist) {
+      rationale += std::format("4h {}. ", tagged("confirms", GREEN));
+      score_mod += 0.03;
+    } else if (sig_4h.type == Rating::Exit && base_rating == Rating::Entry) {
+      rationale += std::format("4h {}. ", tagged("conflicts", RED));
       base_rating = Rating::Mixed;
-    else if (base_rating == Rating::Mixed || base_rating == Rating::Caution)
-      base_rating = Rating::HoldCautiously;
+      score_mod -= 0.03;
+    }
+
+    // Filter integration
+    if (filter_bias.strong_bullish >= 3) {
+      rationale +=
+          std::format("Filters: {} ({}). ", tagged("excellent", GREEN, BOLD),
+                      filter_bias.key_signals);
+      score_mod += 0.035;
+    } else if (filter_bias.strong_bearish >= 2) {
+      rationale +=
+          std::format("Filters: {} – caution. ", tagged("bearish", RED, IT));
+      base_rating = Rating::Watchlist;
+      score_mod -= 0.04;
+    }
+
+  } else if (base_rating == Rating::Watchlist) {
+    rationale += std::format("1h {}. ", tagged("watchlist", YELLOW));
+
+    if ((sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist) &&
+        sig_4h.type == Rating::Entry && filter_bias.strong_bullish >= 2) {
+      rationale += std::format("Strong 4h+1d support → {}. ",
+                               tagged("upgrading", GREEN, BOLD));
+      base_rating = Rating::Entry;
+      score_mod += 0.035;
+    } else if (sig_1d.type == Rating::Entry && filter_bias.net_bullish > 2) {
+      rationale +=
+          std::format("1d entry + filters → {}. ", tagged("upgrade", GREEN));
+      base_rating = Rating::Entry;
+      score_mod += 0.03;
+    } else if (sig_1d.type == Rating::Exit || filter_bias.strong_bearish >= 2) {
+      rationale += std::format("Higher TF {}. ", tagged("bearish", RED, IT));
+      base_rating = Rating::Caution;
+      score_mod -= 0.03;
+    }
+
+  } else if (base_rating == Rating::Exit) {
+    rationale += std::format("1h {}. ", tagged("exit", RED, BOLD));
+
+    if (sig_1d.type == Rating::Exit || sig_4h.type == Rating::Exit) {
+      rationale += std::format("Higher TF {} exit. ", tagged("confirms", RED));
+      score_mod += 0.04;
+    } else if (sig_1d.type == Rating::Entry && !has_position) {
+      rationale += std::format("1d bullish → {}. ",
+                               tagged("downgrading exit", YELLOW, IT));
+      base_rating = Rating::Caution;
+      score_mod -= 0.03;
+    }
+
+    if (filter_bias.strong_bearish >= 2) {
+      rationale +=
+          std::format("Filters {}. ", tagged("confirm bearish", RED, BOLD));
+      score_mod += 0.025;
+    }
+
+  } else if (base_rating == Rating::None || base_rating == Rating::Mixed) {
+    if (sig_1d.type == Rating::Entry && filter_bias.strong_bullish >= 2) {
+      rationale += std::format("1h neutral, but 1d+filters {}. ",
+                               tagged("bullish", GREEN));
+      base_rating = Rating::Watchlist;
+      score_mod += 0.025;
+    } else if (sig_4h.type == Rating::Entry && sig_1d.type != Rating::Exit) {
+      rationale += std::format("1h neutral, 4h shows {}. ",
+                               tagged("potential", BLUE, IT));
+      base_rating = Rating::Watchlist;
+    } else if (sig_1d.type == Rating::Exit || filter_bias.strong_bearish >= 2) {
+      rationale += std::format("Higher TF {}. ", tagged("bearish", RED));
+      base_rating = Rating::Caution;
+    }
   }
 
-  // Upgrade to Entry if higher timeframes show strong entry signals
-  if (base_rating == Rating::Watchlist) {
-    if (sig_4h.type == Rating::Watchlist &&
-        sig_4h.score > sig_config.entry_4h_score_confirmation)
-      return {Rating::Entry, score_mod};
-    if (sig_1d.type == Rating::Watchlist &&
-        sig_1d.score > sig_config.entry_1d_score_confirmation)
-      return {Rating::Entry, score_mod};
+  // Stop loss handling
+  if (stop_hit.type == StopHitType::StopLossHit) {
+    rationale += std::format("{}! ", tagged("STOP HIT", RED, BOLD, UL));
+    base_rating = Rating::Exit;
+  } else if (stop_hit.type == StopHitType::TimeExit) {
+    rationale += std::format("{}. ", tagged("time exit", GRAY, IT));
+    base_rating = Rating::Exit;
+  } else if (stop_hit.type == StopHitType::StopProximity &&
+             base_rating == Rating::Entry) {
+    rationale += std::format("Near {}. ", tagged("stop", YELLOW, IT));
+    base_rating = Rating::Mixed;
   }
 
-  // If strong history: upgrade
-  if (ind_1h.memory.rating_score() >= 1.5 ||
-      ind_4h.memory.rating_score() >= 1.5 ||
-      ind_1d.memory.rating_score() >= 1.5) {
-    if (base_rating == Rating::None)
-      base_rating = Rating::OldWatchlist;
-    if (base_rating == Rating::Watchlist)
-      score_mod += 0.1;
+  // Disqualification check
+  if (stop_hit.type == StopHitType::None && disqualify(filters)) {
+    rationale +=
+        std::format("{} by filters. ", tagged("disqualified", RED, BOLD));
+    return {Rating::Skip, score_mod, rationale};
   }
 
-  // Higher timeframe exits should be respected
-  if (sig_4h.type == Rating::Exit || sig_1d.type == Rating::Exit ||
-      (sig_4h.type == Rating::HoldCautiously &&
-       sig_4h.score < sig_config.exit_4h_score_confirmation) ||
-      (sig_1d.type == Rating::HoldCautiously &&
-       sig_1d.score < sig_config.exit_1d_score_confirmation)) {
-    if (base_rating == Rating::Entry || base_rating == Rating::Watchlist)
-      return {Rating::Mixed, score_mod};  // Conflict requires caution
-    if (base_rating == Rating::HoldCautiously)
-      return {Rating::Exit, score_mod};
+  // Position adjustments
+  if (base_rating == Rating::Caution && has_position) {
+    rationale +=
+        std::format("Hold position {}. ", tagged("cautiously", YELLOW, IT));
+    base_rating = Rating::HoldCautiously;
   }
 
-  return {base_rating, score_mod};
+  if (base_rating == Rating::Exit && !has_position) {
+    rationale += std::format("No position to {}. ", tagged("exit", GRAY));
+    base_rating = Rating::Caution;
+  }
+
+  return {base_rating, score_mod, rationale};
 }
 
 inline Score weighted_score(Score score_1h,
                             Score score_4h,
                             Score score_1d,
                             double mod) {
-  auto [entry, exit, past, final] = score_1h;
+  auto [entry, exit, past, _] = score_1h;  // Use 1H scores as base
 
-  if ((score_1h > 0 && score_4h > 0) || (score_1h > 0 && score_1d > 0))
-    final *= sig_config.score_mod_4h_1d_agree;
+  // Weight: 1H primary (50%), 1D confirmation (30%), 4H bridge (20%)
+  double final =
+      score_1h.final * 0.5 + score_1d.final * 0.3 + score_4h.final * 0.2;
+
+  // Strong alignment bonuses
+  if (score_1h > 0 && score_1d > 0)
+    final *= 1.2;  // 1H-1D alignment critical for swing trades
 
   if (score_1h > 0 && score_4h > 0 && score_1d > 0)
-    final *= sig_config.score_mod_4h_1d_align;
+    final *= 1.3;  // All aligned
 
-  if ((score_1h > 0 && score_4h < -0.5) || (score_1h > 0 && score_1d < -0.5))
-    final *= sig_config.score_mod_4h_1d_conflict;
+  // Conflict penalties
+  if (score_1h > 0 && score_1d < -0.3)
+    final *= 0.7;  // Major conflict with daily
+
+  if (score_1h > 0 && score_4h < -0.5)
+    final *= 0.85;  // 4H conflict less severe
 
   final += mod;
   return {entry, exit, past, final};
+}
+
+auto combined_forecast(auto fc_1h,
+                       [[maybe_unused]] auto fc_4h,
+                       [[maybe_unused]] auto fc_1d) {
+  return fc_1h;
 }
 
 StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss);
 Filters evaluate_filters(const Metrics& m);
 std::vector<Confirmation> confirmations(const Metrics& m);
 
-CombinedSignal::CombinedSignal(const Metrics& m,
-                               const StopLoss& sl,
-                               const Event& ev,
-                               [[maybe_unused]] int idx) {
-  auto& ind_1h = m.ind_1h;
-  auto& ind_4h = m.ind_4h;
-  auto& ind_1d = m.ind_1d;
+CombinedSignal::CombinedSignal(  //
+    const Metrics& m,
+    const StopLoss& sl,
+    const Event& ev,
+    int idx  //
+) {
+  auto sig_1h = m.ind_1h.get_signal(idx);
+  auto sig_4h = m.ind_4h.get_signal(idx);
+  auto sig_1d = m.ind_1d.get_signal(idx);
 
   stop_hit = stop_loss_hits(m, sl);
-  forecast = Forecast{ind_1h.signal, ind_1h.stats};
+  forecast =
+      combined_forecast(sig_1h.forecast, sig_4h.forecast, sig_1d.forecast);
 
   filters = evaluate_filters(m);
-  auto [t, mod] = contextual_rating(ind_1h, ind_4h, ind_1d, stop_hit, filters,
-                                    m.has_position());
-  type = t;
-  score = weighted_score(ind_1h.signal.score, ind_4h.signal.score,
-                         ind_1d.signal.score, mod);
+  auto [rating, mod, r_str] = contextual_rating(
+      sig_1h, sig_4h, sig_1d, stop_hit, filters, m.has_position());
+
+  type = rating;
+  rationale = r_str;
+  score = weighted_score(sig_1h.score, sig_4h.score, sig_1d.score, mod);
 
   if (type == Rating::Entry) {
-    for (auto conf : confirmations(m))
-      if (conf.str != "")
-        confs.push_back(conf);
-
-    // disqualify if earnings is near
     if (ev.is_earnings() && ev.days_until() >= 0 &&
-        ev.days_until() < config.sizing_config.earnings_volatility_buffer)
+        ev.days_until() < config.sizing_config.earnings_volatility_buffer) {
       type = Rating::Watchlist;
+      rationale += std::format("Earnings proximity - . ",
+                               tagged("waiting", YELLOW, BOLD));
+    }
   }
 }

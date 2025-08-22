@@ -22,8 +22,8 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
         {Severity::Urgent, Source::Price, SignalClass::Entry, "bounce"}  //
     },
     {
-        ReasonType::MacdHistogramCross,                                //
-        {Severity::Medium, Source::MACD, SignalClass::Entry, "macd⤯"}  //
+        ReasonType::MacdBullishCross,                                  //
+        {Severity::Medium, Source::MACD, SignalClass::Entry, "hist⤯"}  //
     },
 
     // Exit:
@@ -37,7 +37,7 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
     },
     {
         ReasonType::MacdBearishCross,                               //
-        {Severity::High, Source::MACD, SignalClass::Exit, "macd⤰"}  //
+        {Severity::High, Source::MACD, SignalClass::Exit, "hist⤰"}  //
     },
     // SR:
     {
@@ -82,12 +82,12 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
 
     // Entry
     {
-        HintType::Ema9ConvEma21,                                     //
-        {Severity::Low, Source::EMA, SignalClass::Entry, "ema9↗21"}  //
+        HintType::Ema9ConvEma21,                                        //
+        {Severity::Medium, Source::EMA, SignalClass::Entry, "ema9↗21"}  //
     },
     {
-        HintType::RsiConv50,                                        //
-        {Severity::Low, Source::RSI, SignalClass::Entry, "rsi↝50"}  //
+        HintType::RsiConv50,                                           //
+        {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi↝50"}  //
     },
     {
         HintType::MacdRising,                                          //
@@ -99,16 +99,16 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
     },
 
     {
-        HintType::RsiBullishDiv,                                     //
-        {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤯"}  //
+        HintType::RsiBullishDiv,                                   //
+        {Severity::High, Source::RSI, SignalClass::Entry, "rsi⤯"}  //
     },
     {
-        HintType::RsiBearishDiv,                                     //
-        {Severity::Medium, Source::RSI, SignalClass::Entry, "rsi⤰"}  //
+        HintType::RsiBearishDiv,                                   //
+        {Severity::High, Source::RSI, SignalClass::Entry, "rsi⤰"}  //
     },
     {
-        HintType::MacdBullishDiv,                                      //
-        {Severity::Medium, Source::MACD, SignalClass::Entry, "macd⤯"}  //
+        HintType::MacdBullishDiv,                                    //
+        {Severity::High, Source::MACD, SignalClass::Entry, "macd⤯"}  //
     },
 
     // Exit
@@ -135,24 +135,24 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
         {Severity::Medium, Source::Trend, SignalClass::Entry, "p↗"}  //
     },
     {
-        HintType::PriceUpStrongly,                                   //
-        {Severity::Medium, Source::Trend, SignalClass::Entry, "p⇗"}  //
+        HintType::PriceUpStrongly,                                 //
+        {Severity::High, Source::Trend, SignalClass::Entry, "p⇗"}  //
     },
     {
         HintType::Ema21Up,                                             //
         {Severity::Medium, Source::Trend, SignalClass::Entry, "e21↗"}  //
     },
     {
-        HintType::Ema21UpStrongly,                                     //
-        {Severity::Medium, Source::Trend, SignalClass::Entry, "e21⇗"}  //
+        HintType::Ema21UpStrongly,                                   //
+        {Severity::High, Source::Trend, SignalClass::Entry, "e21⇗"}  //
     },
     {
         HintType::RsiUp,                                             //
         {Severity::Medium, Source::Trend, SignalClass::Entry, "r↗"}  //
     },
     {
-        HintType::RsiUpStrongly,                                     //
-        {Severity::Medium, Source::Trend, SignalClass::Entry, "r⇗"}  //
+        HintType::RsiUpStrongly,                                   //
+        {Severity::High, Source::Trend, SignalClass::Entry, "r⇗"}  //
     },
 
     // Trends exit
@@ -161,24 +161,24 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
         {Severity::Medium, Source::Trend, SignalClass::Exit, "p↘"}  //
     },
     {
-        HintType::PriceDownStrongly,                                 //
-        {Severity::Medium, Source::Trend, SignalClass::Entry, "p⇘"}  //
+        HintType::PriceDownStrongly,                               //
+        {Severity::High, Source::Trend, SignalClass::Entry, "p⇘"}  //
     },
     {
         HintType::Ema21Down,                                          //
         {Severity::Medium, Source::Trend, SignalClass::Exit, "e21↘"}  //
     },
     {
-        HintType::Ema21DownStrongly,                                  //
-        {Severity::Medium, Source::Trend, SignalClass::Exit, "e21⇘"}  //
+        HintType::Ema21DownStrongly,                                //
+        {Severity::High, Source::Trend, SignalClass::Exit, "e21⇘"}  //
     },
     {
         HintType::RsiDown,                                          //
         {Severity::Medium, Source::Trend, SignalClass::Exit, "r↘"}  //
     },
     {
-        HintType::RsiDownStrongly,                                  //
-        {Severity::Medium, Source::Trend, SignalClass::Exit, "r⇘"}  //
+        HintType::RsiDownStrongly,                                //
+        {Severity::High, Source::Trend, SignalClass::Exit, "r⇘"}  //
     },
 
     // SR:
@@ -205,21 +205,28 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
 };
 
 template <>
-SignalType<ReasonType, ReasonType::None>::SignalType(ReasonType type)
-    : type{type} {
+SignalType<ReasonType, ReasonType::None>::SignalType(ReasonType type,
+                                                     double scr,
+                                                     const std::string& desc)
+    : type{type}, score{sigmoid(scr, 5.0, 1.0)}, desc{desc} {
   auto it = reason_meta.find(type);
   meta = it == reason_meta.end() ? nullptr : &it->second;
 }
 
 template <>
-SignalType<HintType, HintType::None>::SignalType(HintType type) : type{type} {
+SignalType<HintType, HintType::None>::SignalType(HintType type,
+                                                 double scr,
+                                                 const std::string& desc)
+    : type{type}, score{sigmoid(scr, 5.0, 1.0)}, desc{desc} {
   auto it = hint_meta.find(type);
   meta = it == hint_meta.end() ? nullptr : &it->second;
 }
 
 template <>
-SignalType<StopHitType, StopHitType::None>::SignalType(StopHitType type)
-    : type{type} {
+SignalType<StopHitType, StopHitType::None>::SignalType(StopHitType type,
+                                                       double scr,
+                                                       const std::string& desc)
+    : type{type}, score{sigmoid(scr, 5.0, 1.0)}, desc{desc} {
   auto it = stop_hit_meta.find(type);
   meta = it == stop_hit_meta.end() ? nullptr : &it->second;
 }

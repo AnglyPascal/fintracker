@@ -83,12 +83,16 @@ class MessageQueue {
 class MessageBroker;
 
 class Endpoint {
+ private:
+  std::mutex broker_mtx;
+  std::condition_variable cv;
+  std::optional<std::reference_wrapper<MessageBroker>> broker;
+
  protected:
   const id_t id;
 
   MessageQueue msg_q;
   std::unordered_map<id_t, std::vector<Message>> unsent;
-  std::optional<std::reference_wrapper<MessageBroker>> broker;
 
   Endpoint(id_t id) : id{id} {}
   bool is_stopped() const { return msg_q.is_stopped(); }
@@ -109,6 +113,14 @@ class Endpoint {
 
   void send_to_broker(id_t to, std::string cmd, kv_list_t params) {
     return send_to_broker(Message{id, to, cmd, params});
+  }
+
+  void set_broker(MessageBroker& b) {
+    {
+      std::lock_guard lk{broker_mtx};
+      broker = std::ref(b);
+    }
+    cv.notify_all();
   }
 
   friend class MessageBroker;
@@ -152,21 +164,34 @@ class MessageBroker {
   template <typename... Args>
     requires(std::derived_from<Args, Endpoint> && ...)
   MessageBroker(Args&... args) {
-    bool stop = ([this](auto& args) {
-      if (args.is_stopped())
-        return true;
-      args.broker = std::ref(*this);
-      endpoints.try_emplace(args.id, std::ref(args));
-      return false;
-    }(args) || ...);
+    bool stop = (  //
+        [this](auto& args) {
+          if (args.is_stopped())
+            return true;
+          endpoints.try_emplace(args.id, std::ref(args));
+          return false;
+        }(args) ||
+        ...  //
+    );
 
     if (stop)
       for (auto& [_, endpoint] : endpoints)
         endpoint.get().stop();
+
+    (
+        [this](auto& args) {
+          if (args.is_stopped())
+            return;
+          args.set_broker(*this);
+        }(args),
+        ...  //
+    );
   }
 };
 
 inline void Endpoint::send_to_broker(Message&& msg) {
+  std::unique_lock lk{broker_mtx};
+  cv.wait(lk, [&] { return broker.has_value(); });
   if (broker)
     broker->get().send(std::move(msg));
 }

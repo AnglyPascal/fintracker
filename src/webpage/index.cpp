@@ -1,19 +1,19 @@
 #include "core/portfolio.h"
+#include "gen_html_template.h"
 #include "util/format.h"
-#include "util/gen_html_template.h"
 
 #include <filesystem>
 #include <fstream>
 #include <thread>
-
-inline constexpr std::string_view index_reload =
-    R"(<meta http-equiv="refresh" content="1">)";
 
 inline constexpr std::string_view index_subtitle_template = R"(
     <div id="title">Portfolio Overview</div>
     <div id="subtitle">
       <div class="update-block">
         <b>Updated</b>: {}
+      </div>
+      <div class="update-block">
+        <b>Last candle</b>: {}
       </div>
       <div class="update-block">
         <a href="trades.html" target="_blank"><b>Trades</b></a>
@@ -73,6 +73,7 @@ inline constexpr std::string_view index_signal_template = R"(
     <td colspan="8" class="signal-table">
       <div class="signal-table">
         <table class="signal">
+          <tr class="rationale">{}</tr>
           <tr class="combined-signal-tr">{}</tr>
           <tr class="signal-memory-tr">{}</tr>
         </table>
@@ -89,13 +90,18 @@ inline bool hide(auto& m, auto& type) {
 };
 
 template <>
-inline std::string to_str<FormatTarget::HTML>(const Metrics& m,
-                                              const StopLoss& stop_loss)  //
+inline std::string to_str<FormatTarget::HTML>(
+    const Metrics& m,
+    const StopLoss& stop_loss,
+    const ProfitTarget& profit_target)  //
 {
-  auto price = std::format("<b>{:.2f}</b>", m.last_price());
-  if (!m.has_position())
-    return price;
-  return price + ", " + to_str(stop_loss);
+  auto price =
+      std::format("<div class=\"price\"><b>{:.2f}</b></div>", m.last_price());
+
+  std::string str = price;
+  if (m.has_position())
+    str += to_str(stop_loss) + to_str(profit_target);
+  return std::format("<div class=\"px-sl-pt\">{}</div>", str);
 }
 
 template <>
@@ -104,6 +110,58 @@ inline std::string to_str<FormatTarget::HTML>(const std::string& sym,
 {
   return std::format(index_event_template, sym, to_str(ev));
 }
+
+inline constexpr std::string_view signal_overview_template = R"(
+  <div class="trend">{}</div>
+  <div class="forecast">{}</div>
+  <div class="stop_loss">{}</div>
+  <div class="position_sizing">{}</div>
+)";
+
+inline constexpr std::string_view combined_signal_template = R"(
+  <td class="overview">{}</td>
+  <td class="curr_signal signal-1h">{}</td>
+  <td class="signal-4h">{}</td>
+  <td class="signal-1d">{}</td>
+)";
+
+template <>
+inline std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
+                                              const Ticker& ticker) {
+  auto& ind_1h = ticker.metrics.ind_1h;
+  auto& sig_1h = ind_1h.signal;
+
+  auto& ind_4h = ticker.metrics.ind_4h;
+  auto& sig_4h = ind_4h.signal;
+
+  auto& ind_1d = ticker.metrics.ind_1d;
+  auto& sig_1d = ind_1d.signal;
+
+  std::vector<Hint> trends_1h;
+  for (auto h : ticker.metrics.ind_1h.signal.hints)
+    if (h.source() == Source::Trend)
+      trends_1h.push_back(h);
+
+  auto overview = std::format(  //
+      signal_overview_template,
+      to_str<FormatTarget::HTML>(s.filters, trends_1h),   //
+      to_str<FormatTarget::HTML>(s.forecast),             //
+      to_str<FormatTarget::HTML>(ticker.stop_loss),       //
+      to_str<FormatTarget::HTML>(ticker.position_sizing)  //
+  );
+
+  return std::format(                              //
+      combined_signal_template,                    //
+      overview,                                    //
+      to_str<FormatTarget::HTML>(sig_1h, ind_1h),  //
+      to_str<FormatTarget::HTML>(sig_4h, ind_4h),  //
+      to_str<FormatTarget::HTML>(sig_1d, ind_1d)   //
+  );
+}
+
+inline constexpr std::string_view rational_template = R"(
+  <td colspan="4" class="rationale"><div class="rationale">{}</div></td> 
+)";
 
 template <>
 inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
@@ -134,7 +192,7 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
       return to_str<FormatTarget::HTML>(sig_1h, src);
     };
 
-    body += std::format(
+    body += std::format(                                                      //
         index_row_template,                                                   //
         symbol,                                                               //
         to_str<FormatTarget::HTML>(sig.type),                                 //
@@ -147,7 +205,8 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
         str(Source::RSI),                                                     //
         str(Source::MACD),                                                    //
         to_str<FormatTarget::HTML>(m.position, m.last_price()),               //
-        to_str<FormatTarget::HTML>(m, ticker.stop_loss)                       //
+        to_str<FormatTarget::HTML>(m, ticker.stop_loss,                       //
+                                   ticker.profit_target)                      //
     );
 
     std::string mem_str = "";
@@ -163,17 +222,22 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
         break;
     }
 
-    body += std::format(index_signal_template,                    //
-                        symbol,                                   //
-                        to_str<FormatTarget::HTML>(sig, ticker),  //
-                        mem_str);
+    body += std::format(                                          //
+        index_signal_template,                                    //
+        symbol,                                                   //
+        std::format(rational_template,                            //
+                    sig.rationale != "" ? sig.rationale : "--"),  //
+        to_str<FormatTarget::HTML>(sig, ticker),                  //
+        mem_str                                                   //
+    );
   }
 
-  auto datetime = std::format("{:%a, %b %d, %H:%M}", p.last_updated);
-  auto subtitle = std::format(index_subtitle_template, datetime);
-  auto reload = (config.replay_en && config.debug_en) ? index_reload : "";
+  auto last_updated = std::format("{:%a, %b %d, %H:%M}", p.last_updated);
+  auto last_candle = std::format("{:%a, %b %d, %H:%M}", p.last_candle_time());
+  auto subtitle =
+      std::format(index_subtitle_template, last_updated, last_candle);
 
-  return std::format(index_template, reload, subtitle, body);
+  return std::format(index_template, subtitle, body);
 }
 
 void Portfolio::write_index() const {
@@ -188,13 +252,9 @@ void Portfolio::write_index() const {
 
   std::thread([=, this]() {
     auto _ = reader_lock();
-
-    // if (!config.replay_en) // TODO
-    //   backup();
-
     auto fn = config.replay_en ? "page/public/index_replay.html"
                                : "page/public/index.html";
-    std::ofstream f(fn);
+    std::ofstream f{fn};
     f << to_str<FormatTarget::HTML>(*this);
     f.flush();
     f.close();

@@ -127,6 +127,7 @@ struct IndicatorsCore {
 
   double price(int idx) const { return candles[sanitize(idx)].price(); }
   double low(int idx) const { return candles[sanitize(idx)].low; }
+  double close(int idx) const { return candles[sanitize(idx)].close; }
   double high(int idx) const { return candles[sanitize(idx)].high; }
   int volume(int idx) const { return candles[sanitize(idx)].volume; }
 
@@ -288,16 +289,4 @@ struct Metrics {
   void update_position(const Position* pos);
 
   LocalTimePoint plot(const std::string& sym) const;
-};
-
-struct StopLoss {
-  double swing_low = 0.0;
-  double ema_stop = 0.0;
-  double atr_stop = 0.0;
-  double final_stop = 0.0;
-  double stop_pct = 0.0;
-  bool is_trailing = false;
-
-  StopLoss() noexcept = default;
-  StopLoss(const Metrics& m) noexcept;
 };

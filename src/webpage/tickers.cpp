@@ -1,14 +1,76 @@
 #include "core/portfolio.h"
 #include "util/format.h"
-#include "util/gen_html_template.h"
 
 #include <fstream>
 #include <thread>
 
+inline constexpr std::string_view ticker_template = R"(
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{}</title>
+    <link rel="stylesheet" href="css/ticker.css">
+  </head>
+  <body>
+    <div id="title">
+      <div id="title_text">{}</div>
+      <div class="button-container">
+        <button id="btn1h" class="active">1H</button>
+        <button id="btn4h">4H</button>
+        <button id="btn1d">1D</button>
+      </div>
+    </div>
+
+    <div id="body">
+      <div id="chart"></div>
+      <div id="initial">{}</div>
+      <div id="content"></div>
+    </div>
+
+    <script> let ticker = '{}'; </script>
+    <script type="module">
+    import {{ loadContent }} from "./js/plot.js";
+    </script>
+    <script src="http://localhost:35729/livereload.js?snipver=1"></script>
+
+  </body>
+</html>
+
+)";
+
+inline constexpr std::string_view indicators_template = R"(
+<div class="indicators">
+  <table>
+    <tr> 
+      <td class="stats curr-signal">{}</td>
+      <td class="stats">
+        <div>
+          <b>Reason</b>
+        </div>
+        <table class="stats-tbl reason-tbl">{}</table>
+      </td>
+      <td class="stats">
+        <div>
+          <b>Hint</b>
+        </div>
+        <table class="stats-tbl hints-tbl">{}</table>
+      </td>
+    </tr>
+  </table>
+
+  <h3>Recent Signals</h3>
+  <table class="memory-table">
+    {}
+  </table>
+</div>
+
+)";
+
 inline constexpr std::string_view ticker_body_template = R"(
   <div><b>Position:</b> {}</div>
-  <div><b>Stop Loss:</b> {}</div>
-  <div><b>Forecast:</b> {}</div>
+  <div>{}</div>
+  <div>{}</div>
   <div><b>Position size:</b> {}</div>
 )";
 
@@ -16,7 +78,7 @@ template <>
 inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
   auto& sig = ind.signal;
 
-  constexpr std::string_view row_templ = R"(
+  constexpr std::string_view stats_row_templ = R"(
         <tr>
           <td>
             <div class="eventful">
@@ -52,7 +114,8 @@ inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
         </tr>
   )";
 
-  auto stats_html = [row_templ, header, &ind]<typename S>(auto& stats, S) {
+  auto stats_html = [stats_row_templ, header, &ind]<typename S>(auto& stats,
+                                                                S) {
     auto html = header;
     for (const auto& [rtype, stat] : stats) {
       if (rtype == S::none)
@@ -62,11 +125,10 @@ inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
       auto pnl_str = colored(stat.avg_pnl > 0 ? "green" : "red", stat.avg_pnl);
 
       auto holding_candles = stat.avg_winning_holding_period;
-      auto holding_days =
-          holding_candles / ((D_1 + ind.interval - minutes{1}) / ind.interval);
+      auto holding_days = holding_candles / candles_per_day(ind.interval);
 
       html += std::format(
-          row_templ,
+          stats_row_templ,
           r.cls() == SignalClass::Entry ? "entry" : "exit",  //
           to_str(r), colored("blue", stat.imp),
           colored("border", stat.win_rate), pnl_str, stat.pnl_volatility,

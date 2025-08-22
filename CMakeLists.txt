@@ -86,9 +86,9 @@ target_link_libraries(${TARGET} PRIVATE
 
 set(EMBED_SCRIPT ${PROJECT_SOURCE_DIR}/scripts/embed_str.py)
 set(INPUT_HTML 
-    ${PROJECT_SOURCE_DIR}/data/index.html 
-    ${PROJECT_SOURCE_DIR}/data/ticker.html)
-set(OUTPUT_HEADER ${PROJECT_SOURCE_DIR}/include/util/gen_html_template.h)
+    ${PROJECT_SOURCE_DIR}/src/webpage/index.html 
+)
+set(OUTPUT_HEADER ${PROJECT_SOURCE_DIR}/src/webpage/gen_html_template.h)
 
 add_custom_command(
   OUTPUT ${OUTPUT_HEADER} 
@@ -98,6 +98,11 @@ add_custom_command(
   COMMENT "Generating ${OUTPUT_HEADER}"
 )
 
+add_custom_target(gen_html_template ALL
+  DEPENDS ${OUTPUT_HEADER}
+)
+
+add_dependencies(${TARGET} gen_html_template)
 target_sources(${TARGET} PRIVATE ${OUTPUT_HEADER})
 
 set(CALENDAR get_calendar)

@@ -1,9 +1,10 @@
 #pragma once
 
+#include "util/math.h"
 #include "util/times.h"
 
+#include <map>
 #include <string>
-#include <unordered_map>
 
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
 enum class Source { Price, Stop, EMA, RSI, MACD, Trend, SR, None };
@@ -35,7 +36,7 @@ enum class ReasonType {
   EmaCrossover,
   RsiCross50,
   PullbackBounce,
-  MacdHistogramCross,
+  MacdBullishCross,
 
   EmaCrossdown,
   RsiOverbought,
@@ -102,13 +103,15 @@ struct SignalType {
   static constexpr T none = _none;
 
   T type = none;
+  double score = 1.0;
+  std::string desc = "";
 
  private:
   const Meta* meta = nullptr;
 
  public:
   SignalType() = default;
-  SignalType(T type);
+  SignalType(T type, double scr = 1.0, const std::string& desc = "");
 
   bool exists() const { return type != none; }
   auto severity() const { return meta ? meta->sev : Severity::Low; }
@@ -139,13 +142,17 @@ struct Filter {
   Trend trend;
   Confidence conf;
   std::string str;
+  std::string desc;
 
   Filter() : trend{Trend::None}, conf{Confidence::Low}, str{""} {}
-  Filter(Trend t, Confidence c, const std::string& desc = "")
-      : trend{t}, conf{c}, str{desc} {}
+  Filter(Trend t,
+         Confidence c,
+         const std::string& str = "",
+         const std::string& desc = "")
+      : trend{t}, conf{c}, str{str}, desc{desc} {}
 };
 
-using Filters = std::unordered_map<minutes::rep, std::vector<Filter>>;
+using Filters = std::map<minutes::rep, std::vector<Filter>>;
 
 struct Confirmation {
   std::string str;

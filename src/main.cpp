@@ -1,5 +1,5 @@
-#include "mt/endpoints.h"
 #include "core/portfolio.h"
+#include "mt/endpoints.h"
 #include "util/config.h"
 
 #include <spdlog/sinks/basic_file_sink.h>

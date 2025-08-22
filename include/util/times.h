@@ -19,7 +19,7 @@ using hours = std::chrono::hours;
 using days = std::chrono::days;
 
 inline constexpr minutes M_1{1}, M_5{5}, M_15{15}, M_30{30},  //
-    H_1{hours{1}}, H_2{hours{2}}, H_4{hours{4}}, D_1{hours{7} + minutes{30}};
+    H_1{hours{1}}, H_2{hours{2}}, H_4{hours{4}}, D_1{hours{6} + minutes{30}};
 
 LocalTimePoint datetime_to_local(std::string_view datetime,
                                  std::string_view fmt = "%F %T",
@@ -53,3 +53,8 @@ bool first_candle_in_interval(minutes interval, LocalTimePoint tp);
 bool last_candle_in_interval(minutes interval, LocalTimePoint tp);
 
 LocalTimePoint start_of_interval(LocalTimePoint tp, minutes interval);
+
+constexpr size_t candles_per_day(minutes timeframe) {
+  minutes day_mins = hours{6} + minutes{30};
+  return (day_mins + timeframe - minutes{1}) / timeframe;
+}

@@ -54,12 +54,12 @@ buttons.forEach(button => {
     const sameSymbolButtons = document.querySelectorAll(`.sym_${symbol}`);
 
     const isAnyActive =
-    Array.from(sameSymbolButtons).some(btn => btn.classList.contains('active'));
+      Array.from(sameSymbolButtons).some(btn => btn.classList.contains('active'));
 
     sameSymbolButtons.forEach(btn => {
       if (isAnyActive)
         btn.classList.remove('active');
-        else
+      else
         btn.classList.add('active');
     });
   });
@@ -80,17 +80,17 @@ document.querySelectorAll('.symbol-entry').forEach(div => {
 
     if (rect.right + hoverRect.width <= viewportWidth)
       left = rect.right; // place right
-      else if (rect.left - hoverRect.width >= 0)
-        left = rect.left - hoverRect.width; // place left
-        else
-        left = viewportWidth - hoverRect.width; // place aligned 
+    else if (rect.left - hoverRect.width >= 0)
+      left = rect.left - hoverRect.width; // place left
+    else
+      left = viewportWidth - hoverRect.width; // place aligned 
 
     if (rect.bottom + hoverRect.height <= viewportHeight)
       top = rect.bottom; // place bottom
-      else if (rect.top - hoverRect.height >= 0)
-        top = rect.top - hoverRect.height; // place top
-        else
-        top = rect.top; // place aligned
+    else if (rect.top - hoverRect.height >= 0)
+      top = rect.top - hoverRect.height; // place top
+    else
+      top = rect.top; // place aligned
 
 
     hoverDiv.style.left = left + 'px';

@@ -1,9 +1,7 @@
 #include "ind/indicators.h"
-#include "util/config.h"
-
 #include <cmath>
 
-Forecast::Forecast(const Signal& sig, const Stats& stats) {
+Forecast::Forecast(minutes timeframe, const Signal& sig, const Stats& stats) {
   double pnl_sum = 0.0;
   double holding_sum = 0.0, total_imp = 0.0;
 
@@ -32,6 +30,8 @@ Forecast::Forecast(const Signal& sig, const Stats& stats) {
     return;
 
   exp_pnl = pnl_sum / total_imp;
-  holding_period = static_cast<size_t>(std::round(holding_sum / total_imp));
+  auto holding_period =
+      static_cast<size_t>(std::round(holding_sum / total_imp));
+  holding_days = holding_period / candles_per_day(timeframe);
   conf = total_imp;
 }

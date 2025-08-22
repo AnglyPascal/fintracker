@@ -24,8 +24,8 @@ std::string date_to_string(std::chrono::system_clock::time_point tp) {
   return oss.str();
 }
 
-std::vector<Event> fetch_nasdaq_events(const std::string& event_type,
-                                       const std::string& date) {
+auto fetch_nasdaq_events(const std::string& event_type,
+                         const std::string& date) {
   std::vector<Event> events;
   auto url = std::format("https://api.nasdaq.com/api/calendar/{}?date={}",
                          event_type, date);
@@ -34,8 +34,8 @@ std::vector<Event> fetch_nasdaq_events(const std::string& event_type,
       cpr::Get(cpr::Url{url}, cpr::Header{{"User-Agent", "Mozilla/5.0"}});
 
   if (r.status_code != 200) {
-    std::cerr << "Failed to fetch " << event_type << " for " << date
-              << ": HTTP " << r.status_code << "\n";
+    std::cerr << std::format("Failed to fetch {} for {}: HTTP {}\n",  //
+                             event_type, date, r.status_code);
     return events;
   }
 
@@ -68,8 +68,8 @@ std::vector<Event> fetch_nasdaq_events(const std::string& event_type,
       }
     }
   } catch (const std::exception& e) {
-    std::cerr << "JSON parse error for " << event_type << " on " << date << ": "
-              << e.what() << "\n";
+    std::cerr << std::format("JSON parse error for {} on {}: {}\n",  //
+                             event_type, date, e.what());
   }
   return events;
 }

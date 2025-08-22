@@ -26,6 +26,8 @@
   --color-blue: #88c0d0;
   --color-yellow: #ebcb8b;
   --color-black: #202027;
+  --color-gray: #4c566a;
+  --color-snow: #d8dee9;
   --color-white: #eceff4;
 
   /* Signal Colors */
@@ -60,7 +62,7 @@ body {
 
 #title {
   font-size: 200%;
-  font-weight: bold; 
+  font-weight: bold;
   margin-bottom: 1em;
 }
 
@@ -89,10 +91,21 @@ body {
   justify-content: space-between;
 }
 
-.signal-th    { width: 17%; }
-.symbol-th    { width: 13%; }
-.position-th  { width: 20%; }
-.stop-th      { width: 15%; }
+.signal-th {
+  width: 17%;
+}
+
+.symbol-th {
+  width: 12%;
+}
+
+.position-th {
+  width: 21%;
+}
+
+.stop-th {
+  width: 23%;
+}
 
 /* ======================
    FILTER BUTTONS
@@ -130,7 +143,8 @@ body {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   border: 1px solid var(--color-border);
   padding: var(--padding-cell);
   text-align: left;
@@ -156,17 +170,42 @@ td .inner-div {
    SIGNAL & TRADING COLORS
    ====================== */
 /* Trading signal backgrounds */
-.buy { background-color: var(--color-buy); }
-.sell { background-color: var(--color-sell); }
+.buy {
+  background-color: var(--color-buy);
+}
 
-.signal-entry { background-color: var(--color-signal-entry-bg); }
-.signal-exit { background-color: var(--color-signal-exit-bg); }
-.signal-watchlist { background-color: var(--color-signal-watchlist-bg); }
-.signal-oldwatchlist { background-color: var(--color-signal-oldwatchlist-bg); }
+.sell {
+  background-color: var(--color-sell);
+}
+
+.signal-entry {
+  background-color: var(--color-signal-entry-bg);
+}
+
+.signal-exit {
+  background-color: var(--color-signal-exit-bg);
+}
+
+.signal-watchlist {
+  background-color: var(--color-signal-watchlist-bg);
+}
+
+.signal-oldwatchlist {
+  background-color: var(--color-signal-oldwatchlist-bg);
+}
+
 .signal-caution,
-.signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
-.signal-none { background-color: var(--color-signal-none-bg); }
-.signal-mixed { background-color: var(--color-signal-mixed-bg); }
+.signal-holdcautiously {
+  background-color: var(--color-signal-caution-bg);
+}
+
+.signal-none {
+  background-color: var(--color-signal-none-bg);
+}
+
+.signal-mixed {
+  background-color: var(--color-signal-mixed-bg);
+}
 
 /* Force dark text on colored backgrounds */
 .buy,
@@ -270,13 +309,18 @@ div.signal-div {
 
 div.signal-score {
   display: flex;
+  flex-direction: row-reverse;
   align-items: center;
+}
+
+tr.info-row div.signal-score-details {
+  display: none !important;
 }
 
 div.signal-score-details {
   display: none;
   font-size: 90%;
-  padding-left: 8px;
+  padding-right: 8px;
   opacity: 60%;
 }
 
@@ -286,7 +330,16 @@ div.signal-time {
   opacity: 60%;
 }
 
-.overview > div {
+td.rationale {
+  border-bottom: 1px solid var(--color-border);
+}
+
+div.px-sl-pt {
+  display: flex !important;
+  justify-content: space-between;
+}
+
+.overview>div {
   margin-bottom: 8px !important;
 }
 
@@ -310,12 +363,12 @@ td.signal-table {
 
 
 .signal-list ul ul {
-  padding-left: 1em; 
+  padding-left: 1em;
   padding-top: .5em;
 }
 
-.signal-list > ul > li {
-  margin-bottom: 0.5em; 
+.signal-list>ul>li {
+  margin-bottom: 0.5em;
 }
 
 .stats-details {
@@ -331,7 +384,12 @@ td.signal-table {
   }
 
   /* Convert table to mobile-friendly blocks */
-  table, thead, tbody, th, td, tr {
+  table,
+  thead,
+  tbody,
+  th,
+  td,
+  tr {
     display: block;
     width: 100%;
     padding-right: 1em;
@@ -370,8 +428,8 @@ td.signal-table {
   }
 
   /* Mobile signal table adjustments */
-  table.signal, 
-  tr.combined-signal-tr, 
+  table.signal,
+  tr.combined-signal-tr,
   tr.signal-memory-tr {
     width: 100%;
   }
@@ -428,7 +486,7 @@ td.signal-table {
     background-color: var(--color-bg);
     color: var(--color-fg);
   }
-  
+
   .signal td {
     width: 100%;
     border: none;
@@ -465,4 +523,29 @@ td.signal-table {
     justify-content: space-between;
     flex-direction: row-reverse;
   }
+}
+
+/* ======================
+   ANYTHING DETAILS
+   ====================== */
+
+.thing-abbr {
+  display: inline-block;
+  cursor: pointer;
+  position: relative;
+  margin: 0em;
+}
+
+.thing-desc {
+  position: fixed;
+  display: none;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-fg);
+  white-space: nowrap;
+  z-index: 9999;
+  pointer-events: none;
+  font-size: 100%;
 }

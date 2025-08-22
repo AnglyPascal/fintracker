@@ -169,6 +169,8 @@ void Portfolio::update_trades() {
 }
 
 void Portfolio::run() {
+  std::cerr << "[start] construction done" << std::endl;
+
   if (config.replay_en)
     return run_replay();
 

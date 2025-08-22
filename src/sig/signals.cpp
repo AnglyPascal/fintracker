@@ -26,7 +26,6 @@ inline auto& sig_config = config.sig_config;
 
 inline Rating gen_rating(double entry_w,
                          double exit_w,
-                         double past_score,
                          auto& reasons,
                          auto& hints) {
   // 1. Strong Entry
@@ -53,31 +52,30 @@ inline Rating gen_rating(double entry_w,
     return Rating::Caution;
 
   // 5. Entry bias
-  if (entry_w >= sig_config.entry_min ||
-      past_score >= sig_config.watchlist_threshold)
+  if (entry_w >= sig_config.entry_min)
     return Rating::Watchlist;
 
   if (exit_w >= sig_config.exit_min)
     return Rating::Caution;
 
-  // 6. Fallbacks
-  bool strong_entry_hint =
-      std::any_of(hints.begin(), hints.end(), [](const auto& h) {
-        return h.cls() == SignalClass::Entry &&
-               h.severity() >= Severity::High && h.source() != Source::SR;
-      });
-  bool strong_exit_hint =
-      std::any_of(hints.begin(), hints.end(), [](const auto& h) {
-        return h.cls() == SignalClass::Exit && h.severity() >= Severity::High &&
-               h.source() != Source::SR;
-      });
+  // // 6. Fallbacks
+  // bool strong_entry_hint =
+  //     std::any_of(hints.begin(), hints.end(), [](const auto& h) {
+  //       return h.cls() == SignalClass::Entry &&
+  //              h.severity() >= Severity::High && h.source() != Source::SR;
+  //     });
+  // bool strong_exit_hint =
+  //     std::any_of(hints.begin(), hints.end(), [](const auto& h) {
+  //       return h.cls() == SignalClass::Exit && h.severity() >= Severity::High &&
+  //              h.source() != Source::SR;
+  //     });
 
-  if (strong_entry_hint && strong_exit_hint)
-    return Rating::Mixed;
-  if (strong_entry_hint)
-    return Rating::Watchlist;
-  if (strong_exit_hint)
-    return Rating::Caution;
+  // if (strong_entry_hint && strong_exit_hint)
+  //   return Rating::Mixed;
+  // if (strong_entry_hint)
+  //   return Rating::Watchlist;
+  // if (strong_exit_hint)
+  //   return Rating::Caution;
 
   return Rating::None;
 }
@@ -90,9 +88,7 @@ inline Score gen_score(double entry_w, double exit_w, double past_score) {
   auto squash_factor = sig_config.score_squash_factor;
   double net_score = std::tanh(net * squash_factor);
 
-  auto alpha = sig_config.score_curr_alpha;
-  auto final_score = net_score * alpha + past_score * (1 - alpha);
-  return {entry_w, exit_w, past_score, final_score};
+  return {entry_w, exit_w, past_score, net_score};
 }
 
 Signal::Signal(const Indicators& ind, int idx) {
@@ -102,10 +98,11 @@ Signal::Signal(const Indicators& ind, int idx) {
   auto add_w = [&entry_w, &exit_w](auto r, auto w, double gw = 1) {
     if (w <= 0.02 || w >= 0.98)  // ignore extremes
       return;
+    auto r_w = r.severity_w() * r.score * gw;
     if (r.cls() == SignalClass::Entry)
-      entry_w += w * r.severity_w() * gw;
+      entry_w += w * r_w;
     else if (r.cls() == SignalClass::Exit)
-      exit_w += (1 - w) * r.severity_w() * gw;
+      exit_w += (1 - w) * r_w;
   };
 
   auto& stats = ind.stats;
@@ -114,10 +111,9 @@ Signal::Signal(const Indicators& ind, int idx) {
   for (auto r : ::reasons(ind, idx)) {
     if (r.type == ReasonType::None || r.cls() == SignalClass::None)
       continue;
-
     reasons.emplace_back(r);
 
-    auto imp = 0.0;  // in [0, 1]
+    auto imp = 0.0;
     if (auto it = stats.reason.find(r.type); it != stats.reason.end())
       imp = it->second.imp;
     if (r.source() == Source::Stop)
@@ -152,6 +148,8 @@ Signal::Signal(const Indicators& ind, int idx) {
   sort(hints);
 
   auto past_score = ind.memory.score();
-  type = gen_rating(entry_w, exit_w, past_score, reasons, hints);
+  type = gen_rating(entry_w, exit_w, reasons, hints);
   score = gen_score(entry_w, exit_w, past_score);
+
+  forecast = Forecast{ind.interval, *this, ind.stats};
 }

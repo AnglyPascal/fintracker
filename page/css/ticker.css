@@ -58,6 +58,10 @@ th {
   user-select: none;
 }
 
+.stats-tbl {
+  margin-top: 1.7em;
+}
+
 td.stats {
   padding: 16px;
   vertical-align: top;
@@ -127,6 +131,10 @@ div.exit_signal {
 
 div.stats_imp {
   margin-right: 10px;
+}
+
+div.px-sl-pt {
+  display: flex;
 }
 
 table.stats_table {
@@ -225,4 +233,29 @@ button:hover {
 }
 #content {
   margin: 2em;
+}
+
+/* ======================
+   ANYTHING DETAILS
+   ====================== */
+
+.thing-abbr {
+  display: inline-block;
+  cursor: pointer;
+  position: relative;
+  margin: 0em;
+}
+
+.thing-desc {
+  position: fixed;
+  display: none;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-fg);
+  white-space: nowrap;
+  z-index: 9999;
+  pointer-events: none;
+  font-size: 100%;
 }

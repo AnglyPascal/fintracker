@@ -94,11 +94,11 @@ RealTimeRes Replay::real_time(const std::string& symbol, minutes) noexcept {
 }
 
 void Replay::roll_fwd() noexcept {
-  if (!config.replay_en)
-    return;
-  if (++n_ticks < calls_per_hour)
-    return;
-  n_ticks = 0;
+  // if (!config.replay_en)
+  //   return;
+  // if (++n_ticks < calls_per_hour)
+  //   return;
+  // n_ticks = 0;
   for (auto& [_, tl] : candles_by_sym)
     tl.idx++;
 }

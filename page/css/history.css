@@ -1,32 +1,40 @@
 :root {
-  --font-size: 16px;
+  /* Typography & Spacing */
+  --font-size: 18px;
   --padding-cell: 0.25em 0.4em;
   --padding-mobile: 0.2em 0.3em;
   --row-gap: 0.4em;
 
+  /* Color Palette */
   --color-bg: #17171c;
   --color-alt-bg: #23232a;
   --color-fg: #eceff4;
   --color-border: #4c566a;
-  --color-header: #3b4252;
+  --color-header: #353b49;
   --color-hover: #434c5e;
+  --color-link: #8fbcbb;
 
+  /* Trading Colors */
   --color-buy: #cadabd;
   --color-sell: #d5979d;
 
+  --color-green: #a3be8c;
+  --color-red: #bf616a;
+  --color-blue: #88c0d0;
+  --color-yellow: #ebcb8b;
+  --color-black: #202027;
+  --color-gray: #4c566a;
+  --color-snow: #d8dee9;
+  --color-white: #eceff4;
+
+  /* Signal Colors */
   --color-signal-entry-bg: #a3be8c;
   --color-signal-exit-bg: #bf616a;
   --color-signal-watchlist-bg: #88c0d0;
+  --color-signal-oldwatchlist-bg: #2a333a;
   --color-signal-caution-bg: #ebcb8b;
+  --color-signal-none-bg: #202027;
   --color-signal-mixed-bg: #d8dee9;
-  --color-signal-none-bg: #4c566a;
-
-  --color-black: #2e3440;
-  --color-green: #a3be8c;
-  --color-red: #bf616a;
-  --color-yellow: #ebcb8b;
-
-  --color-link: #8fbcbb;
 }
 
 body {
@@ -74,6 +82,38 @@ div.signal-type {
   justify-content: space-between;
   padding: 5px;
   vertical-align: top;
+}
+
+div.signal-div {
+  display: flex !important;
+  justify-content: space-between;
+  padding: 5px;
+  align-items: center;
+}
+
+.signal-table div.signal-time {
+  display: block !important;
+}
+
+div.signal-score {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+}
+
+tr.info-row div.signal-score-details {
+  display: none !important;
+}
+
+div.signal-score-details {
+  font-size: 90%;
+  padding-right: 8px;
+  opacity: 60%;
+}
+
+div.signal-time {
+  font-size: 90%;
+  opacity: 60%;
 }
 
 td.signal-td {

@@ -87,7 +87,7 @@ void Config::read_args(int argc, char* argv[]) {
 
   program.add_argument("--port")
       .help("Port for the webpage")
-      .default_value(8000)
+      .default_value(PORT_DEFAULT)
       .scan<'d', int>();
 
   auto def_nthreads = static_cast<size_t>(std::thread::hardware_concurrency());
@@ -107,7 +107,9 @@ void Config::read_args(int argc, char* argv[]) {
   plot_en = !program.get<bool>("--disable-plot");
   debug_en = program.get<bool>("--debug");
   speed = program.get<double>("--speed");
+
   port = program.get<int>("--port");
+  reload_port = RELOAD_PORT_DEFAULT + port - PORT_DEFAULT;
 
   replay_en =
       program.get<bool>("--replay") || program.get<bool>("--replay-paused");

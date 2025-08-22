@@ -4,8 +4,7 @@
 
 #include <cmath>
 
-Backtest::Backtest(const IndicatorsTrends& _ind, size_t max_candles)
-    : ind{_ind} {
+Backtest::Backtest(const IndicatorsTrends& _ind) : ind{_ind} {
   size_t n = ind.size();
   lookahead.reserve(n);
 
@@ -19,8 +18,11 @@ Backtest::Backtest(const IndicatorsTrends& _ind, size_t max_candles)
 
     // Then in the lookahead loop:
     bool profit_hit = false, stop_hit = false;
-    size_t exit_candles = max_candles;
     double final_pnl = 0.0;
+
+    size_t max_candles =
+        config.sizing_config.max_hold_days * candles_per_day(ind.interval);
+    size_t exit_candles = max_candles;
 
     auto end_idx = std::min(n - 1, i + max_candles);
     for (size_t j = i + 1; j <= end_idx; ++j) {
@@ -161,7 +163,7 @@ double SignalStats::calculate_importance() const {
   double consistency_score = 0.0;
   if (avg_pnl > 0 && pnl_volatility > 0) {
     double consistency_ratio = avg_pnl / pnl_volatility;
-    consistency_score = std::tanh(consistency_ratio / 2.0);
+    consistency_score = std::tanh(consistency_ratio / 1.3);
   }
 
   // Frequency component (20% weight)

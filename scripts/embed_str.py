@@ -6,8 +6,8 @@ def sanitize(path):
     return s.replace("{", "{{").replace("}", "}}")
 
 
-def combine(var_name):
-    html_path = Path(f"data/{var_name}.html")
+def combine(root, var_name):
+    html_path = Path(f"{root}/{var_name}.html")
 
     html = sanitize(html_path)
     html = html.replace("PLACEHOLDER", "{}")
@@ -21,17 +21,9 @@ output = f"""
 #include <string_view>
 
 inline constexpr std::string_view index_template = R"(
-{combine("index")}
-)";
-
-inline constexpr std::string_view ticker_template = R"(
-{combine("ticker")}
-)";
-
-inline constexpr std::string_view indicators_template = R"(
-{combine("indicators")}
+{combine("src/webpage", "index")}
 )";
 """
 
-output_path = Path("include/util/gen_html_template.h")
+output_path = Path("src/webpage/gen_html_template.h")
 output_path.write_text(output, encoding="utf-8")

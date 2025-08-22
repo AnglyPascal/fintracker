@@ -85,6 +85,12 @@ class Portfolio : public Endpoint {
     return std::unique_lock(mtx, std::forward<Args>(args)...);
   }
 
+  LocalTimePoint last_candle_time() const {
+    if (tickers.empty())
+      return {};
+    return tickers.begin()->second.metrics.last_updated();
+  }
+
  private:
   template <FormatTarget target, typename T>
   friend std::string to_str(const T& t);
