@@ -530,22 +530,29 @@ td.signal-table {
    ====================== */
 
 .thing-abbr {
+  position: relative;
   display: inline-block;
   cursor: pointer;
-  position: relative;
-  margin: 0em;
+}
+
+.thing-abbr:hover .thing-desc {
+  display: block;
 }
 
 .thing-desc {
-  position: fixed;
   display: none;
+  position: fixed;
+
+  border: 1px solid var(--color-fg);
   background: var(--color-bg);
   color: var(--color-fg);
-  padding: 6px 10px;
+
+  max-width: 500px;
+  padding: 10px;
   border-radius: 6px;
-  border: 1px solid var(--color-fg);
-  white-space: nowrap;
+
   z-index: 9999;
-  pointer-events: none;
   font-size: 100%;
+  
+  pointer-events: none;
 }

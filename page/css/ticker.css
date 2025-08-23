@@ -44,7 +44,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   border: 1px solid var(--color-border);
   padding: var(--padding-cell);
   text-align: left;
@@ -72,7 +73,7 @@ td.curr-signal {
 }
 
 div.signal-div {
-  display: flex !important; 
+  display: flex !important;
   justify-content: space-between;
   padding: 5px;
   align-items: center;
@@ -99,13 +100,30 @@ div.signal-time {
   opacity: 60%;
 }
 
-div.signal-entry { background-color: var(--color-signal-entry-bg); }
-div.signal-exit { background-color: var(--color-signal-exit-bg); }
-div.signal-watchlist{ background-color: var(--color-signal-watchlist-bg); }
+div.signal-entry {
+  background-color: var(--color-signal-entry-bg);
+}
+
+div.signal-exit {
+  background-color: var(--color-signal-exit-bg);
+}
+
+div.signal-watchlist {
+  background-color: var(--color-signal-watchlist-bg);
+}
+
 div.signal-caution,
-div.signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
-div.signal-none { background-color: var(--color-signal-none-bg); }
-div.signal-mixed { background-color: var(--color-signal-mixed-bg); }
+div.signal-holdcautiously {
+  background-color: var(--color-signal-caution-bg);
+}
+
+div.signal-none {
+  background-color: var(--color-signal-none-bg);
+}
+
+div.signal-mixed {
+  background-color: var(--color-signal-mixed-bg);
+}
 
 div.signal-entry,
 div.signal-exit,
@@ -117,7 +135,7 @@ div.signal-mixed {
 }
 
 div.eventful {
-  display: flex; 
+  display: flex;
   justify-content: space-between;
 }
 
@@ -163,17 +181,17 @@ td .inner-div {
 }
 
 .signal-list ul ul {
-  padding-left: 2.5em; 
+  padding-left: 2.5em;
 }
 
-.signal-list > ul > li {
-  margin-bottom: 0.5em; 
+.signal-list>ul>li {
+  margin-bottom: 0.5em;
 }
 
 .plotly-container {
-  margin-top:2em;
-  margin-bottom:2em;
-  max-width:none;
+  margin-top: 2em;
+  margin-bottom: 2em;
+  max-width: none;
 }
 
 button {
@@ -198,11 +216,11 @@ button:hover {
 
 .button-container {
   margin-bottom: 20px;
-  z-index: 2; 
+  z-index: 2;
 }
 
 #title_text {
-  font-size: 27px; 
+  font-size: 27px;
   font-weight: bold;
   margin-right: 1em;
   margin-left: 1em;
@@ -222,7 +240,7 @@ button:hover {
   margin-top: -3em;
   z-index: 0;
   margin-left: 2em;
-  margin-bottom:2em;
+  margin-bottom: 2em;
   width: 100%;
   max-width: 100%;
 }
@@ -231,6 +249,7 @@ button:hover {
   margin-top: 2em;
   margin-left: 2em;
 }
+
 #content {
   margin: 2em;
 }
@@ -240,22 +259,29 @@ button:hover {
    ====================== */
 
 .thing-abbr {
+  position: relative;
   display: inline-block;
   cursor: pointer;
-  position: relative;
-  margin: 0em;
+}
+
+.thing-abbr:hover .thing-desc {
+  display: block;
 }
 
 .thing-desc {
-  position: fixed;
   display: none;
+  position: fixed;
+
+  border: 1px solid var(--color-fg);
   background: var(--color-bg);
   color: var(--color-fg);
-  padding: 6px 10px;
+
+  max-width: 500px;
+  padding: 10px;
   border-radius: 6px;
-  border: 1px solid var(--color-fg);
-  white-space: nowrap;
+
   z-index: 9999;
-  pointer-events: none;
   font-size: 100%;
+
+  pointer-events: none;
 }

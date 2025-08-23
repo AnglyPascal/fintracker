@@ -11,6 +11,9 @@ Reason macd_bearish_cross_exit(const IndicatorsTrends& ind, int idx) {
     return ind.hist(i - 1) > 0 && ind.hist(i) <= 0;
   };
 
+  if (ind.hist(idx) > 0)
+    return ReasonType::None;
+
   int cross_idx = idx;
   double score = 1.0;
   std::vector<std::string> reasons;
@@ -28,7 +31,9 @@ Reason macd_bearish_cross_exit(const IndicatorsTrends& ind, int idx) {
   // Age penalty description
   int age = idx - cross_idx;
   if (age > 0)
-    reasons.push_back(std::format("{}c ago", age));
+    reasons.push_back(std::format("-{}c", age));
+  else
+    reasons.push_back("now");
 
   // Momentum of the cross
   double hist_momentum = ind.hist(cross_idx) - ind.hist(cross_idx - 1);
@@ -94,13 +99,13 @@ Reason macd_bearish_cross_exit(const IndicatorsTrends& ind, int idx) {
   bool hist_lower = ind.hist(idx) < ind.hist(idx - 2);
   if (price_lower && hist_lower) {
     score += 0.1;
-    reasons.push_back("confirmed");
+    reasons.push_back("confirmed div");
   } else if (!price_lower && hist_lower) {
     score += 0.05;
     reasons.push_back("hidden div");
   } else {
     score -= 0.05;
-    reasons.push_back("conflicted");
+    reasons.push_back("conflicted div");
   }
 
   // Recent crosses bonus
@@ -111,7 +116,7 @@ Reason macd_bearish_cross_exit(const IndicatorsTrends& ind, int idx) {
 
   if (recent_crosses > 1) {
     score += recent_crosses * 0.15;
-    reasons.push_back(std::format("{}+ crosses", recent_crosses));
+    reasons.push_back(std::format("{}+ wipsaws", recent_crosses));
   }
 
   std::string desc = join(reasons.begin(), reasons.end(), ", ");

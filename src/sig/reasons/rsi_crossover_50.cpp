@@ -6,6 +6,9 @@
 inline auto& sig_config = config.sig_config;
 
 Reason rsi_cross_50_entry(const IndicatorsTrends& ind, int idx) {
+  if (ind.rsi(idx) < 50)
+    return ReasonType::None;
+
   const int LOOKBACK = sig_config.rsi_cross_lookback;
   auto check = [&ind](int i) {
     return ind.rsi(i - 1) < 50 && ind.rsi(i) >= 50;
@@ -28,7 +31,9 @@ Reason rsi_cross_50_entry(const IndicatorsTrends& ind, int idx) {
   // Age penalty description
   int age = idx - cross_idx;
   if (age > 0)
-    reasons.push_back(std::format("{}c ago", age));
+    reasons.push_back(std::format("-{}c", age));
+  else
+    reasons.push_back("now");
 
   // Cross momentum
   double rsi_momentum = ind.rsi(cross_idx) - ind.rsi(cross_idx - 1);
@@ -63,7 +68,7 @@ Reason rsi_cross_50_entry(const IndicatorsTrends& ind, int idx) {
 
   if (!dipped_below && above_count >= (idx - cross_idx + 1)) {
     score += 0.25;
-    reasons.push_back("held above 50");
+    reasons.push_back(std::format("held above 50 for {}c", above_count));
   } else if (dipped_below && ind.rsi(idx) < 50) {
     score -= 0.3;
     reasons.push_back("failed to hold");
@@ -104,11 +109,11 @@ Reason rsi_cross_50_entry(const IndicatorsTrends& ind, int idx) {
   // Short-term alignment
   if (ind.price(idx) > ind.price(idx - 1) && ind.rsi(idx) > ind.rsi(idx - 1)) {
     score += 0.1;
-    reasons.push_back("aligned");
+    reasons.push_back("aligned with price");
   } else if (ind.price(idx) < ind.price(idx - 1) &&
              ind.rsi(idx) > ind.rsi(idx - 1)) {
     score -= 0.1;
-    reasons.push_back("conflicted");
+    reasons.push_back("conflicted with price");
   }
 
   // Whipsaw penalty

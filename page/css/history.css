@@ -50,7 +50,8 @@ table {
   border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
   border: 1px solid var(--color-border);
   padding: var(--padding-cell);
   text-align: left;
@@ -78,7 +79,7 @@ th, td {
 }
 
 div.signal-type {
-  display: flex; 
+  display: flex;
   justify-content: space-between;
   padding: 5px;
   vertical-align: top;
@@ -127,13 +128,30 @@ td.history-tr-time {
 }
 
 
-.signal-entry { background-color: var(--color-signal-entry-bg); }
-.signal-exit { background-color: var(--color-signal-exit-bg); }
-.signal-watchlist{ background-color: var(--color-signal-watchlist-bg); }
+.signal-entry {
+  background-color: var(--color-signal-entry-bg);
+}
+
+.signal-exit {
+  background-color: var(--color-signal-exit-bg);
+}
+
+.signal-watchlist {
+  background-color: var(--color-signal-watchlist-bg);
+}
+
 .signal-caution,
-.signal-holdcautiously { background-color: var(--color-signal-caution-bg); }
-.signal-none { background-color: var(--color-signal-none-bg); }
-.signal-mixed { background-color: var(--color-signal-mixed-bg); }
+.signal-holdcautiously {
+  background-color: var(--color-signal-caution-bg);
+}
+
+.signal-none {
+  background-color: var(--color-signal-none-bg);
+}
+
+.signal-mixed {
+  background-color: var(--color-signal-mixed-bg);
+}
 
 .signal-entry,
 .signal-exit,
@@ -166,32 +184,6 @@ td.history-tr-time {
   flex-wrap: wrap;
 }
 
-.symbol-entry {
-  position: relative; /* So the absolute-positioned content is scoped here */
-  display: inline-block;
-}
-
-.symbol-details {
-  display: none;
-  position: fixed;
-
-  top: 100%;
-  left: 0;
-
-  border: 1px solid #ccc;
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-
-  padding: 10px;
-  min-width: 400px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-
-  z-index: 10;
-}
-
-.symbol-entry:hover .symbol-details {
-  display: block; /* Show on hover */
-}
 
 .symbol-forecast {
   padding: 10px;
@@ -220,11 +212,11 @@ td.history-tr-time {
 }
 
 .signal-list ul ul {
-  padding-left: 2.5em; 
+  padding-left: 2.5em;
 }
 
-.signal-list > ul > li {
-  margin-bottom: 0.5em; 
+.signal-list>ul>li {
+  margin-bottom: 0.5em;
 }
 
 button.symbol {
@@ -236,15 +228,17 @@ button.symbol {
   cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
-  font-family: inherit !important; 
+  font-family: inherit !important;
 }
 
 .history-entry button.symbol.active {
   background-color: var(--color-signal-entry-bg) !important;
 }
+
 .history-watchlist button.symbol.active {
   background-color: var(--color-signal-watchlist-bg) !important;
 }
+
 .history-caution button.symbol.active {
   background-color: var(--color-signal-caution-bg) !important;
 }
@@ -263,7 +257,7 @@ button.time {
   cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
-  font-family: inherit !important; 
+  font-family: inherit !important;
 }
 
 button.time.active {
@@ -278,11 +272,11 @@ button:hover {
 
 .button-container {
   margin-bottom: 20px;
-  z-index: 2; 
+  z-index: 2;
 }
 
 #title_text {
-  font-size: 27px; 
+  font-size: 27px;
   font-weight: bold;
   margin-right: 1em;
   margin-left: 1em;
@@ -305,7 +299,65 @@ button:hover {
 
 #content-1h,
 #content-4h,
-#content-1d
-{
+#content-1d {
   margin: 2em;
+}
+
+.symbol-entry {
+  position: relative;
+  /* So the absolute-positioned content is scoped here */
+  display: inline-block;
+  cursor: pointer;
+}
+
+.symbol-details {
+  display: none;
+  position: fixed;
+
+  top: 100%;
+  left: 0;
+
+  border: 1px solid var(--color-fg);
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+
+  padding: 10px;
+  min-width: 400px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+  z-index: 9999;
+}
+
+.symbol-entry:hover .symbol-details {
+  display: block;
+  /* Show on hover */
+}
+
+.thing-abbr {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.thing-abbr:hover .thing-desc {
+  display: block;
+}
+
+.thing-desc {
+  display: none;
+  position: fixed;
+
+  top: 100%;
+  left: 0;
+
+  border: 1px solid var(--color-fg);
+  background: var(--color-bg);
+  color: var(--color-fg);
+
+  max-width: 300px;
+  padding: 10px;
+  border-radius: 6px;
+
+  z-index: 9999;
+  font-size: 100%;
 }

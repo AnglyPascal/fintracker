@@ -28,6 +28,8 @@ Reason broke_resistance_entry(const IndicatorsTrends& ind, int idx) {
   if (current_close < min_breakout)
     return ReasonType::None;
 
+  reasons.push_back(std::format("zone [{:.2f}, {:.2f}]", zone.lo, zone.hi));
+
   // Base score on zone strength
   double score = zone.conf;
   if (zone.conf >= 0.8)
@@ -73,8 +75,8 @@ Reason broke_resistance_entry(const IndicatorsTrends& ind, int idx) {
   // Check if there's room to run (next resistance)
   auto next_resistance = ind.nearest_resistance_above(idx);
   if (next_resistance) {
-    double room_to_run =
-        (next_resistance->get().lo - current_close) / current_close;
+    auto next_zone = next_resistance->get();
+    double room_to_run = (next_zone.lo - current_close) / current_close;
     if (room_to_run < 0.02) {
       score -= 0.2;
       reasons.push_back("limited upside");
@@ -82,18 +84,17 @@ Reason broke_resistance_entry(const IndicatorsTrends& ind, int idx) {
       score += 0.1;
       reasons.push_back("good upside");
     }
+    reasons.push_back(
+        std::format("next ~{:.2f}", (next_zone.lo + next_zone.hi) / 2));
   } else {
     reasons.push_back("clear above");
   }
 
   // Timeframe-specific adjustments
-  if (ind.interval == H_1) {
+  if (ind.interval == H_1)
     score *= 0.9;
-    reasons.push_back("1h");
-  } else if (ind.interval == D_1) {
+  else if (ind.interval == D_1)
     score *= 1.1;
-    reasons.push_back("1d");
-  }
 
   std::string desc = join(reasons.begin(), reasons.end(), ", ");
   return {ReasonType::BrokeResistance, std::clamp(score, 0.3, 1.5), desc};

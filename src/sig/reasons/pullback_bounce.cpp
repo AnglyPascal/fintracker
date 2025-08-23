@@ -38,7 +38,9 @@ Reason pullback_bounce_entry(const IndicatorsTrends& ind, int idx) {
   int recency = idx - pb_end - 1;
   double score = 1.0 - recency * 0.15;
   if (recency > 0)
-    reasons.push_back(std::format("{}c delay", recency));
+    reasons.push_back(std::format("-{}c", recency));
+  else
+    reasons.push_back("now");
 
   {
     // Recovery characteristics

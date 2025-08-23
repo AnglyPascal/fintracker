@@ -28,6 +28,8 @@ Reason broke_support_exit(const IndicatorsTrends& ind, int idx) {
   if (current_close > min_break)
     return ReasonType::None;
 
+  reasons.push_back(std::format("zone [{:.2f}, {:.2f}]", zone.lo, zone.hi));
+
   // START WITH URGENCY - exits should be urgent
   double score = 1.2;
 
@@ -88,8 +90,8 @@ Reason broke_support_exit(const IndicatorsTrends& ind, int idx) {
     score += 0.2;
     reasons.push_back("no support below");
   } else {
-    double fall_potential =
-        (current_close - next_support->get().hi) / current_close;
+    auto next_zone = next_support->get();
+    double fall_potential = (current_close - next_zone.hi) / current_close;
     if (fall_potential > 0.05) {
       score += 0.2;
       reasons.push_back("significant downside");
@@ -97,6 +99,8 @@ Reason broke_support_exit(const IndicatorsTrends& ind, int idx) {
       score -= 0.3;
       reasons.push_back("limited downside");
     }
+    reasons.push_back(
+        std::format("next ~{:.2f}", (next_zone.lo + next_zone.hi) / 2));
   }
 
   // Failed bounce attempts
@@ -111,13 +115,10 @@ Reason broke_support_exit(const IndicatorsTrends& ind, int idx) {
   }
 
   // Timeframe adjustments
-  if (ind.interval == H_1) {
+  if (ind.interval == H_1)
     score *= 0.8;
-    reasons.push_back("1h");
-  } else if (ind.interval == D_1) {
+  else if (ind.interval == D_1)
     score *= 1.3;
-    reasons.push_back("1d");
-  }
 
   std::string desc = join(reasons.begin(), reasons.end(), ", ");
   return {ReasonType::BrokeSupport, std::clamp(score, 0.4, 2.0), desc};

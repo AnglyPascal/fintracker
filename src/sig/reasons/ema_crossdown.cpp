@@ -25,7 +25,9 @@ Reason ema_crossdown_exit(const IndicatorsTrends& ind, int idx) {
   // Age penalty description
   int age = idx - cross_idx;
   if (age > 0)
-    reasons.push_back(std::format("{}c ago", age));
+    reasons.push_back(std::format("-{}c", age));
+  else 
+    reasons.push_back("now");
 
   // Separation bonus
   if (ind.ema21(idx) > ind.ema9(idx) * 1.005) {
@@ -70,7 +72,7 @@ Reason ema_crossdown_exit(const IndicatorsTrends& ind, int idx) {
 
   if (recent_crosses >= 2) {
     score += 0.3;
-    reasons.push_back("recent whipsaws");
+    reasons.push_back(std::format("{} recent whipsaws", recent_crosses));
   }
 
   // Strengthening breakdown

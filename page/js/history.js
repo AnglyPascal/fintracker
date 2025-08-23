@@ -29,7 +29,8 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 
 document.addEventListener('keydown', (event) => {
-  if (['h', 'l'].includes(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
+  if (['h', 'l'].includes(event.key) && 
+      !event.ctrlKey && !event.metaKey && !event.altKey) {
     event.preventDefault();
     let currentIndex = time_buttons.findIndex(btn => btn.classList.contains('active'));
     if (event.key === 'h') {

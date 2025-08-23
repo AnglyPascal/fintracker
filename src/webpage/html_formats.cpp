@@ -57,7 +57,12 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
 }
 
 inline constexpr std::string_view score_div_template = R"(
-  <div>{}</div> <div class="signal-score-details">[{}, {}, {:+}]</div>
+  <div class="thing-abbr">
+    {}
+    <div class="signal-score-details thing-desc">
+      [{}, {}, {:+}]
+    </div>
+  </div> 
 )";
 
 template <>
@@ -264,12 +269,11 @@ std::string to_str<FormatTarget::HTML>(const Position* const& pos,
                                        const double& price) {
   if (pos == nullptr || pos->qty == 0)
     return "";
-  return std::format("{} ({:+.2f}%)", to_str(*pos), pos->pct(price));
+  return std::format("{} (<b>{:+.2f}</b>%)", to_str(*pos), pos->pct(price));
 }
 
 inline std::string signal_type_score(double val) {
-  return std::format("<span style='opacity: {0:.2f}'>({1:.1f})</span>", val,
-                     val);
+  return std::format("<span style='opacity: {0:.2f}'>({0:.1f})</span>", val);
 }
 
 inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {

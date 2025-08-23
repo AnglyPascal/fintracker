@@ -32,11 +32,8 @@ inline constexpr std::string_view ticker_template = R"(
     <script type="module">
     import {{ loadContent }} from "./js/plot.js";
     </script>
-    <script src="http://localhost:35729/livereload.js?snipver=1"></script>
-
   </body>
 </html>
-
 )";
 
 inline constexpr std::string_view indicators_template = R"(
