@@ -23,10 +23,6 @@ Hint rsi_bullish_divergence(const IndicatorsTrends& ind, int idx);
 Hint macd_bullish_divergence(const IndicatorsTrends& ind, int idx);
 Hint rsi_bearish_divergence(const IndicatorsTrends& ind, int idx);
 
-Hint price_trending(const IndicatorsTrends& m, int idx);
-Hint ema21_trending(const IndicatorsTrends& m, int idx);
-Hint rsi_trending(const IndicatorsTrends& m, int idx);
-
 inline constexpr hint_f hint_funcs[] = {
     // Entry
     ema_converging_hint,
@@ -44,11 +40,6 @@ inline constexpr hint_f hint_funcs[] = {
     ema_flattens_hint,
 
     rsi_bearish_divergence,
-
-    // Trends (unchanged for now)
-    price_trending,
-    ema21_trending,
-    rsi_trending,
 
     // SR
     near_support_resistance_hint,

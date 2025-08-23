@@ -59,7 +59,7 @@ Backtest::Backtest(const IndicatorsTrends& _ind) : ind{_ind} {
 }
 
 inline constexpr bool ignore_backtest(Source src) {
-  return src == Source::Stop || src == Source::Trend || src == Source::SR;
+  return src == Source::Stop || src == Source::SR;
 }
 
 template <typename T, typename Func>

@@ -5,10 +5,13 @@
 #include <cmath>
 #include <string_view>
 
-constexpr std::string_view thing_abbr_templ =
-    R"(<div class="thing-abbr">{}{}</div>)";
-constexpr std::string_view thing_desc_templ =
-    R"(<div class="thing-desc">{}</div>)";
+constexpr auto thing_abbr_templ = R"(<div class="thing-abbr">{}{}</div>)";
+constexpr auto thing_desc_templ = R"(<div class="thing-desc">{}</div>)";
+
+template <>
+std::string to_str(const Filter& f) {
+  return f.str;
+}
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Filter& f) {
@@ -54,7 +57,7 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
   }
 }
 
-inline constexpr std::string_view score_div_template = R"(
+inline constexpr auto score_div_template = R"(
   <div class="thing-abbr">
     {}
     <div class="thing-desc">
@@ -78,11 +81,11 @@ std::string to_str<FormatTarget::HTML>(const Score& scr) {
   );
 }
 
-inline constexpr std::string_view signal_div_template = R"(
+inline constexpr auto signal_div_template = R"(
   <div class="signal-div {}">
-    <div class="signal-text">{}</div> 
+    <div class="signal-text nobreak">{}</div> 
     <div class="signal-time">{:%a, %b %d, %H:%M}</div>
-    <div class="signal-score">{}</div>
+    <div class="signal-score nobreak">{}</div>
   </div>
 )";
 
@@ -93,17 +96,23 @@ std::string to_str<FormatTarget::HTML>(const Signal& s) {
 }
 
 template <>
-std::string to_str(const Filter& f) {
-  return f.str;
-}
-
-template <>
-std::string to_str<FormatTarget::HTML>(const typename Filters::value_type& p) {
+std::string to_str<FormatTarget::HTML>(const typename Filters::value_type& p,
+                                       const std::string& sep) {
   auto timeframe = p.first == H_1.count()   ? "1h"
                    : p.first == H_4.count() ? "4h"
-                                            : "1d";
-  return std::format("{}: {}", timeframe,
-                     join(p.second.begin(), p.second.end()));
+                   : p.first == D_1.count() ? "1d"
+                                            : "align";
+  constexpr auto templ = R"(
+    <div class="filter-row flex-center">
+      <div class="filter-row-tf nobreak"><b>{}:</b></div> 
+      <div class="filter-row-list">{}</div>
+    </div>
+  )";
+  return std::format(                                                  //
+      templ,                                                           //
+      timeframe,                                                       //
+      join<FormatTarget::HTML>(p.second.begin(), p.second.end(), sep)  //
+  );
 }
 
 template <>
@@ -141,7 +150,7 @@ std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
     return std::format("<div><b>{}</b></div>",
                        to_str<FormatTarget::HTML>(sizing.rec));
 
-  constexpr std::string_view templ = R"(
+  constexpr auto templ = R"(
     <div><b>{}</b>: {} w/ {:.2f}</div>
     <div><b>Risk</b>: {} ({:.2f}%), {:.1f}</div>
   )";
@@ -157,31 +166,19 @@ std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Filters& filters,
-                                       const std::vector<Hint>& trends_1h) {
-  std::string trend_1h, trend_1d, trend_4h;
-
-  for (auto& h : trends_1h)
-    trend_1h += h.str() + " ";
-
-  if (!trend_1h.empty())
-    trend_1h = std::format("<li><b>1h</b>: {}</li>", trend_1h);
-
-  for (auto& f : filters.at(H_4.count()))
-    trend_4h += to_str<FormatTarget::HTML>(f) + " ";
-  for (auto& f : filters.at(D_1.count()))
-    trend_1d += to_str<FormatTarget::HTML>(f) + " ";
-
-  constexpr std::string_view trend_html = R"(
+std::string to_str<FormatTarget::HTML>(const Filters& filters) {
+  constexpr auto trend_html = R"(
     <b>Trends</b>: 
     <ul>
       {}
-      <li><b>4h</b>: {}</li>
-      <li><b>1d</b>: {}</li>
     </ul>
   )";
 
-  return std::format(trend_html, trend_1h, trend_4h, trend_1d);
+  std::string str = "";
+  for (auto& p : filters)
+    str += std::format("<li>{}</li>",
+                       to_str<FormatTarget::HTML>(p, std::string(" ")));
+  return std::format(trend_html, str);
 }
 
 template <>
@@ -206,7 +203,7 @@ template <>
 std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
   if (sl.final_stop == 0.0)
     return "";
-  constexpr std::string_view templ = R"(
+  constexpr auto templ = R"(
     <b>{}</b>: {}, {}, <b>{}</b> {}
   )";
   return std::format(                                 //
@@ -231,7 +228,6 @@ std::string to_str<FormatTarget::HTML>(const Forecast& f) {
                      colored("blue", f.conf));
 }
 
-
 template <>
 std::string to_str(const Event& ev) {
   if (ev.type == '\0')
@@ -255,8 +251,11 @@ inline std::string signal_type_score(double val) {
   return std::format("<span style='opacity: {0:.2f}'>({0:.1f})</span>", val);
 }
 
-inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
-  constexpr std::string_view div = R"(
+inline std::string reason_list(const auto& header,
+                               auto& lst,
+                               auto cls,
+                               auto& stats) {
+  constexpr auto div = R"(
   <li><b>{}</b>
     <ul>
       {}
@@ -266,7 +265,7 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
 
   std::string body = "";
   for (auto& r : lst)
-    if (r.cls() == cls && r.source() != Source::Trend) {
+    if (r.cls() == cls) {
       auto colored_stats = [&](auto& stats) {
         return std::format(
             " {}: <b>{}</b> ({}) <b>{}</b>",                              //
@@ -291,7 +290,7 @@ inline std::string reason_list(auto& header, auto& lst, auto cls, auto& stats) {
   return std::format(div, header, body);
 }
 
-inline constexpr std::string_view signal_entry_template = R"(
+inline constexpr auto signal_entry_template = R"(
 {}
 <div class="signal-list">
   <ul>
@@ -327,14 +326,14 @@ std::string to_str<FormatTarget::HTML>(const Signal&, const Forecast& fc) {
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Signal& s, const Indicators& ind) {
-  auto a = reason_list("▲", s.reasons, SignalClass::Entry,  //
-                       ind.stats.reason);
-  auto b = reason_list("△", s.hints, SignalClass::Entry,  //
-                       ind.stats.hint);
-  auto c = reason_list("▼", s.reasons, SignalClass::Exit,  //
-                       ind.stats.reason);
-  auto d = reason_list("▽", s.hints, SignalClass::Exit,  //
-                       ind.stats.hint);
+  auto a = reason_list(tagged("▲", GREEN), s.reasons, SignalClass::Entry,  //
+                       ind.stats.reason);                                  //
+  auto b = reason_list(tagged("△", GREEN), s.hints, SignalClass::Entry,    //
+                       ind.stats.hint);                                    //
+  auto c = reason_list(tagged("▼", RED), s.reasons, SignalClass::Exit,     //
+                       ind.stats.reason);                                  //
+  auto d = reason_list(tagged("▽", RED), s.hints, SignalClass::Exit,       //
+                       ind.stats.hint);                                    //
   auto e = a + b + c + d;
 
   return std::format(                            //

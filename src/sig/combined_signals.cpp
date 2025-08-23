@@ -49,10 +49,11 @@ struct FilterBias {
   FilterBias(const Filters& filters) {
     std::vector<std::string> key_items;
 
-    for (auto& [timeframe, filter_list] : filters) {
-      std::string tf_label = timeframe == H_1.count()   ? "1h"
-                             : timeframe == H_4.count() ? "4h"
-                                                        : "1d";
+    for (auto& [inv, filter_list] : filters) {
+      auto tf_label = inv == H_1.count()   ? "1h"
+                      : inv == H_4.count() ? "4h"
+                      : inv == D_1.count() ? "1d"
+                                           : "align";
 
       for (auto& f : filter_list) {
         double weight = (f.conf == Confidence::High)     ? 1.0
@@ -65,14 +66,14 @@ struct FilterBias {
           if (f.conf == Confidence::High) {
             strong_bullish++;
             if (!f.str.empty())
-              key_items.push_back(std::format("{}:{}", tf_label, f.str));
+              key_items.push_back(std::format("{}: {}", tf_label, f.str));
           }
         } else if (f.trend == Trend::Bearish) {
           net_bearish += weight;
           if (f.conf == Confidence::High) {
             strong_bearish++;
             if (!f.str.empty())
-              key_items.push_back(std::format("{}:{}", tf_label, f.str));
+              key_items.push_back(std::format("{}: {}", tf_label, f.str));
           }
         }
       }
@@ -117,10 +118,10 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
     // Check 1d confirmation first (most important for swing trades)
     if (sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist) {
       rationale +=
-          std::format("1d confirms {}. ", tagged("strongly", GREEN, BOLD));
+          std::format("1d {} strongly. ", tagged("confirms", GREEN, BOLD));
       score_mod += 0.04;
     } else if (sig_1d.type == Rating::Exit || sig_1d.type == Rating::Caution) {
-      rationale += std::format("1d {} → {}. ", tagged("conflicts", RED, BOLD),
+      rationale += std::format("1d {} -> {}. ", tagged("conflicts", RED, BOLD),
                                tagged("downgrading", YELLOW, IT));
       base_rating = Rating::Watchlist;
       score_mod -= 0.05;
@@ -128,10 +129,10 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
 
     // Then 4h confirmation
     if (sig_4h.type == Rating::Entry || sig_4h.type == Rating::Watchlist) {
-      rationale += std::format("4h {}. ", tagged("confirms", GREEN));
+      rationale += std::format("4h {}. ", tagged("confirms", GREEN, IT));
       score_mod += 0.03;
     } else if (sig_4h.type == Rating::Exit && base_rating == Rating::Entry) {
-      rationale += std::format("4h {}. ", tagged("conflicts", RED));
+      rationale += std::format("4h {}. ", tagged("conflicts", RED, IT));
       base_rating = Rating::Mixed;
       score_mod -= 0.03;
     }
@@ -139,12 +140,12 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
     // Filter integration
     if (filter_bias.strong_bullish >= 3) {
       rationale +=
-          std::format("Filters: {} ({}). ", tagged("excellent", GREEN, BOLD),
+          std::format("filters: {} ({}). ", tagged("excellent", GREEN, BOLD),
                       filter_bias.key_signals);
       score_mod += 0.035;
     } else if (filter_bias.strong_bearish >= 2) {
       rationale +=
-          std::format("Filters: {} – caution. ", tagged("bearish", RED, IT));
+          std::format("filters: {} – caution. ", tagged("bearish", RED, IT));
       base_rating = Rating::Watchlist;
       score_mod -= 0.04;
     }
@@ -154,17 +155,18 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
 
     if ((sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist) &&
         sig_4h.type == Rating::Entry && filter_bias.strong_bullish >= 2) {
-      rationale += std::format("Strong 4h+1d support → {}. ",
+      rationale += std::format("strong 4h+1d support -> {}. ",
                                tagged("upgrading", GREEN, BOLD));
       base_rating = Rating::Entry;
       score_mod += 0.035;
     } else if (sig_1d.type == Rating::Entry && filter_bias.net_bullish > 2) {
       rationale +=
-          std::format("1d entry + filters → {}. ", tagged("upgrade", GREEN));
+          std::format("1d {} + filters -> {}. ", tagged("entry", GREEN),
+                      tagged("upgrade", GREEN));
       base_rating = Rating::Entry;
       score_mod += 0.03;
     } else if (sig_1d.type == Rating::Exit || filter_bias.strong_bearish >= 2) {
-      rationale += std::format("Higher TF {}. ", tagged("bearish", RED, IT));
+      rationale += std::format("htf {}. ", tagged("bearish", RED, IT));
       base_rating = Rating::Caution;
       score_mod -= 0.03;
     }
@@ -173,47 +175,50 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
     rationale += std::format("1h {}. ", tagged("exit", RED, BOLD));
 
     if (sig_1d.type == Rating::Exit || sig_4h.type == Rating::Exit) {
-      rationale += std::format("Higher TF {} exit. ", tagged("confirms", RED));
-      score_mod += 0.04;
+      rationale += std::format("htf {} exit. ", tagged("confirms", RED, BOLD));
+      score_mod -= 0.06;
     } else if (sig_1d.type == Rating::Entry && !has_position) {
-      rationale += std::format("1d bullish → {}. ",
+      rationale += std::format("1d bullish -> {}. ",
                                tagged("downgrading exit", YELLOW, IT));
       base_rating = Rating::Caution;
-      score_mod -= 0.03;
+      score_mod += 0.04;
     }
 
     if (filter_bias.strong_bearish >= 2) {
       rationale +=
-          std::format("Filters {}. ", tagged("confirm bearish", RED, BOLD));
-      score_mod += 0.025;
+          std::format("filters {}. ", tagged("confirm bearish", RED, BOLD));
+      score_mod -= 0.025;
     }
 
   } else if (base_rating == Rating::None || base_rating == Rating::Mixed) {
     if (sig_1d.type == Rating::Entry && filter_bias.strong_bullish >= 2) {
-      rationale += std::format("1h neutral, but 1d+filters {}. ",
+      rationale += std::format("1h {}, but 1d+filters {}. ",  //
+                               tagged("neutral", BLUE, IT),   //
                                tagged("bullish", GREEN));
       base_rating = Rating::Watchlist;
       score_mod += 0.025;
     } else if (sig_4h.type == Rating::Entry && sig_1d.type != Rating::Exit) {
-      rationale += std::format("1h neutral, 4h shows {}. ",
+      rationale += std::format("1h {}, 4h shows {}. ",       //
+                               tagged("neutral", BLUE, IT),  //
                                tagged("potential", BLUE, IT));
       base_rating = Rating::Watchlist;
     } else if (sig_1d.type == Rating::Exit || filter_bias.strong_bearish >= 2) {
-      rationale += std::format("Higher TF {}. ", tagged("bearish", RED));
+      rationale += std::format("htf {}. ", tagged("bearish", RED));
       base_rating = Rating::Caution;
+      score_mod -= 0.02;
     }
   }
 
   // Stop loss handling
   if (stop_hit.type == StopHitType::StopLossHit) {
-    rationale += std::format("{}! ", tagged("STOP HIT", RED, BOLD, UL));
+    rationale += std::format("{}! ", tagged("STOP HIT", RED, BOLD, IT));
     base_rating = Rating::Exit;
   } else if (stop_hit.type == StopHitType::TimeExit) {
-    rationale += std::format("{}. ", tagged("time exit", GRAY, IT));
+    rationale += std::format("{}. ", tagged("time exit", RED, IT));
     base_rating = Rating::Exit;
   } else if (stop_hit.type == StopHitType::StopProximity &&
              base_rating == Rating::Entry) {
-    rationale += std::format("Near {}. ", tagged("stop", YELLOW, IT));
+    rationale += std::format("near {}. ", tagged("stop", YELLOW, IT));
     base_rating = Rating::Mixed;
   }
 
@@ -227,12 +232,12 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
   // Position adjustments
   if (base_rating == Rating::Caution && has_position) {
     rationale +=
-        std::format("Hold position {}. ", tagged("cautiously", YELLOW, IT));
+        std::format("hold position {}. ", tagged("cautiously", YELLOW, IT));
     base_rating = Rating::HoldCautiously;
   }
 
   if (base_rating == Rating::Exit && !has_position) {
-    rationale += std::format("No position to {}. ", tagged("exit", GRAY));
+    rationale += std::format("no position to {}. ", tagged("exit", GRAY));
     base_rating = Rating::Caution;
   }
 

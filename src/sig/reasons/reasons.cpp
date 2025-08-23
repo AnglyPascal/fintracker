@@ -27,34 +27,70 @@ inline constexpr signal_f reason_funcs[] = {
     broke_support_exit,
 };
 
-// Check for conflicting hints and apply penalties
+// Check for conflicting reasons and apply penalties
 inline void check_conflicts(std::vector<Reason>& reasons) {
-  // Find conflicting pairs
-  bool has_ema_bull = false, has_ema_bear = false;
-  bool has_macd_bull = false, has_macd_bear = false;
-  // bool has_macd_rise = false, has_macd_peak = false;
+  if (reasons.size() < 2)
+    return;
 
-  for (auto& r : reasons) {
-    if (r.type == ReasonType::EmaCrossover)
-      has_ema_bull = true;
-    if (r.type == ReasonType::EmaCrossdown)
-      has_ema_bear = true;
-    if (r.type == ReasonType::MacdBullishCross)
-      has_macd_bull = true;
-    if (r.type == ReasonType::MacdBearishCross)
-      has_macd_bear = true;
+  bool has_entry = false, has_exit = false;
+  for (const auto& r : reasons) {
+    has_entry |= r.cls() == SignalClass::Entry;
+    has_exit |= r.cls() == SignalClass::Exit;
   }
 
-  double penalty = 0.7;
+  // Only penalize if we have conflicting classes
+  if (!has_entry || !has_exit)
+    return;
+
+  // Check for specific same-indicator conflicts
+  bool ema_conflict = false, macd_conflict = false;
+
+  for (const auto& r : reasons) {
+    if (r.type == ReasonType::EmaCrossover && has_exit)
+      ema_conflict = true;
+    if (r.type == ReasonType::EmaCrossdown && has_entry)
+      ema_conflict = true;
+    if (r.type == ReasonType::MacdBullishCross && has_exit)
+      macd_conflict = true;
+    if (r.type == ReasonType::MacdBearishCross && has_entry)
+      macd_conflict = true;
+  }
+
+  // More lenient penalties
+  double base_penalty = 0.85;      // Light general conflict penalty
+  double specific_penalty = 0.75;  // Medium same-indicator conflict penalty
+
   for (auto& r : reasons) {
-    if (r.type == ReasonType::EmaCrossover && has_ema_bear)
-      r.score *= penalty;
-    if (r.type == ReasonType::EmaCrossdown && has_ema_bull)
-      r.score *= penalty;
-    if (r.type == ReasonType::MacdBullishCross && has_macd_bear)
-      r.score *= penalty;
-    if (r.type == ReasonType::MacdBearishCross && has_macd_bull)
-      r.score *= penalty;
+    // General cross-class conflict penalty
+    r.score *= base_penalty;
+
+    // Add conflict description
+    if (!r.desc.empty())
+      r.desc += ", ";
+    r.desc += "conflicted";
+
+    // Additional penalty for same-indicator conflicts
+    bool is_ema = (r.type == ReasonType::EmaCrossover ||
+                   r.type == ReasonType::EmaCrossdown);
+    bool is_macd = (r.type == ReasonType::MacdBullishCross ||
+                    r.type == ReasonType::MacdBearishCross);
+
+    if ((is_ema && ema_conflict) || (is_macd && macd_conflict)) {
+      r.score *= specific_penalty;  // Now total: 0.85 * 0.75 = ~0.64
+    }
+
+    // Pullback bounce with exit signals - moderate penalty
+    if (r.type == ReasonType::PullbackBounce && has_exit) {
+      r.score *= 0.6;  // Still notable but not devastating
+      r.desc += ", exit conflict";
+    }
+
+    // S/R breaks get minimal penalties (they're strong signals)
+    if (r.type == ReasonType::BrokeResistance ||
+        r.type == ReasonType::BrokeSupport) {
+      r.score /= base_penalty;  // Remove base penalty
+      r.score *= 0.95;          // Very light penalty
+    }
   }
 }
 

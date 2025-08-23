@@ -132,7 +132,7 @@ Filter swing_base_pattern(const Metrics& m) {
             "unclear support structure"};
 }
 
-std::vector<Filter> evaluate_4h_trend(const Metrics& m) {
+std::vector<Filter> evaluate_4h_trends(const Metrics& m) {
   auto& ind = m.ind_4h;
   std::vector<Filter> res;
 

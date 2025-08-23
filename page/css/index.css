@@ -16,14 +16,6 @@
   margin-bottom: 1em;
 }
 
-#subtitle {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1em;
-  margin-bottom: 1em;
-  font-size: 100%;
-}
-
 /* Table column widths */
 .signal-th {
   width: 17%;
@@ -41,18 +33,24 @@
   width: 23%;
 }
 
+#signal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+}
+
 /* Filter buttons */
 #signal-filters button {
   font-family: var(--font-family), monospace;
-  margin-right: 0.3em;
-  padding: 0.3em 0.6em;
   border: 1px solid var(--color-border);
   border-radius: 4px;
+  padding: 5px;
+
   background-color: var(--color-bg);
   color: var(--color-fg);
+
   cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 100%;
+  font-size: inherit !important;
 }
 
 #signal-filters button:hover {
@@ -63,7 +61,6 @@
   background-color: var(--color-fg);
   color: var(--color-bg);
   border-color: var(--color-fg);
-  margin-bottom: 1em;
 }
 
 /* Main table */
@@ -137,7 +134,7 @@ table.signal {
 }
 
 .signal-time {
-  display: none;
+  display: none !important;
 }
 
 /* Specialized components */
@@ -183,4 +180,72 @@ td.signal-table {
 
 .stats-details {
   display: none;
+}
+
+@media (max-width: 1025px) {
+  body {
+    font-size: 120% !important;
+  }
+
+  .signal-table .signal-time,
+  .price-th,
+  .ema-th,
+  .rsi-th,
+  .macd-th {
+    display: none !important;
+  }
+
+  td>div.signal-table {
+    width: 100% !important;
+  }
+
+  table.signal,
+  table.signal td {
+    display: block;
+  }
+
+  .signal {
+    padding: 10px;
+  }
+
+  .signal td {
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .signal .combined-signal-tr td:last-child {
+    border-bottom: none;
+  }
+
+  /* Keep rationale row as a proper table row */
+  .signal .rationale {
+    display: table-row;
+    width: 100% !important;
+  }
+
+  .signal .rationale td {
+    display: table-cell;
+    width: 100% !important;
+  }
+
+  /* Turn the combined row into vertical stacked cards */
+  .signal .combined-signal-tr {
+    display: block;
+    width: 100% !important;
+  }
+
+  .signal .combined-signal-tr td {
+    display: block;
+    width: 100% !important;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+  }
+
+  #signal-filters,
+  #subtitle {
+    gap: 0.2em;
+    font-size: 80% !important;
+  }
 }

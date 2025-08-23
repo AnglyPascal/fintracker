@@ -129,58 +129,6 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
         {Severity::Low, Source::EMA, SignalClass::Exit, "ema9↝21"}  //
     },
 
-    // Trends entry
-    {
-        HintType::PriceUp,                                           //
-        {Severity::Medium, Source::Trend, SignalClass::Entry, "p↗"}  //
-    },
-    {
-        HintType::PriceUpStrongly,                                 //
-        {Severity::High, Source::Trend, SignalClass::Entry, "p⇗"}  //
-    },
-    {
-        HintType::Ema21Up,                                             //
-        {Severity::Medium, Source::Trend, SignalClass::Entry, "e21↗"}  //
-    },
-    {
-        HintType::Ema21UpStrongly,                                   //
-        {Severity::High, Source::Trend, SignalClass::Entry, "e21⇗"}  //
-    },
-    {
-        HintType::RsiUp,                                             //
-        {Severity::Medium, Source::Trend, SignalClass::Entry, "r↗"}  //
-    },
-    {
-        HintType::RsiUpStrongly,                                   //
-        {Severity::High, Source::Trend, SignalClass::Entry, "r⇗"}  //
-    },
-
-    // Trends exit
-    {
-        HintType::PriceDown,                                        //
-        {Severity::Medium, Source::Trend, SignalClass::Exit, "p↘"}  //
-    },
-    {
-        HintType::PriceDownStrongly,                               //
-        {Severity::High, Source::Trend, SignalClass::Entry, "p⇘"}  //
-    },
-    {
-        HintType::Ema21Down,                                          //
-        {Severity::Medium, Source::Trend, SignalClass::Exit, "e21↘"}  //
-    },
-    {
-        HintType::Ema21DownStrongly,                                //
-        {Severity::High, Source::Trend, SignalClass::Exit, "e21⇘"}  //
-    },
-    {
-        HintType::RsiDown,                                          //
-        {Severity::Medium, Source::Trend, SignalClass::Exit, "r↘"}  //
-    },
-    {
-        HintType::RsiDownStrongly,                                //
-        {Severity::High, Source::Trend, SignalClass::Exit, "r⇘"}  //
-    },
-
     // SR:
     {
         HintType::WithinTightRange,

@@ -51,10 +51,10 @@ inline constexpr std::string_view index_row_template = R"(
         <a href="{0}.html" target="_blank">{4}</a>{5}
       </div>
     </td>
-    <td data-label="Price"><div>{6}</div></td>
-    <td data-label="EMA"><div>{7}</div></td>
-    <td data-label="RSI"><div>{8}</div></td>
-    <td data-label="MACD"><div>{9}</div></td>
+    <td class="price-th" data-label="Price"><div>{6}</div></td>
+    <td class="ema-th" data-label="EMA"><div>{7}</div></td>
+    <td class="rsi-th" data-label="RSI"><div>{8}</div></td>
+    <td class="rsi-th" data-label="MACD"><div>{9}</div></td>
     <td data-label="Position"><div>{10}</div></td>
     <td data-label="Stop Loss"><div>{11}</div></td>
   </tr>
@@ -136,14 +136,9 @@ inline std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
   auto& ind_1d = ticker.metrics.ind_1d;
   auto& sig_1d = ind_1d.signal;
 
-  std::vector<Hint> trends_1h;
-  for (auto h : ticker.metrics.ind_1h.signal.hints)
-    if (h.source() == Source::Trend)
-      trends_1h.push_back(h);
-
   auto overview = std::format(  //
       signal_overview_template,
-      to_str<FormatTarget::HTML>(s.filters, trends_1h),   //
+      to_str<FormatTarget::HTML>(s.filters),              //
       to_str<FormatTarget::HTML>(s.forecast),             //
       to_str<FormatTarget::HTML>(ticker.stop_loss),       //
       to_str<FormatTarget::HTML>(ticker.position_sizing)  //

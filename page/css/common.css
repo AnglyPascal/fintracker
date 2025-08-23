@@ -119,7 +119,7 @@ th {
   cursor: pointer;
   border-radius: 4px;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 90%;
   transition: opacity 0.2s;
 }
 
@@ -239,11 +239,12 @@ th {
   margin-left: 1em;
 }
 
-.subtitle {
+#subtitle {
   display: flex;
   flex-wrap: wrap;
   gap: 1em;
   margin-bottom: 1em;
+  font-size: 100%;
 }
 
 .flex-between {
@@ -256,6 +257,15 @@ th {
   align-items: center;
 }
 
+.nobreak {
+  white-space: nowrap;
+  /* prevents breaking at spaces */
+  word-break: keep-all;
+  /* prevents breaking within words */
+  overflow-wrap: normal;
+  /* don't wrap words arbitrarily */
+}
+
 .update-block {
   font-family: inherit;
   padding: 5px;
@@ -264,8 +274,16 @@ th {
 }
 
 .update-block a {
-  text-decoration: underline;
-  color: var(--color-link);
+  text-decoration: none;
+  color: var(--color-fg);
+}
+
+/* ======================
+   FILTERS
+   ====================== */
+
+.filter-row-list {
+  margin-left: 0.5em;
 }
 
 /* ======================
@@ -357,7 +375,6 @@ th {
 .thing-desc {
   display: none;
   position: fixed;
-  font-size: 100%;
 
   border: 1px solid var(--color-fg);
   background: var(--color-bg);
@@ -379,32 +396,4 @@ th {
 .tooltip:hover .tooltip-content,
 .thing-abbr:hover .thing-desc {
   display: block;
-}
-
-/* ======================
-   MOBILE RESPONSIVE
-   ====================== */
-@media (max-width: 768px) {
-  body {
-    font-size: 110%;
-    margin: 0.3em;
-  }
-
-  th,
-  td {
-    padding: var(--padding-mobile);
-  }
-
-  .btn {
-    font-size: 12px;
-    padding: 3px 6px;
-  }
-
-  .page-title {
-    font-size: 150%;
-  }
-
-  .page-title-large {
-    font-size: 24px;
-  }
 }

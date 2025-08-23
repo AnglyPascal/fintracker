@@ -5,7 +5,6 @@
 
 inline auto& sig_config = config.sig_config;
 
-// Add this new function for multi-timeframe filters
 std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
   std::vector<Filter> res;
 
@@ -13,26 +12,140 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
   auto sig_4h = m.get_signal(H_4);
   auto sig_1d = m.get_signal(D_1);
 
-  // Higher timeframe alignment (from confirmations)
-  if (sig_1h.type == Rating::Entry) {
-    if (sig_4h.type == Rating::Entry || sig_4h.type == Rating::Watchlist)
-      res.emplace_back(Trend::ModerateUptrend, Confidence::High, "4h confirms",
-                       "4H timeframe confirms 1H entry signal");
+  const auto& ind_1h = m.ind_1h;
+  const auto& ind_4h = m.ind_4h;
+  const auto& ind_1d = m.ind_1d;
 
-    if (sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist)
-      res.emplace_back(Trend::StrongUptrend, Confidence::High, "1d confirms",
-                       "Daily timeframe confirms 1H entry signal");
+  // === SIGNAL ALIGNMENT ===
+
+  // Perfect alignment (all bullish)
+  bool all_entry =
+      (sig_1h.type == Rating::Entry && sig_4h.type == Rating::Entry &&
+       sig_1d.type == Rating::Entry);
+  bool all_bullish =
+      (sig_1h.type == Rating::Entry || sig_1h.type == Rating::Watchlist) &&
+      (sig_4h.type == Rating::Entry || sig_4h.type == Rating::Watchlist) &&
+      (sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist);
+
+  if (all_entry) {
+    res.emplace_back(Trend::StrongUptrend, Confidence::High,
+                     tagged("⇈", BOLD, GREEN),
+                     "Perfect alignment: all timeframes showing entry signals");
+  } else if (all_bullish) {
+    res.emplace_back(
+        Trend::StrongUptrend, Confidence::Medium, tagged("↗↗↗", BOLD, GREEN),
+        "Strong alignment: all timeframes bullish (entry/watchlist)");
   }
 
-  // Daily trend alignment (from confirmations)
-  const auto& ind_1d = m.ind_1d;
-  bool daily_uptrend = ind_1d.ema21(-1) > ind_1d.ema50(-1);
-  bool price_above_daily_ema = ind_1d.price(-1) > ind_1d.ema21(-1);
+  // Higher timeframe confirmations for 1H entries
+  if (sig_1h.type == Rating::Entry) {
+    if (sig_4h.type == Rating::Entry || sig_4h.type == Rating::Watchlist) {
+      Confidence conf = (sig_4h.type == Rating::Entry) ? Confidence::High
+                                                       : Confidence::Medium;
+      res.emplace_back(
+          Trend::ModerateUptrend, conf, tagged("4h✓", GREEN),
+          std::format("4H timeframe confirms 1H entry: 4H shows {}",
+                      sig_4h.type == Rating::Entry ? "entry" : "watchlist"));
+    }
 
-  if (daily_uptrend && price_above_daily_ema)
+    if (sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist) {
+      Confidence conf = (sig_1d.type == Rating::Entry) ? Confidence::High
+                                                       : Confidence::Medium;
+      res.emplace_back(
+          Trend::StrongUptrend, conf, tagged("1d✓", GREEN),
+          std::format("Daily timeframe confirms 1H entry: 1D shows {}",
+                      sig_1d.type == Rating::Entry ? "entry" : "watchlist"));
+    }
+  }
+
+  // Conflicting timeframes (warning signals)
+  bool has_exits = (sig_4h.type == Rating::Exit || sig_1d.type == Rating::Exit);
+  bool has_caution =
+      (sig_4h.type == Rating::Caution || sig_1d.type == Rating::Caution ||
+       sig_4h.type == Rating::HoldCautiously ||
+       sig_1d.type == Rating::HoldCautiously);
+
+  if (sig_1h.type == Rating::Entry && has_exits) {
+    res.emplace_back(
+        Trend::Caution, Confidence::High, tagged("htf⚠", RED),
+        "Higher timeframe conflict: 1H entry but 4H/1D showing exits");
+  } else if (sig_1h.type == Rating::Entry && has_caution) {
+    res.emplace_back(
+        Trend::Caution, Confidence::Medium, tagged("htf⚠", YELLOW),
+        "Higher timeframe caution: 1H entry but 4H/1D showing caution/hold");
+  }
+
+  // === STRUCTURAL ALIGNMENT ===
+
+  // EMA structure alignment
+  bool daily_bull_structure = (ind_1d.ema21(-1) > ind_1d.ema50(-1) &&
+                               ind_1d.price(-1) > ind_1d.ema21(-1));
+  bool four_h_bull_structure = (ind_4h.ema21(-1) > ind_4h.ema50(-1) &&
+                                ind_4h.price(-1) > ind_4h.ema21(-1));
+  bool one_h_bull_structure = (ind_1h.ema9(-1) > ind_1h.ema21(-1) &&
+                               ind_1h.price(-1) > ind_1h.ema9(-1));
+
+  if (daily_bull_structure && four_h_bull_structure && one_h_bull_structure) {
+    res.emplace_back(
+        Trend::StrongUptrend, Confidence::High, tagged("ema⇈", BOLD, GREEN),
+        "Perfect EMA alignment: all timeframes in bullish EMA structure");
+  } else if (daily_bull_structure && four_h_bull_structure) {
     res.emplace_back(Trend::ModerateUptrend, Confidence::High,
-                     tagged("1d aligned", GREEN),
-                     "Daily trend alignment: EMA21 > EMA50, price above EMA21");
+                     tagged("htf ema↗", GREEN),
+                     "Higher timeframe EMA alignment: 4H and 1D both bullish");
+  } else if (daily_bull_structure) {
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium,
+                     tagged("1d ema↗", GREEN),
+                     "Daily EMA bullish: EMA21 > EMA50, price > EMA21");
+  }
+
+  // Price position relative to key levels
+  bool above_daily_21 = ind_1d.price(-1) > ind_1d.ema21(-1);
+  bool above_daily_50 = ind_1d.price(-1) > ind_1d.ema50(-1);
+  bool above_4h_21 = ind_4h.price(-1) > ind_4h.ema21(-1);
+
+  if (above_daily_50 && above_daily_21 && above_4h_21) {
+    res.emplace_back(Trend::ModerateUptrend, Confidence::High,
+                     tagged(">>ema", GREEN),
+                     "Above key EMAs: price above 1D EMA21/50 and 4H EMA21");
+  } else if (!above_daily_21 || !above_4h_21) {
+    res.emplace_back(Trend::Caution, Confidence::Medium, tagged("<<ema", RED),
+                     "Below key EMAs: price below important EMA levels");
+  }
+
+  // === MOMENTUM ALIGNMENT ===
+
+  // RSI alignment across timeframes
+  bool daily_rsi_bull = ind_1d.rsi(-1) > 50;
+  bool four_h_rsi_bull = ind_4h.rsi(-1) > 50;
+  bool one_h_rsi_bull = ind_1h.rsi(-1) > 50;
+
+  int bullish_rsi_count = daily_rsi_bull + four_h_rsi_bull + one_h_rsi_bull;
+
+  if (bullish_rsi_count == 3) {
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium,
+                     tagged("rsi↗", GREEN),
+                     "RSI momentum aligned: all timeframes above 50");
+  } else if (bullish_rsi_count == 0) {
+    res.emplace_back(Trend::Bearish, Confidence::Medium, tagged("rsi↘", RED),
+                     "RSI momentum bearish: all timeframes below 50");
+  }
+
+  // MACD momentum alignment
+  bool daily_macd_bull = ind_1d.hist(-1) > 0;
+  bool four_h_macd_bull = ind_4h.hist(-1) > 0;
+  bool one_h_macd_bull = ind_1h.hist(-1) > 0;
+
+  int bullish_macd_count = daily_macd_bull + four_h_macd_bull + one_h_macd_bull;
+
+  if (bullish_macd_count == 3) {
+    res.emplace_back(Trend::ModerateUptrend, Confidence::Medium,
+                     tagged("macd↗", GREEN),
+                     "MACD momentum aligned: all histograms above zero");
+  } else if (bullish_macd_count == 0) {
+    res.emplace_back(Trend::Bearish, Confidence::Medium, tagged("macd↘", RED),
+                     "MACD momentum bearish: all histograms below zero");
+  }
 
   return res;
 }

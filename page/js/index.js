@@ -80,3 +80,4 @@ document.querySelectorAll('.thing-abbr').forEach(div => {
     hoverDiv.style.display = 'none';
   });
 });
+

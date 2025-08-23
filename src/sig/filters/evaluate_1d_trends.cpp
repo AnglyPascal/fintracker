@@ -5,7 +5,7 @@
 
 inline auto& sig_config = config.sig_config;
 
-std::vector<Filter> evaluate_1d_trend(const Metrics& m) {
+std::vector<Filter> evaluate_1d_trends(const Metrics& m) {
   std::vector<Filter> res;
 
   auto& ind = m.ind_1d;

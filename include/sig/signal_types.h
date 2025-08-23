@@ -7,7 +7,7 @@
 #include <string>
 
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
-enum class Source { Price, Stop, EMA, RSI, MACD, Trend, SR, None };
+enum class Source { Price, Stop, EMA, RSI, MACD, SR, None };
 enum class SignalClass { None, Entry, Exit };
 enum class Confidence { Low, Medium, High };
 
@@ -70,22 +70,6 @@ enum class HintType {
   NearStrongSupport,
   NearWeakResistance,
   NearStrongResistance,
-
-  // Trends:
-
-  PriceUp,
-  PriceUpStrongly,
-  Ema21Up,
-  Ema21UpStrongly,
-  RsiUp,
-  RsiUpStrongly,
-
-  PriceDown,
-  PriceDownStrongly,
-  Ema21Down,
-  Ema21DownStrongly,
-  RsiDown,
-  RsiDownStrongly,
 };
 
 enum class StopHitType {
