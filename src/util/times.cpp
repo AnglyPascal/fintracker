@@ -31,6 +31,10 @@ LocalTimePoint datetime_to_local(std::string_view datetime,
   return floor<seconds>(ny_zt.get_local_time());
 }
 
+std::string datetime_to_string(LocalTimePoint tp) {
+  return std::format("{:%F %T}", tp);
+}
+
 LocalTimePoint now_ny_time() {
   zoned_time now_zt{ny_tz, system_clock::now()};
   return floor<seconds>(now_zt.get_local_time());

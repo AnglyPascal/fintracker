@@ -1,5 +1,6 @@
 #pragma once
 
+#include "util/symbols.h"
 #include "util/times.h"
 
 #include <string>
@@ -15,11 +16,17 @@ struct Event {
   bool is_dividend() const { return type == 'D'; }
 };
 
-std::vector<Event> get_events();
+using Events = std::unordered_map<std::string, std::vector<Event>>;
 
 struct Calendar {
-  std::unordered_map<std::string, std::vector<Event>> events;
+  Events events;
 
-  Calendar();
+  Calendar(const Symbols& symbols);
   Event next_event(std::string symbol) const;
+
+ private:
+  std::string filename = "private/calendar.json";
+
+  void fetch_events(const Symbols& symbols);
+  void take_backup() const;
 };

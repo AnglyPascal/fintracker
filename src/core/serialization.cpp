@@ -47,31 +47,18 @@ CandleStore read_candles(const std::string& filename) {
 }
 
 template <>
-struct glz::meta<Candle> {
-  using T = Candle;
+struct glz::meta<LocalTimePoint> {
+  using T = LocalTimePoint;
 
-  static constexpr auto read_x = [](T& candle, const std::string& str) {
-    candle.datetime = datetime_to_local(str);
+  static constexpr auto write = [](const T& time_point) {
+    return std::format("{:%F %T}", time_point);
   };
 
-  static constexpr auto write_x = [](auto& candle) -> auto& {
-    return std::format("{:%F %T}", candle.datetime);
+  static constexpr auto read = [](T& t, const std::string& str) {
+    t = datetime_to_local(str);
   };
 
-  static constexpr auto value = object(  //
-      "datetime",
-      custom<read_x, write_x>,
-      "open",
-      &T::open,
-      "high",
-      &T::high,
-      "low",
-      &T::low,
-      "close",
-      &T::close,
-      "volume",
-      &T::volume  //
-  );
+  static constexpr auto value = custom<read, write>;
 };
 
 struct APIRes {

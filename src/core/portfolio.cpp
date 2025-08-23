@@ -21,7 +21,7 @@ Portfolio::Portfolio() noexcept
 
       // components
       positions{},
-      calendar{},
+      calendar{symbols},
 
       // timing
       update_interval{td.interval},
