@@ -77,9 +77,9 @@ inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
   constexpr std::string_view stats_row_templ = R"(
         <tr>
           <td>
-            <div class="eventful">
+            <div class="flex-between">
               <div class="{}_signal">{}</div>
-              <div class="eventful"> 
+              <div class="flex-between"> 
                 <div class="stats_imp"><b>{}</b></div>
                 <div><b>{}</b></div>
               </div>
@@ -95,9 +95,9 @@ inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
   const std::string header = R"(
         <tr class="stats_table_hd">
           <th>
-            <div class="eventful">
+            <div class="flex-between">
               <div>sig</div>
-              <div class="eventful"> 
+              <div class="flex-between"> 
                 <div class="stats_imp">imp</div>
                 <div>wr</div>
               </div>

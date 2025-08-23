@@ -1,0 +1,410 @@
+/* ======================
+   CSS VARIABLES & THEME
+   ====================== */
+:root {
+  /* Typography & Spacing */
+  --font-family: "Share Tech Mono";
+  --font-size: 18px;
+  --padding-cell: 0.25em 0.4em;
+  --padding-mobile: 0.2em 0.3em;
+  --row-gap: 0.4em;
+
+  /* Color Palette */
+  --color-bg: #17171c;
+  --color-alt-bg: #23232a;
+  --color-fg: #eceff4;
+  --color-border: #4c566a;
+  --color-header: #353b49;
+  --color-hover: #434c5e;
+  --color-link: #8fbcbb;
+
+  /* Semantic Colors */
+  --color-green: #a3be8c;
+  --color-red: #bf616a;
+  --color-blue: #88c0d0;
+  --color-yellow: #ebcb8b;
+  --color-black: #202027;
+  --color-gray: #4c566a;
+  --color-snow: #d8dee9;
+  --color-white: #eceff4;
+
+  /* Pastel Nord additions */
+  --color-frost-1: #cfeeea;
+  --color-frost-2: #cfe7f2;
+  --color-periwinkle: #cfd9ee;
+  --color-lilac: #e2d7ea;
+  --color-rose: #f2c6c8;
+  --color-peach: #f5d9bf;
+  --color-mint: #dff3d9;
+  --color-slate: #c6ccd6;
+  --color-ivory: #f3f6f8;
+  --color-beige: #efe2c9;
+
+  --color-dark-green: #5e6b55;
+  --color-dark-red: #7a3d45;
+  --color-dark-yellow: #a98247;
+  --color-dark-blue: #4d6b74;
+  --color-dark-purple: #5d4f66;
+  --color-dark-orange: #8a5a42;
+  --color-dark-cyan: #3f6062;
+  --color-dark-bg: #1a1d23;
+  --color-darker-bg: #111217;
+
+  /* Trading Colors */
+  --color-buy: var(--color-green);
+  --color-sell: var(--color-red);
+
+  /* Signal Colors */
+  --color-signal-entry-bg: var(--color-green);
+  --color-signal-exit-bg: var(--color-red);
+  --color-signal-watchlist-bg: var(--color-blue);
+  --color-signal-caution-bg: var(--color-yellow);
+  --color-signal-none-bg: var(--color-black);
+  --color-signal-mixed-bg: var(--color-snow);
+}
+
+/* ======================
+   BASE STYLES
+   ====================== */
+body {
+  font-family: var(--font-family), monospace;
+  font-size: var(--font-size);
+  margin: 0.5em;
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+/* ======================
+   TABLE SYSTEM
+   ====================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid var(--color-border);
+  padding: var(--padding-cell);
+  text-align: left;
+  overflow: hidden;
+  word-break: break-word;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+th {
+  background-color: var(--color-fg);
+  color: var(--color-bg);
+  user-select: none;
+}
+
+.table-header-dark th {
+  background-color: var(--color-header);
+  color: var(--color-fg);
+}
+
+.table-alt-header th {
+  background-color: var(--color-black);
+  color: var(--color-fg);
+}
+
+/* ======================
+   BUTTON SYSTEM
+   ====================== */
+.btn {
+  padding: 4px 8px;
+  border: 2px solid var(--color-border);
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: opacity 0.2s;
+}
+
+.btn:hover {
+  opacity: 0.6;
+}
+
+.btn-active {
+  background-color: var(--color-fg);
+  color: var(--color-bg);
+  border-color: var(--color-fg);
+}
+
+.btn-primary {
+  background-color: var(--color-fg);
+  color: var(--color-bg);
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-blue);
+}
+
+.btn-group {
+  display: flex;
+  gap: 0.3em;
+  margin-bottom: 20px;
+}
+
+/* ======================
+   SIGNAL SYSTEM
+   ====================== */
+.signal-entry {
+  background-color: var(--color-signal-entry-bg);
+}
+
+.signal-exit {
+  background-color: var(--color-signal-exit-bg);
+}
+
+.signal-watchlist {
+  background-color: var(--color-signal-watchlist-bg);
+}
+
+.signal-caution,
+.signal-holdcautiously {
+  background-color: var(--color-signal-caution-bg);
+}
+
+.signal-none {
+  background-color: var(--color-signal-none-bg);
+}
+
+.signal-mixed {
+  background-color: var(--color-signal-mixed-bg);
+}
+
+/* Force dark text on colored signal backgrounds */
+.signal-entry,
+.signal-exit,
+.signal-watchlist,
+.signal-caution,
+.signal-holdcautiously,
+.signal-mixed {
+  color: #000 !important;
+}
+
+.signal-entry a,
+.signal-exit a,
+.signal-watchlist a,
+.signal-caution a,
+.signal-holdcautiously a,
+.signal-mixed a,
+.signal-skip a,
+.signal-none a {
+  color: inherit !important;
+  text-decoration: none;
+}
+
+/* Signal components */
+.signal-div {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px;
+  align-items: center;
+}
+
+.signal-score {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+}
+
+.signal-time {
+  font-size: 90%;
+  opacity: 60%;
+}
+
+/* ======================
+   LAYOUT COMPONENTS
+   ====================== */
+.page-header {
+  display: grid;
+  margin-top: 1em;
+}
+
+.page-title {
+  font-size: 200%;
+  font-weight: bold;
+  margin-bottom: 1em;
+}
+
+.page-title-large {
+  font-size: 27px;
+  font-weight: bold;
+  margin-right: 1em;
+  margin-left: 1em;
+}
+
+.subtitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  margin-bottom: 1em;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+}
+
+.update-block {
+  font-family: inherit;
+  padding: 5px;
+  border: 2px solid var(--color-border);
+  border-radius: 3px;
+}
+
+.update-block a {
+  text-decoration: underline;
+  color: var(--color-link);
+}
+
+/* ======================
+   TRADING COLORS
+   ====================== */
+.buy,
+.buy-cell {
+  color: var(--color-buy) !important;
+}
+
+.sell,
+.sell-cell {
+  color: var(--color-sell) !important;
+}
+
+.buy-cell {
+  color: var(--color-buy);
+  font-weight: bold;
+}
+
+.sell-cell {
+  color: var(--color-sell);
+  font-weight: bold;
+}
+
+/* ======================
+   UTILITY CLASSES
+   ====================== */
+.text-center {
+  text-align: center;
+}
+
+.vertical-align-middle {
+  vertical-align: middle;
+}
+
+.vertical-align-top {
+  vertical-align: top;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.user-select-none {
+  user-select: none;
+}
+
+.word-break {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.hidden {
+  display: none;
+}
+
+.margin-top-1 {
+  margin-top: 1em;
+}
+
+.margin-bottom-1 {
+  margin-bottom: 1em;
+}
+
+.padding-5 {
+  padding: 5px;
+}
+
+.border-right-thick {
+  border-right: 3px solid var(--color-border);
+}
+
+.border-bottom-thick {
+  border-bottom: 3px solid var(--color-border);
+}
+
+/* ======================
+   TOOLTIP SYSTEM
+   ====================== */
+.tooltip,
+.thing-abbr {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.tooltip-content,
+.thing-desc {
+  display: none;
+  position: fixed;
+  font-size: 100%;
+
+  border: 1px solid var(--color-fg);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  opacity: 0.9;
+
+  max-width: 500px;
+  padding: 10px;
+  border-radius: 6px;
+
+  z-index: 9999;
+}
+
+.tooltip:hover,
+.thing-abbr:hover {
+  text-decoration: solid underline 2px;
+}
+
+.tooltip:hover .tooltip-content,
+.thing-abbr:hover .thing-desc {
+  display: block;
+}
+
+/* ======================
+   MOBILE RESPONSIVE
+   ====================== */
+@media (max-width: 768px) {
+  body {
+    font-size: 110%;
+    margin: 0.3em;
+  }
+
+  th,
+  td {
+    padding: var(--padding-mobile);
+  }
+
+  .btn {
+    font-size: 12px;
+    padding: 3px 6px;
+  }
+
+  .page-title {
+    font-size: 150%;
+  }
+
+  .page-title-large {
+    font-size: 24px;
+  }
+}

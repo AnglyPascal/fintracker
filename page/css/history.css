@@ -1,64 +1,14 @@
-:root {
-  /* Typography & Spacing */
-  --font-size: 18px;
-  --padding-cell: 0.25em 0.4em;
-  --padding-mobile: 0.2em 0.3em;
-  --row-gap: 0.4em;
+@import url('./common.css');
 
-  /* Color Palette */
-  --color-bg: #17171c;
-  --color-alt-bg: #23232a;
-  --color-fg: #eceff4;
-  --color-border: #4c566a;
-  --color-header: #353b49;
-  --color-hover: #434c5e;
-  --color-link: #8fbcbb;
+/* ======================
+   HISTORY-SPECIFIC STYLES
+   ====================== */
 
-  /* Trading Colors */
-  --color-buy: #cadabd;
-  --color-sell: #d5979d;
-
-  --color-green: #a3be8c;
-  --color-red: #bf616a;
-  --color-blue: #88c0d0;
-  --color-yellow: #ebcb8b;
-  --color-black: #202027;
-  --color-gray: #4c566a;
-  --color-snow: #d8dee9;
-  --color-white: #eceff4;
-
-  /* Signal Colors */
-  --color-signal-entry-bg: #a3be8c;
-  --color-signal-exit-bg: #bf616a;
-  --color-signal-watchlist-bg: #88c0d0;
-  --color-signal-oldwatchlist-bg: #2a333a;
-  --color-signal-caution-bg: #ebcb8b;
-  --color-signal-none-bg: #202027;
-  --color-signal-mixed-bg: #d8dee9;
-}
-
-body {
-  font-family: "Share Tech Mono", monospace;
-  font-size: var(--font-size);
-  margin: 0.5em;
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
 td {
-  border: 1px solid var(--color-border);
-  padding: var(--padding-cell);
-  text-align: left;
-  overflow: hidden;
-  word-break: break-word;
+  font-size: 18px !important;
 }
 
+/* Table styling */
 .history-header {
   border-bottom: 3px solid var(--color-border) !important;
 }
@@ -70,155 +20,77 @@ td {
 
 .history-th {
   padding: 8px !important;
-  width: 28%;
+  width: 26%;
 }
 
 .history-th-time {
   padding: 8px !important;
-  width: 16%;
+  background-color: inherit;
+  width: 22%;
 }
 
-div.signal-type {
-  display: flex;
-  justify-content: space-between;
-  padding: 5px;
-  vertical-align: top;
-}
-
-div.signal-div {
-  display: flex !important;
-  justify-content: space-between;
-  padding: 5px;
-  align-items: center;
-}
-
-.signal-table div.signal-time {
-  display: block !important;
-}
-
-div.signal-score {
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-}
-
-tr.info-row div.signal-score-details {
-  display: none !important;
-}
-
-div.signal-score-details {
-  font-size: 90%;
-  padding-right: 8px;
-  opacity: 60%;
-}
-
-div.signal-time {
-  font-size: 90%;
-  opacity: 60%;
-}
-
-td.signal-td {
-  padding: 5px;
-  vertical-align: top;
-}
-
-td.history-tr-time {
+.history-tr-time {
   text-align: center;
   vertical-align: middle;
 }
 
-
-.signal-entry {
-  background-color: var(--color-signal-entry-bg);
+.history-td {
+  padding: 5px;
 }
 
-.signal-exit {
-  background-color: var(--color-signal-exit-bg);
-}
-
-.signal-watchlist {
-  background-color: var(--color-signal-watchlist-bg);
-}
-
-.signal-caution,
-.signal-holdcautiously {
-  background-color: var(--color-signal-caution-bg);
-}
-
-.signal-none {
-  background-color: var(--color-signal-none-bg);
-}
-
-.signal-mixed {
-  background-color: var(--color-signal-mixed-bg);
-}
-
-.signal-entry,
-.signal-exit,
-.signal-watchlist,
-.signal-caution,
-.signal-holdcautiously,
-.signal-mixed {
-  color: #000 !important;
-}
-
-.symbol {
-  width: 4em;
-  text-align: left;
-  padding: 4px;
-  margin: 8px;
-  cursor: pointer;
-}
-
-.highlighted {
-  margin: 6px;
-
-  border: 2px solid var(--color-border);
-  border-radius: 4px;
-
-  cursor: pointer;
-}
-
-.ticker-list {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-
-.symbol-forecast {
-  padding: 10px;
-}
-
-.signal {
-  display: flex !important;
-  justify-content: space-between;
-  padding: 6px;
-  margin-bottom: 6px;
+/* Signal components - override common styles for history */
+.signal-table .signal-time {
+  display: block !important;
 }
 
 .signal-time {
   display: none !important;
 }
 
-.subtitle {
+/* Symbol list styling */
+.ticker-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 1em;
-  margin-bottom: 1em;
 }
 
-.signal-list ul {
-  padding-left: 1.5em;
+.symbol-entry {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
 }
 
-.signal-list ul ul {
-  padding-left: 2.5em;
+.symbol {
+  font-size: inherit !important;
 }
 
-.signal-list>ul>li {
-  margin-bottom: 0.5em;
+.symbol-details {
+  display: none;
+  position: fixed;
+
+  border: 1px solid var(--color-fg);
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+
+  padding: 10px;
+  min-width: 400px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+  z-index: 9999;
 }
 
+.symbol-entry:hover .symbol-details {
+  display: block;
+}
+
+.symbol-entry:hover .symbol {
+  text-decoration: solid underline 2px;
+}
+
+.symbol-forecast {
+  padding: 10px;
+}
+
+/* Button styling */
 button.symbol {
   padding: 4px 8px;
   margin-right: 10px;
@@ -231,6 +103,7 @@ button.symbol {
   font-family: inherit !important;
 }
 
+/* Signal-specific button states */
 .history-entry button.symbol.active {
   background-color: var(--color-signal-entry-bg) !important;
 }
@@ -275,6 +148,7 @@ button:hover {
   z-index: 2;
 }
 
+/* Layout */
 #title_text {
   font-size: 27px;
   font-weight: bold;
@@ -301,63 +175,4 @@ button:hover {
 #content-4h,
 #content-1d {
   margin: 2em;
-}
-
-.symbol-entry {
-  position: relative;
-  /* So the absolute-positioned content is scoped here */
-  display: inline-block;
-  cursor: pointer;
-}
-
-.symbol-details {
-  display: none;
-  position: fixed;
-
-  top: 100%;
-  left: 0;
-
-  border: 1px solid var(--color-fg);
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-
-  padding: 10px;
-  min-width: 400px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-
-  z-index: 9999;
-}
-
-.symbol-entry:hover .symbol-details {
-  display: block;
-  /* Show on hover */
-}
-
-.thing-abbr {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-}
-
-.thing-abbr:hover .thing-desc {
-  display: block;
-}
-
-.thing-desc {
-  display: none;
-  position: fixed;
-
-  top: 100%;
-  left: 0;
-
-  border: 1px solid var(--color-fg);
-  background: var(--color-bg);
-  color: var(--color-fg);
-
-  max-width: 300px;
-  padding: 10px;
-  border-radius: 6px;
-
-  z-index: 9999;
-  font-size: 100%;
 }

@@ -33,6 +33,7 @@ struct Forecast {
 
   Forecast() = default;
   Forecast(minutes timeframe, const Signal& sig, const Stats& stats);
+  bool empty() const { return exp_pnl == 0.0; }
 };
 
 struct Signal {

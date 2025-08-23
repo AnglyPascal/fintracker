@@ -27,6 +27,37 @@ inline constexpr signal_f reason_funcs[] = {
     broke_support_exit,
 };
 
+// Check for conflicting hints and apply penalties
+inline void check_conflicts(std::vector<Reason>& reasons) {
+  // Find conflicting pairs
+  bool has_ema_bull = false, has_ema_bear = false;
+  bool has_macd_bull = false, has_macd_bear = false;
+  // bool has_macd_rise = false, has_macd_peak = false;
+
+  for (auto& r : reasons) {
+    if (r.type == ReasonType::EmaCrossover)
+      has_ema_bull = true;
+    if (r.type == ReasonType::EmaCrossdown)
+      has_ema_bear = true;
+    if (r.type == ReasonType::MacdBullishCross)
+      has_macd_bull = true;
+    if (r.type == ReasonType::MacdBearishCross)
+      has_macd_bear = true;
+  }
+
+  double penalty = 0.7;
+  for (auto& r : reasons) {
+    if (r.type == ReasonType::EmaCrossover && has_ema_bear)
+      r.score *= penalty;
+    if (r.type == ReasonType::EmaCrossdown && has_ema_bull)
+      r.score *= penalty;
+    if (r.type == ReasonType::MacdBullishCross && has_macd_bear)
+      r.score *= penalty;
+    if (r.type == ReasonType::MacdBearishCross && has_macd_bull)
+      r.score *= penalty;
+  }
+}
+
 std::vector<Reason> reasons(const IndicatorsTrends& ind, int idx) {
   std::vector<Reason> res;
   for (auto f : reason_funcs) {
@@ -35,6 +66,7 @@ std::vector<Reason> reasons(const IndicatorsTrends& ind, int idx) {
       res.push_back(reason);
     }
   }
+  check_conflicts(res);
   return res;
 }
 

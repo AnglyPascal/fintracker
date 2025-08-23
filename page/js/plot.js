@@ -865,6 +865,8 @@ async function plotChart(symbol) {
 }
 
 export async function loadContent(timeframe) {
+  console.log(timeframe);
+
   try {
     const html_fname = `${ticker}_${timeframe}.html`;
     const html_res = await fetch(`./${html_fname}`);

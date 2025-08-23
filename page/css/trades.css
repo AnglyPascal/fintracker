@@ -1,73 +1,46 @@
-:root {
-  --font-size: 18px;
-  --padding-cell: 0.25em 0.4em;
-  --padding-mobile: 0.2em 0.3em;
-  --row-gap: 0.4em;
+@import url('./common.css');
 
-  --color-bg: #17171c;
-  --color-fg: #eceff4;
-  --color-border: #3b4252;
-  --color-header: #2e3440;
-  --color-hover: #434c5e;
+/* ======================
+   TRADES-SPECIFIC STYLES
+   ====================== */
 
-  --color-buy: #cadabd;
-  --color-sell: #d5979d;
-
-  --color-black: #2e3440;
-  --color-white: #eceff4;
-  --color-green: #a3be8c;
-  --color-red: #bf616a;
-  --color-yellow: #ebcb8b;
-  --color-blue: #8fbcbb;
-
-  --color-link: #8fbcbb;
-}
-
-body {
-  font-family: "Share Tech Mono", monospace;
-  font-size: var(--font-size);
-  margin: 0.5em;
-  background-color: var(--color-bg);
-  color: var(--color-fg);
+/* Header styling */
+#title-div {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2em;
 }
 
 #title {
-  font-size: 200%; 
+  font-size: 200%;
   font-weight: bold;
   margin-right: 1em;
 }
 
 #reload-btn {
+  background: var(--color-fg);
+  color: var(--color-bg);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
   font-size: 110%;
-  font-family: inherit;
   padding: 6px;
+  font-family: inherit;
 }
 
-#title-div {
-  display: flex;
-  margin-bottom: 2em;
-  vertical-align: middle;
+#reload-btn:hover {
+  background: var(--color-blue);
 }
 
+/* Use alternative table header */
 table {
-  width: 100%;
-  border-collapse: collapse;
   margin-top: 2em;
 }
 
-th, td {
-  border: 1px solid var(--color-border);
-  padding: var(--padding-cell);
-  text-align: left;
-  overflow: hidden;
-  word-break: break-word;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-th {
-  background-color: var(--color-header);
+table th {
+  background-color: var(--color-black);
+  color: var(--color-fg);
   cursor: pointer;
-  user-select: none;
 }
 
 th .col-header {
@@ -76,26 +49,28 @@ th .col-header {
   align-items: center;
 }
 
-.filters { 
-  display: flex; 
-  gap: 40px; margin-bottom: 20px; 
+/* Filter system */
+.filters {
+  display: flex;
+  gap: 40px;
+  margin-bottom: 20px;
   width: 80%;
 }
 
-.tickers-fitler { 
-  display: flex; 
-  flex-direction: column; 
+.tickers-filter {
+  display: flex;
+  flex-direction: column;
   margin-bottom: 1em;
   width: 70%;
 }
 
-.date-filter { 
-  display: flex !important; 
-  flex-direction: column; 
+.date-filter {
+  display: flex !important;
+  flex-direction: column;
   margin-bottom: 1em;
 }
 
-#from-date, 
+#from-date,
 #to-date {
   font-size: inherit;
   padding: 5px;
@@ -104,7 +79,6 @@ th .col-header {
   background: var(--color-fg);
   border: none;
 }
-
 
 button {
   background: var(--color-fg);
@@ -118,23 +92,25 @@ button:hover {
   background: var(--color-blue);
 }
 
+/* Toggle button */
 #toggle-btn {
   padding: 5px;
   font-size: 90%;
   font-family: inherit;
 }
 
+/* Checkbox system */
 .checkbox-group {
   display: flex;
   flex-direction: row;
   margin-top: 1em;
-  flex-wrap: wrap; 
+  flex-wrap: wrap;
   width: 100%;
 }
 
 .checkbox-row {
   display: flex;
-  flex-direction: column; 
+  flex-direction: column;
   gap: 10px;
   margin-right: 10px;
 }
@@ -194,19 +170,11 @@ button:hover {
   transform: rotate(45deg);
 }
 
-.buy-cell {
-  color: var(--color-buy); 
-}
-
-.sell-cell {
-  color: var(--color-sell); 
-}
-
+/* Table cell styling */
 .remark-cell {
   width: 40%;
   padding: 3px;
 }
-
 
 textarea.remark-input {
   width: 100%;
@@ -237,7 +205,7 @@ textarea.remark-input {
 }
 
 .rating-number.selected {
-  color: var(--color-yellow); 
+  color: var(--color-yellow);
   font-weight: bold;
 }
 
@@ -257,10 +225,10 @@ textarea.remark-input {
   border-color: var(--color-blue);
 }
 
+/* Mobile responsive overrides */
 @media (max-width: 768px) {
   body {
     font-size: 14px;
-    margin: 0.3em;
   }
 
   .filters {
@@ -273,7 +241,8 @@ textarea.remark-input {
     margin-bottom: 1em;
   }
 
-  input[type="date"], button {
+  input[type="date"],
+  button {
     font-size: 14px;
     padding: 4px 6px;
   }
@@ -292,9 +261,9 @@ textarea.remark-input {
     font-size: 14px;
   }
 
-  th, td {
+  th,
+  td {
     font-size: 11px;
-    padding: var(--padding-mobile);
   }
 
   table {

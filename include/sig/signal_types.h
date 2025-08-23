@@ -25,7 +25,6 @@ enum class Rating {
   Watchlist,       // Not a trade yet, but worth tracking
   Mixed,           // Conflicting signals
   None,            // No action
-  OldWatchlist,    // Not a trade yet, but worth tracking
   Caution,         // Not a trade yet, but worth being cautious
   Skip,
 };

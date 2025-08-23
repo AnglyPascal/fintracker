@@ -41,8 +41,6 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
       return "signal-exit";
     case Rating::Watchlist:
       return "signal-watchlist";
-    case Rating::OldWatchlist:
-      return "signal-oldwatchlist";
     case Rating::Caution:
       return "signal-caution";
     case Rating::HoldCautiously:
@@ -59,7 +57,7 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
 inline constexpr std::string_view score_div_template = R"(
   <div class="thing-abbr">
     {}
-    <div class="signal-score-details thing-desc">
+    <div class="thing-desc">
       [{}, {}]
     </div>
   </div> 
@@ -233,24 +231,6 @@ std::string to_str<FormatTarget::HTML>(const Forecast& f) {
                      colored("blue", f.conf));
 }
 
-template <>
-std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
-  std::string interesting;
-  auto add = [&interesting, src](auto& iter) {
-    for (auto& a : iter) {
-      if (a.source() != src)
-        continue;
-      if (a.severity() >= Severity::High) {
-        interesting += " " + to_str<FormatTarget::HTML>(a);
-      }
-    }
-  };
-
-  add(s.reasons);
-  add(s.hints);
-
-  return interesting;
-}
 
 template <>
 std::string to_str(const Event& ev) {

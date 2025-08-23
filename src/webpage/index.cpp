@@ -47,7 +47,7 @@ inline constexpr std::string_view index_row_template = R"(
       onclick="toggleSignalDetails(this, '{0}-details') ">
     <td data-label="Signal">{3}</td>
     <td data-label="Symbol">
-      <div class="eventful">
+      <div class="flex-between">
         <a href="{0}.html" target="_blank">{4}</a>{5}
       </div>
     </td>
@@ -161,6 +161,25 @@ inline std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
 inline constexpr std::string_view rational_template = R"(
   <td colspan="4" class="rationale"><div class="rationale">{}</div></td> 
 )";
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Signal& s, const Source& src) {
+  std::string interesting;
+  auto add = [&interesting, src](auto& iter) {
+    for (auto& a : iter) {
+      if (a.source() != src)
+        continue;
+      if (a.severity() >= Severity::High && a.score >= 0.75) {
+        interesting += " " + to_str<FormatTarget::HTML>(a);
+      }
+    }
+  };
+
+  add(s.reasons);
+  add(s.hints);
+
+  return interesting;
+}
 
 template <>
 inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {

@@ -51,7 +51,7 @@ constexpr std::string_view history_tbl_template = R"(
 
 constexpr std::string_view history_tr_template = R"(
 <tr class="history-tr">
-  <td class="history-tr-time">{}</td>
+  <td class="history-tr-time">{:%a, %b %d, %H:%M}</td>
   <td class="history-td history-entry">{}</td>
   <td class="history-td history-watchlist">{}</td>
   <td class="history-td history-caution">{}</td>
@@ -73,7 +73,6 @@ constexpr std::string_view history_ticker_template = R"(
       </button>
       <div class="symbol-details">
         {1}
-        <div class="symbol-forecast"> {2} </div>
       </div>
     </div>
 )";
@@ -94,8 +93,7 @@ table_row(const Tickers& tickers, const minutes& interval, const int& idx) {
     auto& ind = m.get_indicators(interval);
     auto sig = ind.get_signal(idx);
     auto str = std::format(history_ticker_template, symbol,
-                           to_str<FormatTarget::HTML>(sig, ind),
-                           to_str<FormatTarget::HTML>(sig.forecast));
+                           to_str<FormatTarget::HTML>(sig, ind));
 
     symbols.insert(symbol);
 

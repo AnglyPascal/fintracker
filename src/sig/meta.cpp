@@ -19,7 +19,7 @@ inline const std::unordered_map<ReasonType, Meta> reason_meta = {
     },
     {
         ReasonType::PullbackBounce,                                      //
-        {Severity::Urgent, Source::Price, SignalClass::Entry, "bounce"}  //
+        {Severity::Urgent, Source::Price, SignalClass::Entry, "b"}  //
     },
     {
         ReasonType::MacdBullishCross,                                  //
@@ -95,7 +95,7 @@ inline const std::unordered_map<HintType, Meta> hint_meta = {
     },
     {
         HintType::Pullback,                                                //
-        {Severity::Medium, Source::Price, SignalClass::Entry, "pullback"}  //
+        {Severity::Medium, Source::Price, SignalClass::Entry, "pb"}  //
     },
 
     {

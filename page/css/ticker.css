@@ -1,64 +1,21 @@
+@import url('./common.css');
+
+/* ======================
+   TICKER-SPECIFIC OVERRIDES
+   ====================== */
+
+/* Reduce base font size for ticker pages */
 :root {
   --font-size: 16px;
-  --padding-cell: 0.25em 0.4em;
-  --padding-mobile: 0.2em 0.3em;
-  --row-gap: 0.4em;
-
-  --color-bg: #17171c;
-  --color-alt-bg: #23232a;
-  --color-fg: #eceff4;
-  --color-border: #4c566a;
-  --color-header: #3b4252;
-  --color-hover: #434c5e;
-
-  --color-buy: #cadabd;
-  --color-sell: #d5979d;
-
-  --color-signal-entry-bg: #a3be8c;
-  --color-signal-exit-bg: #bf616a;
-  --color-signal-watchlist-bg: #88c0d0;
-  --color-signal-caution-bg: #ebcb8b;
-  --color-signal-mixed-bg: #d8dee9;
-  --color-signal-none-bg: #202027;
-
-  --color-green: #a3be8c;
-  --color-red: #bf616a;
-  --color-blue: #88c0d0;
-  --color-yellow: #ebcb8b;
-  --color-black: #2e3440;
-  --color-white: #eceff4;
-
-  --color-link: #8fbcbb;
 }
 
-body {
-  font-family: "Share Tech Mono", monospace;
-  font-size: var(--font-size);
-  margin: 0.5em;
-  background-color: var(--color-bg);
+/* Use dark table headers */
+table th {
+  background-color: var(--color-header);
   color: var(--color-fg);
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  border: 1px solid var(--color-border);
-  padding: var(--padding-cell);
-  text-align: left;
-  overflow: hidden;
-  word-break: break-word;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-th {
-  background-color: var(--color-header);
-  user-select: none;
-}
-
+/* Ticker-specific components */
 .stats-tbl {
   margin-top: 1.7em;
 }
@@ -72,89 +29,12 @@ td.curr-signal {
   padding: 8px !important;
 }
 
-div.signal-div {
-  display: flex !important;
-  justify-content: space-between;
-  padding: 5px;
-  align-items: center;
-}
-
 td.signal-td {
   padding: 5px;
   vertical-align: top;
 }
 
-div.signal-score {
-  display: flex;
-  align-items: center;
-}
-
-div.signal-score-details {
-  font-size: 90%;
-  padding-left: 8px;
-  opacity: 60%;
-}
-
-div.signal-time {
-  font-size: 90%;
-  opacity: 60%;
-}
-
-div.signal-entry {
-  background-color: var(--color-signal-entry-bg);
-}
-
-div.signal-exit {
-  background-color: var(--color-signal-exit-bg);
-}
-
-div.signal-watchlist {
-  background-color: var(--color-signal-watchlist-bg);
-}
-
-div.signal-caution,
-div.signal-holdcautiously {
-  background-color: var(--color-signal-caution-bg);
-}
-
-div.signal-none {
-  background-color: var(--color-signal-none-bg);
-}
-
-div.signal-mixed {
-  background-color: var(--color-signal-mixed-bg);
-}
-
-div.signal-entry,
-div.signal-exit,
-div.signal-watchlist,
-div.signal-caution,
-div.signal-holdcautiously,
-div.signal-mixed {
-  color: #000 !important;
-}
-
-div.eventful {
-  display: flex;
-  justify-content: space-between;
-}
-
-div.entry_signal {
-  color: var(--color-green);
-}
-
-div.exit_signal {
-  color: var(--color-red);
-}
-
-div.stats_imp {
-  margin-right: 10px;
-}
-
-div.px-sl-pt {
-  display: flex;
-}
-
+/* Stats table styling */
 table.stats_table {
   margin-top: 1em;
 }
@@ -163,62 +43,20 @@ table.stats_table td {
   border: 0.1px solid var(--color-black);
 }
 
-td .inner-div {
-  max-width: 100%;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
+/* Specialized color classes */
+.entry_signal {
+  color: var(--color-green);
 }
 
-.subtitle {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1em;
-  margin-bottom: 1em;
+.exit_signal {
+  color: var(--color-red);
 }
 
-.signal-list ul {
-  padding-left: 1.5em;
-}
-
-.signal-list ul ul {
-  padding-left: 2.5em;
-}
-
-.signal-list>ul>li {
-  margin-bottom: 0.5em;
-}
-
-.plotly-container {
-  margin-top: 2em;
-  margin-bottom: 2em;
-  max-width: none;
-}
-
-button {
-  padding: 4px 8px;
+.stats_imp {
   margin-right: 10px;
-  border: 2px solid var(--color-border);
-  background-color: var(--color-bg);
-  color: var(--color-fg);
-  cursor: pointer;
-  border-radius: 4px;
-  font-size: 14px;
 }
 
-button.active {
-  background-color: var(--color-fg);
-  color: var(--color-bg);
-}
-
-button:hover {
-  opacity: 0.6;
-}
-
-.button-container {
-  margin-bottom: 20px;
-  z-index: 2;
-}
-
+/* Layout components */
 #title_text {
   font-size: 27px;
   font-weight: bold;
@@ -227,9 +65,13 @@ button:hover {
 }
 
 #title {
-  display: flex !important;
-  vertical-align: middle;
+  display: flex;
+  align-items: bottom;
   margin-top: 1em;
+}
+
+.button-container {
+  z-index: 2; 
 }
 
 #body {
@@ -254,34 +96,34 @@ button:hover {
   margin: 2em;
 }
 
-/* ======================
-   ANYTHING DETAILS
-   ====================== */
-
-.thing-abbr {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
+/* Chart styling */
+.plotly-container {
+  margin-top: 2em;
+  margin-bottom: 2em;
+  max-width: none;
 }
 
-.thing-abbr:hover .thing-desc {
-  display: block;
-}
-
-.thing-desc {
-  display: none;
-  position: fixed;
-
-  border: 1px solid var(--color-fg);
-  background: var(--color-bg);
+/* Filter buttons */
+button {
+  font-family: var(--font-family), monospace;
+  margin-right: 0.3em;
+  padding: 0.3em 0.6em;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-bg);
   color: var(--color-fg);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: inherit;
+}
 
-  max-width: 500px;
-  padding: 10px;
-  border-radius: 6px;
+button:hover {
+  background-color: var(--color-bg);
+}
 
-  z-index: 9999;
-  font-size: 100%;
-
-  pointer-events: none;
+button.active {
+  background-color: var(--color-fg);
+  color: var(--color-bg);
+  border-color: var(--color-fg);
+  margin-bottom: 1em;
 }

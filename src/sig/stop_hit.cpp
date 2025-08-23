@@ -1,9 +1,7 @@
 #include "ind/indicators.h"
-#include "sig/signals.h"
 #include "ind/stop_loss.h"
+#include "sig/signals.h"
 #include "util/config.h"
-
-inline auto& sig_config = config.sig_config;
 
 // Stop Loss tests
 StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
@@ -13,7 +11,7 @@ StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
   auto days_held =
       std::chrono::floor<days>(std::chrono::floor<days>(now_ny_time()) -
                                std::chrono::floor<days>(m.position->tp));
-  if (days_held.count() > sig_config.stop_max_holding_days)
+  if (days_held.count() > config.sizing_config.max_hold_days)
     return StopHitType::TimeExit;
 
   auto price = m.last_price();
@@ -22,7 +20,8 @@ StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
 
   auto dist = price - stop_loss.final_stop;
 
-  if (dist > 0 && dist < m.ind_1h.atr(-1) * sig_config.stop_atr_proximity)
+  if (dist > 0 &&
+      dist < m.ind_1h.atr(-1) * config.sig_config.stop_atr_proximity)
     return StopHitType::StopProximity;
 
   // FIXME what's this?

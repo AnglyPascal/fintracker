@@ -52,10 +52,10 @@ inline Rating gen_rating(double entry_w,
     return Rating::Caution;
 
   // 5. Entry bias
-  if (entry_w >= sig_config.entry_min)
+  if (entry_w >= sig_config.watchlist_threshold)
     return Rating::Watchlist;
 
-  if (exit_w >= sig_config.exit_min)
+  if (exit_w >= sig_config.watchlist_threshold)
     return Rating::Caution;
 
   // // 6. Fallbacks
@@ -84,11 +84,7 @@ inline Rating gen_rating(double entry_w,
 inline Score gen_score(double entry_w, double exit_w) {
   auto weight = sig_config.score_entry_weight;
   auto net = entry_w * weight - exit_w * (1 - weight);
-
-  // Squash each direction separately
-  auto squash_factor = sig_config.score_squash_factor;
-  double net_score = std::tanh(net * squash_factor);
-
+  double net_score = std::tanh(net * sig_config.score_squash_factor);
   return {entry_w, exit_w, net_score};
 }
 

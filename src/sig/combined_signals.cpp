@@ -267,10 +267,8 @@ inline Score weighted_score(Score score_1h,
   return {entry, exit, final};
 }
 
-auto combined_forecast(auto fc_1h,
-                       [[maybe_unused]] auto fc_4h,
-                       [[maybe_unused]] auto fc_1d) {
-  return fc_1h;
+auto combined_forecast(auto fc_1h, auto fc_4h, auto fc_1d) {
+  return !fc_1h.empty() ? fc_1h : !fc_4h.empty() ? fc_4h : fc_1d;
 }
 
 StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss);
