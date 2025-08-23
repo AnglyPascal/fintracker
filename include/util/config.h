@@ -32,6 +32,10 @@ struct IndicatorsConfig {
            : inv == H_4 ? backtest_lookback_4h
                         : backtest_lookback_1d;
   }
+
+  size_t memory_length(minutes interval) {
+    return interval == H_1 ? 16 : interval == H_4 ? 12 : 8;
+  }
 };
 
 struct PositionSizingConfig {

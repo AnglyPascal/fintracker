@@ -1,6 +1,5 @@
 #include "core/positions.h"
 #include "ind/indicators.h"
-#include "util/config.h"
 #include "util/times.h"
 
 #include <spdlog/spdlog.h>
@@ -129,7 +128,7 @@ bool Metrics::push_back(const Candle& candle, const Position* pos) noexcept {
     if (!new_candle)
       ind.pop_back();
 
-    ind.push_back(latest_candle(candles, interval, ind.interval), new_candle);
+    ind.push_back(latest_candle(candles, interval, ind.interval));
     return new_candle;
   };
 
@@ -152,12 +151,10 @@ void Metrics::rollback() noexcept {
     bool complete_pop = prev_time == curr_time;
     ind.pop_back();
 
-    if (complete_pop) {
-      ind.pop_memory();
+    if (complete_pop)
       return;
-    }
 
-    ind.push_back(latest_candle(candles, interval, ind.interval), false);
+    ind.push_back(latest_candle(candles, interval, ind.interval));
   };
 
   pop_from_ind(ind_1h);

@@ -243,7 +243,7 @@ inline Score weighted_score(Score score_1h,
                             Score score_4h,
                             Score score_1d,
                             double mod) {
-  auto [entry, exit, past, _] = score_1h;  // Use 1H scores as base
+  auto [entry, exit, _] = score_1h;  // Use 1H scores as base
 
   // Weight: 1H primary (50%), 1D confirmation (30%), 4H bridge (20%)
   double final =
@@ -264,7 +264,7 @@ inline Score weighted_score(Score score_1h,
     final *= 0.85;  // 4H conflict less severe
 
   final += mod;
-  return {entry, exit, past, final};
+  return {entry, exit, final};
 }
 
 auto combined_forecast(auto fc_1h,

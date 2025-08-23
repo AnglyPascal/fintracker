@@ -212,7 +212,6 @@ struct Stats {
 struct Indicators : public IndicatorsTrends {
  public:
   Signal signal;
-  SignalMemory memory;
   Stats stats;
 
   friend struct Metrics;
@@ -220,12 +219,9 @@ struct Indicators : public IndicatorsTrends {
  public:
   Indicators(std::vector<Candle>&& candles, minutes interval) noexcept
       : IndicatorsTrends{std::move(candles), interval},
-        memory{interval},
         stats{*this}  //
   {
     signal = Signal{*this};
-    for (int i = -1 - memory.memory_length; i < -1; i++)
-      memory.emplace_back(*this, i);
   }
 
   Indicators(const Indicators&) = delete;
@@ -234,9 +230,8 @@ struct Indicators : public IndicatorsTrends {
   Indicators(Indicators&&) = default;
   Indicators& operator=(Indicators&&) = default;
 
-  void push_back(const Candle& candle, bool new_candle) noexcept;
+  void push_back(const Candle& candle) noexcept;
   void pop_back() noexcept;
-  void pop_memory() noexcept;
 
   LocalTimePoint plot(const std::string& sym, const std::string& time) const;
 
@@ -273,10 +268,6 @@ struct Metrics {
 
   Signal get_signal(minutes interval, int idx = -1) const {
     return get_indicators(interval).get_signal(idx);
-  }
-
-  const SignalMemory& get_memories(minutes interval) const {
-    return get_indicators(interval).memory;
   }
 
   auto& get_stats(minutes interval) const {

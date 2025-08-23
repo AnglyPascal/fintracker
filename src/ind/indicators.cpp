@@ -1,5 +1,4 @@
 #include "ind/indicators.h"
-#include "util/times.h"
 
 #include <cassert>
 #include <numeric>
@@ -180,35 +179,7 @@ void ATR::push_back(const Candle& candle) noexcept {
   prev_close = candle.close;
 }
 
-// Indicators::Indicators(std::vector<Candle>&& candles, minutes interval)
-// noexcept
-//     : interval{interval},
-//       candles{std::move(candles)},
-
-//       _ema9{this->candles, 9},
-//       _ema21{this->candles, 21},
-//       _ema50{this->candles, 50},
-//       _rsi{this->candles},
-//       _macd{this->candles},
-//       _atr{this->candles},
-
-//       trends{*this},
-
-//       support{*this},
-//       resistance{*this},
-
-//       memory{interval},
-//       stats{*this}  //
-// {
-//   signal = Signal{*this};
-//   for (int i = -1 - memory.memory_length; i < -1; i++)
-//     memory.emplace_back(*this, i);
-// }
-
-void Indicators::push_back(const Candle& candle, bool new_candle) noexcept {
-  if (new_candle)
-    memory.emplace_back(std::move(signal));
-
+void Indicators::push_back(const Candle& candle) noexcept {
   candles.push_back(candle);
 
   _ema9.push_back(candle);
@@ -237,20 +208,8 @@ void Indicators::pop_back() noexcept {
   signal = Signal{*this};
 }
 
-void Indicators::pop_memory() noexcept {
-  memory.pop_back();
-}
-
-// memlen - 1  ==  size - 2
-// 0 == size - memlen - 1
-Signal Indicators::get_signal(int _idx) const {
-  auto idx = _idx < 0 ? size() + _idx : static_cast<size_t>(_idx);
-  if (idx == size() - 1)
+Signal Indicators::get_signal(int idx) const {
+  if (idx == -1)
     return signal;
-
-  auto memlen = memory.past.size();
-  if (idx >= size() - 1 - memlen)
-    return memory.past[idx + 1 + memlen - size()];
-
-  return Signal{*this, static_cast<int>(idx)};
+  return {*this, idx};
 }

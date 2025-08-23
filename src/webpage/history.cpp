@@ -2,7 +2,6 @@
 #include "util/format.h"
 
 #include <fstream>
-#include <iostream>
 #include <set>
 #include <thread>
 
@@ -134,9 +133,7 @@ inline std::string to_str<FormatTarget::HTML>(const Tickers& tickers,
   if (tickers.empty())
     return "";
 
-  auto& m = tickers.rbegin()->second.metrics;
-  auto memory_length = m.get_indicators(interval).memory.memory_length;
-
+  int memory_length = config.ind_config.memory_length(interval);
   std::set<std::string> symbols;
 
   std::string tbl_body = "";
@@ -145,11 +142,6 @@ inline std::string to_str<FormatTarget::HTML>(const Tickers& tickers,
     tbl_body += row;
     symbols.insert(syms.begin(), syms.end());
   }
-
-  // std::string buttons = "";
-  // for (auto& symbol : symbols)
-  //   buttons += std::format(history_ticker_button, symbol);
-  // buttons = std::format(history_ticker_button_group, buttons);
 
   return std::format(history_tbl_template,
                      to_str<FormatTarget::HTML>(Rating::Entry),

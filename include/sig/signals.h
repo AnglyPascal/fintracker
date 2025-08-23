@@ -4,7 +4,6 @@
 #include "util/times.h"
 
 #include <cmath>
-#include <deque>
 #include <vector>
 
 struct IndicatorsTrends;
@@ -18,7 +17,6 @@ using conf_f = Confirmation (*)(const Metrics&);
 struct Score {
   double entry = 0.0;
   double exit = 0.0;
-  double past = 0.0;
   double final = 0.0;
 
   operator double() const { return final; }
@@ -54,28 +52,6 @@ struct Signal {
 
   Signal() = default;
   Signal(const Indicators& ind, int idx = -1);
-};
-
-struct SignalMemory {
-  std::deque<Signal> past;
-  int memory_length = 0;
-
-  SignalMemory(minutes interval) noexcept;
-
-  template <typename... Args>
-  void emplace_back(Args&&... args) {
-    past.emplace_back(std::forward<Args>(args)...);
-    if (past.size() > (size_t)memory_length)
-      past.pop_front();
-  }
-
-  void pop_back() {
-    if (!past.empty())
-      past.pop_back();
-  }
-
-  Score score() const;
-  int rating_score() const;
 };
 
 struct StopLoss;

@@ -61,7 +61,6 @@ inline constexpr std::string_view indicators_template = R"(
     {}
   </table>
 </div>
-
 )";
 
 inline constexpr std::string_view ticker_body_template = R"(
@@ -138,14 +137,14 @@ inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
 
   // Recent signals memory
   std::string mem_row, mem_html;
-  auto& past = ind.memory.past;
-  int i = 0;
-  for (auto it = past.rbegin(); it != past.rend(); ++it) {
-    i++;
+  int memory_length = config.ind_config.memory_length(ind.interval);
+  int n = 0;
+  for (int i = -2; i >= -1 - memory_length; i--) {
+    auto sig = ind.get_signal(i);
     mem_row += std::format("<td class=\"signal-td\">{}</td>",
-                           to_str<FormatTarget::HTML>(*it, ind));
+                           to_str<FormatTarget::HTML>(sig, ind));
 
-    if (i % 4 == 0) {
+    if (++n % 4 == 0) {
       mem_html += std::format("<tr>{}</tr>", mem_row);
       mem_row = "";
     }

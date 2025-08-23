@@ -60,7 +60,7 @@ inline constexpr std::string_view score_div_template = R"(
   <div class="thing-abbr">
     {}
     <div class="signal-score-details thing-desc">
-      [{}, {}, {:+}]
+      [{}, {}]
     </div>
   </div> 
 )";
@@ -76,8 +76,7 @@ std::string to_str<FormatTarget::HTML>(const Score& scr) {
   return std::format(score_div_template,        //
                      scr_str,                   //
                      Score::pretty(scr.entry),  //
-                     Score::pretty(scr.exit),   //
-                     Score::pretty(scr.past)    //
+                     Score::pretty(scr.exit)    //
   );
 }
 

@@ -887,6 +887,42 @@ export async function loadContent(timeframe) {
 
   currentTimeframe = timeframe;
   plotChart(ticker);
+
+  document.querySelectorAll('.thing-abbr').forEach(div => {
+    const hoverDiv = div.querySelector('.thing-desc');
+
+    div.addEventListener('mouseenter', () => {
+      const rect = div.getBoundingClientRect();
+      hoverDiv.style.display = 'block';
+
+      const hoverRect = hoverDiv.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let left, top;
+
+      if (rect.right + hoverRect.width <= viewportWidth)
+        left = rect.right; // place right
+      else if (rect.left - hoverRect.width >= 0)
+        left = rect.left - hoverRect.width; // place left
+      else
+        left = viewportWidth - hoverRect.width; // place aligned 
+
+      if (rect.bottom + hoverRect.height <= viewportHeight)
+        top = rect.bottom; // place bottom
+      else if (rect.top - hoverRect.height >= 0)
+        top = rect.top - hoverRect.height; // place top
+      else
+        top = rect.top; // place aligned
+
+      hoverDiv.style.left = left + 'px';
+      hoverDiv.style.top = top + 'px';
+    });
+
+    div.addEventListener('mouseleave', () => {
+      hoverDiv.style.display = 'none';
+    });
+  });
 }
 
 const plotlyJS =
@@ -916,3 +952,4 @@ document.addEventListener('DOMContentLoaded', function() {
   };
   document.head.appendChild(plotlyScript);
 });
+

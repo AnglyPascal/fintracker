@@ -75,7 +75,6 @@ inline constexpr std::string_view index_signal_template = R"(
         <table class="signal">
           <tr class="rationale">{}</tr>
           <tr class="combined-signal-tr">{}</tr>
-          <tr class="signal-memory-tr">{}</tr>
         </table>
       </div>
     </td>
@@ -209,26 +208,12 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
                                    ticker.profit_target)                      //
     );
 
-    std::string mem_str = "";
-    int n = 1;
-    auto& past_sigs = ind_1h.memory.past;
-    for (auto it = past_sigs.rbegin(); it != past_sigs.rend(); it++) {
-      auto s =
-          std::format(index_signal_td_template,  //
-                      "old_signal", to_str<FormatTarget::HTML>(*it, ind_1h));
-
-      mem_str += s;
-      if (n++ == 4)
-        break;
-    }
-
     body += std::format(                                          //
         index_signal_template,                                    //
         symbol,                                                   //
         std::format(rational_template,                            //
                     sig.rationale != "" ? sig.rationale : "--"),  //
-        to_str<FormatTarget::HTML>(sig, ticker),                  //
-        mem_str                                                   //
+        to_str<FormatTarget::HTML>(sig, ticker)                   //
     );
   }
 
