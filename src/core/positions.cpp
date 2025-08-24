@@ -1,5 +1,6 @@
 #include "core/positions.h"
 #include "util/format.h"
+#include "util/times.h"
 
 #include <spdlog/spdlog.h>
 #include <cmath>
@@ -21,6 +22,8 @@ double Position::pct(double price) const {
   return (cost != 0) ? pnl(price) / std::abs(cost) * 100 : 0.0;
 }
 
+inline constexpr auto eps = std::numeric_limits<double>::epsilon();
+
 inline auto net_position(const std::vector<Trade>& trades)
     -> std::pair<Position, double> {
   double qty = 0;
@@ -37,7 +40,7 @@ inline auto net_position(const std::vector<Trade>& trades)
     total += mult * t.total;
     cost += mult * t.qty * t.px;
 
-    if (qty < std::numeric_limits<double>::epsilon() * 8) {
+    if (qty < eps * 8) {
       pnl -= total;
       qty = 0;
       total = 0;
@@ -45,7 +48,7 @@ inline auto net_position(const std::vector<Trade>& trades)
     }
   }
 
-  if (qty < std::numeric_limits<double>::epsilon() * 8)
+  if (qty < eps * 8)
     return {{}, pnl};
 
   auto px = cost / qty;
@@ -138,7 +141,7 @@ void OpenPositions::update_trades() {
 
   for (auto& [ticker, trades] : trades_by_ticker) {
     auto [pos, pnl] = net_position(trades);
-    if (pos.qty > std::numeric_limits<double>::epsilon() * 8) {
+    if (pos.qty > eps * 8) {
       positions[ticker] = pos;
       spdlog::info("[pos] {}: {}", ticker.c_str(), to_str(pos).c_str());
     } else {

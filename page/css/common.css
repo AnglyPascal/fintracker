@@ -2,33 +2,34 @@
    CSS VARIABLES & THEME
    ====================== */
 :root {
-  /* Typography & Spacing */
+  /* Your existing Typography & Spacing */
   --font-family: "Share Tech Mono";
   --font-size: 18px;
   --padding-cell: 0.25em 0.4em;
   --padding-mobile: 0.2em 0.3em;
   --row-gap: 0.4em;
 
-  /* Color Palette */
+  /* Your existing Color Palette */
   --color-bg: #17171c;
   --color-alt-bg: #23232a;
   --color-fg: #eceff4;
   --color-border: #4c566a;
   --color-header: #353b49;
   --color-hover: #434c5e;
-  --color-link: #8fbcbb;
 
-  /* Semantic Colors */
+  /* Your existing Semantic Colors */
   --color-green: #a3be8c;
   --color-red: #bf616a;
   --color-blue: #88c0d0;
   --color-yellow: #ebcb8b;
+  --color-cyan: #8fbcbb;
   --color-black: #202027;
   --color-gray: #4c566a;
   --color-snow: #d8dee9;
   --color-white: #eceff4;
+  --color-link: var(--color-cyan);
 
-  /* Pastel Nord additions */
+  /* Your existing Pastel Nord additions */
   --color-frost-1: #cfeeea;
   --color-frost-2: #cfe7f2;
   --color-periwinkle: #cfd9ee;
@@ -39,7 +40,6 @@
   --color-slate: #c6ccd6;
   --color-ivory: #f3f6f8;
   --color-beige: #efe2c9;
-
   --color-dark-green: #5e6b55;
   --color-dark-red: #7a3d45;
   --color-dark-yellow: #a98247;
@@ -50,17 +50,95 @@
   --color-dark-bg: #1a1d23;
   --color-darker-bg: #111217;
 
-  /* Trading Colors */
+  /* Your existing Trading Colors */
   --color-buy: var(--color-green);
   --color-sell: var(--color-red);
 
-  /* Signal Colors */
+  /* Your existing Signal Colors */
   --color-signal-entry-bg: var(--color-green);
   --color-signal-exit-bg: var(--color-red);
   --color-signal-watchlist-bg: var(--color-blue);
   --color-signal-caution-bg: var(--color-yellow);
   --color-signal-none-bg: var(--color-black);
   --color-signal-mixed-bg: var(--color-snow);
+
+  /* ========== NEW EXTENDED COLORS ========== */
+
+  /* teal & aqua variations */
+  --color-sage-teal: #5e8d8a;
+  --color-arctic-teal: #7ba8a5;
+  --color-deep-teal: #4a6b69;
+  --color-frost-aqua: #a8d0cd;
+  --color-teal-mist: #b5d4d1;
+  --color-dark-teal: #3a5553;
+
+  /* purple & violet family */
+  --color-twilight-purple: #806d9e;
+  --color-lavender-gray: #9d8db8;
+  --color-amethyst: #b19cd9;
+  --color-violet-frost: #d4c7ea;
+  --color-deep-violet: #5d4f7a;
+  --color-plum: #7a6591;
+
+  /* warm earth tones */
+  --color-terracotta: #b87d65;
+  --color-clay: #a66d56;
+  --color-rust: #8b5a45;
+  --color-copper: #c89078;
+  --color-bronze: #9b6b52;
+  --color-sandstone: #c4a584;
+  --color-warm-beige: #d6c0a3;
+
+  /* cool grays & blues */
+  --color-steel: #6b7b8c;
+  --color-pewter: #8a959e;
+  --color-storm: #5a6b7a;
+  --color-mist: #b8c5d1;
+  --color-glacier: #9bb0c1;
+  --color-arctic-blue: #7a96a8;
+  --color-deep-storm: #465661;
+
+  /* green variations */
+  --color-forest: #6b8068;
+  --color-sage: #879b84;
+  --color-olive: #7a8471;
+  --color-moss: #6f7a6b;
+  --color-pine: #5d6b5a;
+  --color-seafoam: #a3c4a0;
+  --color-lichen: #b5ceb2;
+
+  /* additional accent colors */
+  --color-coral: #c89590;
+  --color-blush: #e8b7b3;
+  --color-dusty-rose: #d4a8a5;
+  --color-mauve: #c4a5b8;
+  --color-champagne: #e6d4b7;
+  --color-pearl: #e8e2d5;
+  --color-opal: #d8d5e2;
+
+  /* dark variants for backgrounds */
+  --color-deep-forest: #3d4a3b;
+  --color-deep-storm-bg: #2a3641;
+  --color-deep-purple-bg: #3a2f4a;
+  --color-deep-teal-bg: #2a3f3d;
+  --color-charcoal: #2c2f35;
+  --color-obsidian: #1f2126;
+
+  /* status & utility colors */
+  --color-info: var(--color-arctic-teal);
+  --color-warning: var(--color-terracotta);
+  --color-success: var(--color-forest);
+  --color-error: var(--color-rust);
+  --color-neutral: var(--color-steel);
+  --color-muted: var(--color-pewter);
+
+  /* interactive states */
+  --color-hover-teal: #6ea09d;
+  --color-hover-purple: #8f7bb0;
+  --color-hover-warm: #c2906f;
+  --color-active-teal: #4a7572;
+  --color-active-purple: #6b5c85;
+  --color-active-warm: #9a6b4f;
 }
 
 /* ======================

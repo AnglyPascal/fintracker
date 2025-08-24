@@ -62,11 +62,6 @@ enum HTMLTags {
   UL,
   IT,
   EM,
-  GREEN,
-  RED,
-  YELLOW,
-  BLUE,
-  GRAY,
 };
 
 inline std::string apply_tag(std::string str, HTMLTags tag) {
@@ -80,24 +75,24 @@ inline std::string apply_tag(std::string str, HTMLTags tag) {
     case EM:
       return std::format("<em>{}</em>", str);
 
-    case GREEN:
-      return colored("green", str);
-    case RED:
-      return colored("red", str);
-    case YELLOW:
-      return colored("yellow", str);
-    case BLUE:
-      return colored("blue", str);
-    case GRAY:
-      return colored("gray", str);
-
     default:
       return str;
   }
 }
 
+inline std::string apply_tag(std::string str, const std::string& color) {
+  return colored(color, str);
+}
+
 template <typename... Tags>
 inline std::string tagged(std::string str, Tags... tags) {
+  ((str = apply_tag(std::move(str), tags)), ...);
+  return str;
+}
+
+template <typename... Tags>
+inline std::string tagged(double val, Tags... tags) {
+  auto str = std::format("{:.2f}", val);
   ((str = apply_tag(std::move(str), tags)), ...);
   return str;
 }

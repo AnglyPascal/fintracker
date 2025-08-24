@@ -12,10 +12,6 @@
 using json = nlohmann::json;
 using namespace std::chrono;
 
-inline auto today_ny() {
-  return floor<days>(now_ny_time());
-}
-
 int Event::days_until() const {
   auto today = today_ny();
   return date < today ? -1 : duration_cast<days>(date - today).count();

@@ -136,6 +136,7 @@ struct IndicatorsCore {
   double ema50(int idx) const { return _ema50.values[sanitize(idx)]; }
 
   double atr(int idx) const { return _atr.values[sanitize(idx)]; }
+  double atr_pct(int idx) const { return atr(idx) / price(idx); }
   double rsi(int idx) const { return _rsi.values[sanitize(idx)]; }
 
   double macd(int idx) const { return _macd.macd_line[sanitize(idx)]; }

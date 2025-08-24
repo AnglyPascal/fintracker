@@ -73,7 +73,10 @@ inline constexpr std::string_view index_signal_template = R"(
     <td colspan="8" class="signal-table">
       <div class="signal-table">
         <table class="signal">
-          <tr class="rationale">{}</tr>
+          <tr class="meta-tr">
+            <td>{}</td>
+            <td colspan="3">{}</td> 
+          </tr>
           <tr class="combined-signal-tr">{}</tr>
         </table>
       </div>
@@ -111,14 +114,18 @@ inline std::string to_str<FormatTarget::HTML>(const std::string& sym,
 }
 
 inline constexpr std::string_view signal_overview_template = R"(
-  <div class="trend">{}</div>
-  <div class="forecast">{}</div>
-  <div class="stop_loss">{}</div>
-  <div class="position_sizing">{}</div>
+  <div class="overview {}">
+  <ul>
+    <li><div class="forecast">{}</div></li>
+    <li><div class="position_sizing">{}</div></li>
+    <li><div class="stop_loss">{}</div></li>
+    <li><div class="profit_target">{}</div></li>
+  </ul>
+  </div>
 )";
 
 inline constexpr std::string_view combined_signal_template = R"(
-  <td class="overview">{}</td>
+  <td class="trend">{}<div class="trend-list">{}</div></td>
   <td class="curr_signal signal-1h">{}</td>
   <td class="signal-4h">{}</td>
   <td class="signal-1d">{}</td>
@@ -136,17 +143,10 @@ inline std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
   auto& ind_1d = ticker.metrics.ind_1d;
   auto& sig_1d = ind_1d.signal;
 
-  auto overview = std::format(  //
-      signal_overview_template,
-      to_str<FormatTarget::HTML>(s.filters),              //
-      to_str<FormatTarget::HTML>(s.forecast),             //
-      to_str<FormatTarget::HTML>(ticker.stop_loss),       //
-      to_str<FormatTarget::HTML>(ticker.position_sizing)  //
-  );
-
   return std::format(                              //
       combined_signal_template,                    //
-      overview,                                    //
+      to_str<FormatTarget::HTML>(s),               //
+      to_str<FormatTarget::HTML>(s.filters),       //
       to_str<FormatTarget::HTML>(sig_1h, ind_1h),  //
       to_str<FormatTarget::HTML>(sig_4h, ind_4h),  //
       to_str<FormatTarget::HTML>(sig_1d, ind_1d)   //
@@ -154,7 +154,14 @@ inline std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
 }
 
 inline constexpr std::string_view rational_template = R"(
-  <td colspan="4" class="rationale"><div class="rationale">{}</div></td> 
+  <div class="rationale {}">
+  <ul>
+    <li><div class="rationale-sig">{}</div></li>
+    <li><div class="rationale-size">{}</div></li>
+    <li><div class="rationale-stop">{}</div></li>
+    <li><div class="rationale-target">{}</div></li>
+  </ul>
+  </div>
 )";
 
 template <>
@@ -222,12 +229,34 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
                                    ticker.profit_target)                      //
     );
 
-    body += std::format(                                          //
-        index_signal_template,                                    //
-        symbol,                                                   //
-        std::format(rational_template,                            //
-                    sig.rationale != "" ? sig.rationale : "--"),  //
-        to_str<FormatTarget::HTML>(sig, ticker)                   //
+    auto overview = std::format(                             //
+        signal_overview_template,                            //
+        m.has_position() ? "" : "no-position",               //
+        to_str<FormatTarget::HTML>(sig.forecast),            //
+        to_str<FormatTarget::HTML>(ticker.position_sizing),  //
+        to_str<FormatTarget::HTML>(ticker.stop_loss),        //
+        to_str<FormatTarget::HTML>(ticker.profit_target)     //
+    );
+
+    auto& sl = ticker.stop_loss;
+    auto& sizing = ticker.position_sizing;
+    auto& target = ticker.profit_target;
+
+    auto rationale = std::format(                        //
+        rational_template,                               //
+        m.has_position() ? "" : "no-position",           //
+        sig.rationale != "" ? sig.rationale : "--",      //
+        sizing.rationale != "" ? sizing.rationale : "",  //
+        sl.rationale != "" ? sl.rationale : "",          //
+        target.rationale != "" ? target.rationale : ""   //
+    );
+
+    body += std::format(                         //
+        index_signal_template,                   //
+        symbol,                                  //
+        overview,                                //
+        rationale,                               //
+        to_str<FormatTarget::HTML>(sig, ticker)  //
     );
   }
 

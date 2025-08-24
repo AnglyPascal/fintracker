@@ -71,42 +71,42 @@ Filter swing_base_pattern(const Metrics& m) {
   if (tight_range) {
     base_score++;
     base_str += "T";  // Tight
-    base_desc += tagged("tight range", YELLOW) + ", ";
+    base_desc += tagged("tight range", "yellow") + ", ";
   }
 
   if (consolidating) {
     base_score++;
     base_str += "C";  // Consolidating
-    base_desc += tagged("consolidating", YELLOW) + ", ";
+    base_desc += tagged("consolidating", "yellow") + ", ";
   }
 
   if (support_holding && near_support) {
     base_score += 2;   // Strong support is worth more
     base_str += "S+";  // Strong support
-    base_desc += tagged("strong support holding", GREEN, BOLD) + ", ";
+    base_desc += tagged("strong support holding", "green", BOLD) + ", ";
   } else if (support_holding) {
     base_score++;
     base_str += "S";  // Support holding
-    base_desc += tagged("support holding", GREEN) + ", ";
+    base_desc += tagged("support holding", "green") + ", ";
   }
 
   if (momentum_building) {
     base_score++;
     base_str += "M";  // Momentum
-    base_desc += tagged("momentum building", GREEN) + ", ";
+    base_desc += tagged("momentum building", "green") + ", ";
   }
 
   if (macd_improving) {
     base_score++;
     base_str += "H";  // Histogram improving
-    base_desc += tagged("MACD improving", GREEN) + ", ";
+    base_desc += tagged("MACD improving", "green") + ", ";
   }
 
   // Bonus/penalty for resistance overhead
   if (resistance_overhead) {
     base_score--;      // Nearby resistance is concerning
     base_str += "R-";  // Resistance overhead
-    base_desc += tagged("resistance overhead", RED) + ", ";
+    base_desc += tagged("resistance overhead", "red") + ", ";
   }
 
   // Remove trailing comma and space

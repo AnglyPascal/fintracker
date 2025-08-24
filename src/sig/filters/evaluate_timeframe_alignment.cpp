@@ -29,11 +29,11 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
 
   if (all_entry) {
     res.emplace_back(Trend::StrongUptrend, Confidence::High,
-                     tagged("⇈", BOLD, GREEN),
+                     tagged("⇈", BOLD, "green"),
                      "Perfect alignment: all timeframes showing entry signals");
   } else if (all_bullish) {
     res.emplace_back(
-        Trend::StrongUptrend, Confidence::Medium, tagged("↗↗↗", BOLD, GREEN),
+        Trend::StrongUptrend, Confidence::Medium, tagged("↗↗↗", BOLD, "green"),
         "Strong alignment: all timeframes bullish (entry/watchlist)");
   }
 
@@ -43,7 +43,7 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
       Confidence conf = (sig_4h.type == Rating::Entry) ? Confidence::High
                                                        : Confidence::Medium;
       res.emplace_back(
-          Trend::ModerateUptrend, conf, tagged("4h✓", GREEN),
+          Trend::ModerateUptrend, conf, tagged("4h✓", "green"),
           std::format("4H timeframe confirms 1H entry: 4H shows {}",
                       sig_4h.type == Rating::Entry ? "entry" : "watchlist"));
     }
@@ -52,7 +52,7 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
       Confidence conf = (sig_1d.type == Rating::Entry) ? Confidence::High
                                                        : Confidence::Medium;
       res.emplace_back(
-          Trend::StrongUptrend, conf, tagged("1d✓", GREEN),
+          Trend::StrongUptrend, conf, tagged("1d✓", "green"),
           std::format("Daily timeframe confirms 1H entry: 1D shows {}",
                       sig_1d.type == Rating::Entry ? "entry" : "watchlist"));
     }
@@ -67,11 +67,11 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
 
   if (sig_1h.type == Rating::Entry && has_exits) {
     res.emplace_back(
-        Trend::Caution, Confidence::High, tagged("htf⚠", RED),
+        Trend::Caution, Confidence::High, tagged("htf⚠", "red"),
         "Higher timeframe conflict: 1H entry but 4H/1D showing exits");
   } else if (sig_1h.type == Rating::Entry && has_caution) {
     res.emplace_back(
-        Trend::Caution, Confidence::Medium, tagged("htf⚠", YELLOW),
+        Trend::Caution, Confidence::Medium, tagged("htf⚠", "yellow"),
         "Higher timeframe caution: 1H entry but 4H/1D showing caution/hold");
   }
 
@@ -87,15 +87,15 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
 
   if (daily_bull_structure && four_h_bull_structure && one_h_bull_structure) {
     res.emplace_back(
-        Trend::StrongUptrend, Confidence::High, tagged("ema⇈", BOLD, GREEN),
+        Trend::StrongUptrend, Confidence::High, tagged("ema⇈", BOLD, "green"),
         "Perfect EMA alignment: all timeframes in bullish EMA structure");
   } else if (daily_bull_structure && four_h_bull_structure) {
     res.emplace_back(Trend::ModerateUptrend, Confidence::High,
-                     tagged("htf ema↗", GREEN),
+                     tagged("htf ema↗", "green"),
                      "Higher timeframe EMA alignment: 4H and 1D both bullish");
   } else if (daily_bull_structure) {
     res.emplace_back(Trend::ModerateUptrend, Confidence::Medium,
-                     tagged("1d ema↗", GREEN),
+                     tagged("1d ema↗", "green"),
                      "Daily EMA bullish: EMA21 > EMA50, price > EMA21");
   }
 
@@ -106,10 +106,10 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
 
   if (above_daily_50 && above_daily_21 && above_4h_21) {
     res.emplace_back(Trend::ModerateUptrend, Confidence::High,
-                     tagged(">>ema", GREEN),
+                     tagged(">>ema", "green"),
                      "Above key EMAs: price above 1D EMA21/50 and 4H EMA21");
   } else if (!above_daily_21 || !above_4h_21) {
-    res.emplace_back(Trend::Caution, Confidence::Medium, tagged("<<ema", RED),
+    res.emplace_back(Trend::Caution, Confidence::Medium, tagged("<<ema", "red"),
                      "Below key EMAs: price below important EMA levels");
   }
 
@@ -124,10 +124,10 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
 
   if (bullish_rsi_count == 3) {
     res.emplace_back(Trend::ModerateUptrend, Confidence::Medium,
-                     tagged("rsi↗", GREEN),
+                     tagged("rsi↗", "green"),
                      "RSI momentum aligned: all timeframes above 50");
   } else if (bullish_rsi_count == 0) {
-    res.emplace_back(Trend::Bearish, Confidence::Medium, tagged("rsi↘", RED),
+    res.emplace_back(Trend::Bearish, Confidence::Medium, tagged("rsi↘", "red"),
                      "RSI momentum bearish: all timeframes below 50");
   }
 
@@ -140,10 +140,10 @@ std::vector<Filter> evaluate_timeframe_alignment(const Metrics& m) {
 
   if (bullish_macd_count == 3) {
     res.emplace_back(Trend::ModerateUptrend, Confidence::Medium,
-                     tagged("macd↗", GREEN),
+                     tagged("macd↗", "green"),
                      "MACD momentum aligned: all histograms above zero");
   } else if (bullish_macd_count == 0) {
-    res.emplace_back(Trend::Bearish, Confidence::Medium, tagged("macd↘", RED),
+    res.emplace_back(Trend::Bearish, Confidence::Medium, tagged("macd↘", "red"),
                      "MACD momentum bearish: all histograms below zero");
   }
 

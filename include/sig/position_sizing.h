@@ -24,6 +24,8 @@ struct PositionSizing {
   double risk_pct = 0.0;
   double risk_amount = 0.0;
 
+  std::string rationale = "";
+
   PositionSizing() = default;
   PositionSizing(const Metrics& metrics,
                  const CombinedSignal& signal,

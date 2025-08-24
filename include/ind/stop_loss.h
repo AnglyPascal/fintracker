@@ -1,23 +1,13 @@
 #include "indicators.h"
 
-enum class StopOrderType {
-  STOP_LOSS,  // Regular stop loss (guaranteed execution)
-  STOP_LIMIT  // Stop limit (better price, execution risk)
-};
-
 struct StopLoss {
   double swing_low = 0.0;
-  double ema_stop = 0.0;
   double atr_stop = 0.0;
   double final_stop = 0.0;
   double stop_pct = 0.0;
   bool is_trailing = false;
 
-  // New fields for stop-limit functionality
-  bool use_stop_limit = false;
-  double limit_price = 0.0;
-  double limit_pct = 0.0;
-  StopOrderType order_type = StopOrderType::STOP_LOSS;
+  std::string rationale = "";
 
   StopLoss() noexcept = default;
   StopLoss(const Metrics& m) noexcept;
@@ -40,6 +30,8 @@ struct ProfitTarget {
 
   double resistance_conf = 0.0;
   minutes resistance_inv = H_1;
+
+  std::string rationale = "";
 
   ProfitTarget() noexcept = default;
   ProfitTarget(const Metrics& m, const StopLoss& stop_loss) noexcept;

@@ -1,61 +1,9 @@
 #include "ind/stop_loss.h"
 #include "ind/indicators.h"
 #include "util/config.h"
+#include "util/format.h"
 
 auto& sizing_config = config.sizing_config;
-
-// StopLoss::StopLoss(const Metrics& m) noexcept {
-//   auto& ind = m.ind_1h;
-
-//   auto price = ind.price(-1);
-//   auto atr = ind.atr(-1);
-
-//   auto pos = m.position;
-//   auto entry_price = m.has_position() ? pos->px : price;
-//   auto max_price_seen = m.has_position() ? pos->max_price_seen : price;
-
-//   // trailing kicks in after ~1R move
-//   is_trailing =
-//       m.has_position() &&
-//       (max_price_seen > entry_price + sizing_config.trailing_trigger_atr *
-//       atr);
-
-//   auto support_1d = m.ind_1d.nearest_support_below(-1);
-//   auto support_4h = m.ind_4h.nearest_support_below(-1);
-//   auto support_1h = m.ind_1h.nearest_support_below(-1);
-
-//   auto primary_support =
-//       support_1d ? support_1d : (support_4h ? support_4h : support_1h);
-
-//   swing_low = 0.0;
-//   if (primary_support) {
-//     double buffer = support_1d ? 0.012 : support_4h ? 0.008 : 0.005;
-//     swing_low = primary_support->get().lo * (1 - buffer);
-//   }
-
-//   double hard_stop = 0.0;
-
-//   // Initial Stop
-//   if (!is_trailing) {
-//     ema_stop = ind.ema21(-1) * (1.0 - sizing_config.ema_stop_pct);
-//     auto best = std::min(swing_low, ema_stop) * 0.999;
-
-//     atr_stop = entry_price - sizing_config.stop_atr_multiplier * atr;
-//     hard_stop = entry_price * (1.0 - sizing_config.stop_pct);
-
-//     final_stop = std::max({best, atr_stop, hard_stop});
-//     stop_pct = (entry_price - final_stop) / entry_price;
-//   }
-
-//   // Trailing Stop
-//   else {
-//     atr_stop = max_price_seen - sizing_config.trailing_atr_multiplier * atr;
-//     hard_stop = max_price_seen * (1.0 - sizing_config.trailing_stop_pct);
-
-//     final_stop = std::max({swing_low, atr_stop, hard_stop});
-//     stop_act = (price - final_stop) / price;
-//   }
-// }
 
 StopLoss::StopLoss(const Metrics& m) noexcept {
   auto& ind = m.ind_1h;
@@ -67,61 +15,85 @@ StopLoss::StopLoss(const Metrics& m) noexcept {
   auto entry_price = m.has_position() ? pos->px : price;
   auto max_price_seen = m.has_position() ? pos->max_price_seen : price;
 
-  // Determine if we're in profit or loss
-  bool in_profit = price > entry_price;
+  std::vector<std::string> reasons;
+  std::vector<std::string> details;
 
-  // trailing kicks in after ~1R move
+  constexpr auto atr_color = "amethyst";
+  constexpr auto swing_color = "arctic-teal";
+  constexpr auto hard_color = "coral";
+
   is_trailing =
       m.has_position() &&
       (max_price_seen > entry_price + sizing_config.trailing_trigger_atr * atr);
 
-  auto support_1d = m.ind_1d.nearest_support_below(-1);
-  auto support_4h = m.ind_4h.nearest_support_below(-1);
-  auto support_1h = m.ind_1h.nearest_support_below(-1);
+  if (is_trailing) {
+    reasons.push_back(tagged("trailing", "sage", BOLD));
 
-  auto primary_support =
-      support_1d ? support_1d : (support_4h ? support_4h : support_1h);
+    atr_stop = max_price_seen - sizing_config.trailing_atr_multiplier * atr;
+    details.emplace_back("atr: " + tagged(atr_stop, atr_color));
 
-  swing_low = 0.0;
-  if (primary_support) {
-    double buffer = support_1d ? 0.012 : support_4h ? 0.008 : 0.005;
-    swing_low = primary_support->get().lo * (1 - buffer);
-  }
+    double hard_stop = max_price_seen * (1.0 - sizing_config.trailing_stop_pct);
+    details.emplace_back("hard: " + tagged(hard_stop, hard_color));
 
-  double hard_stop = 0.0;
+    final_stop = std::min(atr_stop, hard_stop);
+    reasons.push_back(                                         //
+        "using: " +                                            //
+        (final_stop == atr_stop ? tagged("atr", atr_color)     //
+                                : tagged("hard", hard_color))  //
+    );
 
-  // Initial Stop
-  if (!is_trailing) {
-    ema_stop = ind.ema21(-1) * (1.0 - sizing_config.ema_stop_pct);
-    auto best = std::min(swing_low, ema_stop) * 0.999;
+  } else {
+    reasons.push_back(tagged("initial", "champagne", BOLD));
 
     atr_stop = entry_price - sizing_config.stop_atr_multiplier * atr;
-    hard_stop = entry_price * (1.0 - sizing_config.stop_pct);
+    details.emplace_back("atr: " + tagged(atr_stop, atr_color));
 
-    final_stop = std::max({best, atr_stop, hard_stop});
-    stop_pct = (entry_price - final_stop) / entry_price;
+    auto support_1d = m.ind_1d.nearest_support_below(-1);
+    if (support_1d) {
+      swing_low = support_1d->get().lo * 0.998;
+      details.emplace_back("support: " + tagged(swing_low, swing_color));
+
+      // Only use support if it's not too tight
+      if (swing_low < atr_stop * 0.85) {
+        reasons.push_back(tagged("tight support", "storm"));
+        swing_low = 0.0;
+      }
+    }
+
+    double hard_stop = entry_price * (1.0 - sizing_config.stop_pct);
+    details.emplace_back("max loss: " + tagged(hard_stop, hard_color));
+
+    final_stop = atr_stop;
+    if (swing_low > 0 && swing_low < final_stop) {
+      final_stop = swing_low;
+      reasons.push_back("using " + tagged("support", swing_color, BOLD));
+    } else {
+      reasons.push_back("using " + tagged("atr", atr_color, BOLD));
+    }
+
+    // But never go below hard stop
+    if (final_stop < hard_stop) {
+      final_stop = hard_stop;
+      reasons.push_back(tagged("capped at ", IT) +
+                        tagged("max loss", hard_color, IT));
+    }
   }
-  // Trailing Stop
-  else {
-    atr_stop = max_price_seen - sizing_config.trailing_atr_multiplier * atr;
-    hard_stop = max_price_seen * (1.0 - sizing_config.trailing_stop_pct);
 
-    final_stop = std::max({swing_low, atr_stop, hard_stop});
-    stop_pct = (price - final_stop) / price;
-  }
+  stop_pct = (entry_price - final_stop) / entry_price;
 
-  // Hybrid approach: Use stop-limit only for losing trades
-  use_stop_limit = !in_profit && m.has_position();
+  auto final_stop_color = final_stop == atr_stop    ? atr_color
+                          : final_stop == swing_low ? swing_color
+                                                    : hard_color;
+  details.push_back(std::format(                                      //
+      "final: {} ({}%)", tagged(final_stop, final_stop_color, BOLD),  //
+      tagged(stop_pct * 100, final_stop_color)                        //
+      ));
 
-  if (use_stop_limit) {
-    order_type = StopOrderType::STOP_LIMIT;
-    limit_price = calculate_limit_price(m, final_stop);
-    limit_pct = (price - limit_price) / price;
-  } else {
-    order_type = StopOrderType::STOP_LOSS;
-    limit_price = final_stop;  // Same as stop for regular stop-loss
-    limit_pct = stop_pct;
-  }
+  rationale = std::format(                                //
+      "{}<br><div class=\"rationale-details\">{}</div>",  //
+      join(reasons.begin(), reasons.end(), ", "),         //
+      join(details.begin(), details.end(), ", ")          //
+  );
 }
 
 double StopLoss::calculate_limit_price(const Metrics& m,
@@ -136,10 +108,9 @@ double StopLoss::calculate_limit_price(const Metrics& m,
   // Base gap tolerance: 0.5%
   double base_gap_tolerance = 0.005;
 
-  if (!primary_support) {
-    // No support found - use conservative 0.3% gap tolerance
+  // No support found - use conservative 0.3% gap tolerance
+  if (!primary_support)
     return stop_price * (1.0 - 0.003);
-  }
 
   const auto& support_zone = primary_support->get();
   double support_conf = support_zone.conf;
@@ -153,58 +124,110 @@ double StopLoss::calculate_limit_price(const Metrics& m,
     double max_gap_limit = stop_price * (1.0 - base_gap_tolerance);
 
     return std::min(support_based_limit, max_gap_limit);
-  } else if (support_conf >= 0.6) {
-    // Moderate support: use full 0.5% gap tolerance
+  }
+  // Moderate support: use full 0.5% gap tolerance
+  else if (support_conf >= 0.6) {
     return stop_price * (1.0 - base_gap_tolerance);
-  } else {
-    // Weak support: tighter 0.3% gap tolerance
+  }
+  // Weak support: tighter 0.3% gap tolerance
+  else {
     return stop_price * (1.0 - 0.003);
   }
 }
 
+struct ResistanceOption {
+  std::string timeframe;
+  double price;
+  double conf;
+  double rr_ratio;
+
+  bool operator<(const ResistanceOption& b) const {
+    auto& a = *this;
+    if (a.timeframe != b.timeframe) {
+      // prefer 1d > 4h > 1h
+      int priority_a = a.timeframe == "1d" ? 3 : a.timeframe == "4h" ? 2 : 1;
+      int priority_b = b.timeframe == "1d" ? 3 : b.timeframe == "4h" ? 2 : 1;
+      return priority_a < priority_b;
+    }
+    return a.conf < b.conf;
+  };
+};
+
 ProfitTarget::ProfitTarget(const Metrics& m,
                            const StopLoss& stop_loss) noexcept {
-  if (!m.has_position())
-    return;
-
-  auto entry_price = m.position->px;
+  auto entry_price = m.has_position() ? m.position->px : m.ind_1h.price(-1);
   auto stop_price = stop_loss.final_stop;
+  auto risk_amount = entry_price - stop_price;
 
-  auto [zone, timeframe] = calculate_resistance_target(m);
-  auto resistance_target = zone.lo * 0.998;
+  std::vector<ResistanceOption> resistance_options;
 
-  double percentage_target =
-      calculate_percentage_target(entry_price, stop_price);
+  auto add_res = [=, &resistance_options](auto& ind, const std::string& tf) {
+    auto res_opt = ind.nearest_resistance_above(-1);
+    if (res_opt) {
+      auto& zone = res_opt->get();
+      double target = zone.lo * 0.998;
+      double rr = (target - entry_price) / risk_amount;
+      if (zone.conf >= 0.7 && rr >= 1.5) {
+        resistance_options.emplace_back(tf, target, zone.conf, rr);
+      }
+    }
+  };
 
-  // Determine which approach to use
-  bool has_strong_resistance =
-      resistance_target > 0.0 && resistance_conf >= 0.7;
-  double risk_amount = entry_price - stop_price;
+  add_res(m.ind_1d, "1d");
+  add_res(m.ind_4h, "4h");
+  add_res(m.ind_1h, "1h");
 
-  if (has_strong_resistance) {
-    double resistance_rr = (resistance_target - entry_price) / risk_amount;
-    double percentage_rr = (percentage_target - entry_price) / risk_amount;
+  // Calculate percentage-based target
+  double config_target = entry_price * (1.0 + sizing_config.profit_pct);
+  double min_rr_target = entry_price + (2.0 * risk_amount);
+  double percentage_target = std::max(config_target, min_rr_target);
+  double percentage_rr = (percentage_target - entry_price) / risk_amount;
 
-    // Use resistance if it provides reasonable R:R (1.5:1 minimum)
+  // Target selection logic
+  if (!resistance_options.empty()) {
+    auto best =
+        std::max_element(resistance_options.begin(), resistance_options.end());
+    double resistance_target = best->price;
+    double resistance_rr = best->rr_ratio;
+
     if (resistance_rr >= 1.5 && resistance_rr <= percentage_rr * 1.2) {
       type = TargetType::RESISTANCE_BASED;
       target_price = resistance_target;
       risk_reward_ratio = resistance_rr;
-      // rationale = "Strong " + resistance_timeframe + " resistance at " +
-      //             std::to_string(resistance_rr) + ":1 R:R";
+      resistance_conf = best->conf;
+      resistance_inv = best->timeframe == "1d"   ? D_1
+                       : best->timeframe == "4h" ? H_4
+                                                 : H_1;
+
+      rationale = std::format(                                     //
+          "{}: {:.2f} ({:.1f}:1)",                                 //
+          tagged(std::format("{}_res", best->timeframe), "cyan"),  //
+          target_price, risk_reward_ratio                          //
+      );
     } else {
       type = TargetType::PERCENTAGE_BASED;
       target_price = percentage_target;
       risk_reward_ratio = percentage_rr;
-      // rationale = "Resistance too close/far - using " +
-      //             std::to_string(percentage_rr) + ":1 R:R target";
+
+      auto reason = resistance_rr < 1.5  //
+                        ? tagged("too close", "red")
+                        : tagged("too far", "yellow");
+      rationale = std::format(                                        //
+          "{}: {:.2f} ({:.1f}:1), resistance {} at {:.2f}",           //
+          tagged("perc", "blue"),                                     //
+          target_price, risk_reward_ratio, reason, resistance_target  //
+      );
     }
   } else {
     type = TargetType::PERCENTAGE_BASED;
     target_price = percentage_target;
-    risk_reward_ratio = (percentage_target - entry_price) / risk_amount;
-    // rationale = "No strong resistance nearby - using " +
-    //             std::to_string(risk_reward_ratio) + ":1 R:R target";
+    risk_reward_ratio = percentage_rr;
+
+    rationale = std::format(                     //
+        "{}: {:.2f} ({:.1f}:1), no resistance",  //
+        tagged("perc", "arctic-teal"),           //
+        target_price, risk_reward_ratio          //
+    );
   }
 
   target_pct = (target_price - entry_price) / entry_price;

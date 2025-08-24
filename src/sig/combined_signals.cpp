@@ -113,26 +113,27 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
   FilterBias filter_bias{filters};
 
   if (base_rating == Rating::Entry) {
-    rationale += std::format("1h {}. ", tagged("entry", GREEN, BOLD));
+    rationale += std::format("1h {}. ", tagged("entry", "green", BOLD));
 
     // Check 1d confirmation first (most important for swing trades)
     if (sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist) {
       rationale +=
-          std::format("1d {} strongly. ", tagged("confirms", GREEN, BOLD));
+          std::format("1d {} strongly. ", tagged("confirms", "green", BOLD));
       score_mod += 0.04;
     } else if (sig_1d.type == Rating::Exit || sig_1d.type == Rating::Caution) {
-      rationale += std::format("1d {} -> {}. ", tagged("conflicts", RED, BOLD),
-                               tagged("downgrading", YELLOW, IT));
+      rationale +=
+          std::format("1d {} -> {}. ", tagged("conflicts", "red", BOLD),
+                      tagged("downgrading", "yellow", IT));
       base_rating = Rating::Watchlist;
       score_mod -= 0.05;
     }
 
     // Then 4h confirmation
     if (sig_4h.type == Rating::Entry || sig_4h.type == Rating::Watchlist) {
-      rationale += std::format("4h {}. ", tagged("confirms", GREEN, IT));
+      rationale += std::format("4h {}. ", tagged("confirms", "green", IT));
       score_mod += 0.03;
     } else if (sig_4h.type == Rating::Exit && base_rating == Rating::Entry) {
-      rationale += std::format("4h {}. ", tagged("conflicts", RED, IT));
+      rationale += std::format("4h {}. ", tagged("conflicts", "red", IT));
       base_rating = Rating::Mixed;
       score_mod -= 0.03;
     }
@@ -140,70 +141,71 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
     // Filter integration
     if (filter_bias.strong_bullish >= 3) {
       rationale +=
-          std::format("filters: {} ({}). ", tagged("excellent", GREEN, BOLD),
+          std::format("filters: {} ({}). ", tagged("excellent", "green", BOLD),
                       filter_bias.key_signals);
       score_mod += 0.035;
     } else if (filter_bias.strong_bearish >= 2) {
       rationale +=
-          std::format("filters: {} – caution. ", tagged("bearish", RED, IT));
+          std::format("filters: {} – caution. ", tagged("bearish", "red", IT));
       base_rating = Rating::Watchlist;
       score_mod -= 0.04;
     }
 
   } else if (base_rating == Rating::Watchlist) {
-    rationale += std::format("1h {}. ", tagged("watchlist", YELLOW));
+    rationale += std::format("1h {}. ", tagged("watchlist", "yellow"));
 
     if ((sig_1d.type == Rating::Entry || sig_1d.type == Rating::Watchlist) &&
         sig_4h.type == Rating::Entry && filter_bias.strong_bullish >= 2) {
       rationale += std::format("strong 4h+1d support -> {}. ",
-                               tagged("upgrading", GREEN, BOLD));
+                               tagged("upgrading", "green", BOLD));
       base_rating = Rating::Entry;
       score_mod += 0.035;
     } else if (sig_1d.type == Rating::Entry && filter_bias.net_bullish > 2) {
       rationale +=
-          std::format("1d {} + filters -> {}. ", tagged("entry", GREEN),
-                      tagged("upgrade", GREEN));
+          std::format("1d {} + filters -> {}. ", tagged("entry", "green"),
+                      tagged("upgrade", "green"));
       base_rating = Rating::Entry;
       score_mod += 0.03;
     } else if (sig_1d.type == Rating::Exit || filter_bias.strong_bearish >= 2) {
-      rationale += std::format("htf {}. ", tagged("bearish", RED, IT));
+      rationale += std::format("htf {}. ", tagged("bearish", "red", IT));
       base_rating = Rating::Caution;
       score_mod -= 0.03;
     }
 
   } else if (base_rating == Rating::Exit) {
-    rationale += std::format("1h {}. ", tagged("exit", RED, BOLD));
+    rationale += std::format("1h {}. ", tagged("exit", "red", BOLD));
 
     if (sig_1d.type == Rating::Exit || sig_4h.type == Rating::Exit) {
-      rationale += std::format("htf {} exit. ", tagged("confirms", RED, BOLD));
+      rationale +=
+          std::format("htf {} exit. ", tagged("confirms", "red", BOLD));
       score_mod -= 0.06;
     } else if (sig_1d.type == Rating::Entry && !has_position) {
       rationale += std::format("1d bullish -> {}. ",
-                               tagged("downgrading exit", YELLOW, IT));
+                               tagged("downgrading exit", "yellow", IT));
       base_rating = Rating::Caution;
       score_mod += 0.04;
     }
 
     if (filter_bias.strong_bearish >= 2) {
       rationale +=
-          std::format("filters {}. ", tagged("confirm bearish", RED, BOLD));
+          std::format("filters {}. ", tagged("confirm bearish", "red", BOLD));
       score_mod -= 0.025;
     }
 
   } else if (base_rating == Rating::None || base_rating == Rating::Mixed) {
     if (sig_1d.type == Rating::Entry && filter_bias.strong_bullish >= 2) {
-      rationale += std::format("1h {}, but 1d+filters {}. ",  //
-                               tagged("neutral", BLUE, IT),   //
-                               tagged("bullish", GREEN));
+      rationale += std::format("1h {}, but 1d+filters {}. ",   //
+                               tagged("neutral", "blue", IT),  //
+                               tagged("bullish", "green"));
       base_rating = Rating::Watchlist;
       score_mod += 0.025;
     } else if (sig_4h.type == Rating::Entry && sig_1d.type != Rating::Exit) {
-      rationale += std::format("1h {}, 4h shows {}. ",       //
-                               tagged("neutral", BLUE, IT),  //
-                               tagged("potential", BLUE, IT));
+      rationale += std::format("1h {}, 4h shows {}. ",         //
+                               tagged("neutral", "blue", IT),  //
+                               tagged("potential", "blue", IT));
       base_rating = Rating::Watchlist;
     } else if (sig_1d.type == Rating::Exit || filter_bias.strong_bearish >= 2) {
-      rationale += std::format("htf {}. ", tagged("bearish", RED));
+      rationale += std::format("htf {}. ", tagged("bearish", "red"));
       base_rating = Rating::Caution;
       score_mod -= 0.02;
     }
@@ -211,33 +213,33 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
 
   // Stop loss handling
   if (stop_hit.type == StopHitType::StopLossHit) {
-    rationale += std::format("{}! ", tagged("STOP HIT", RED, BOLD, IT));
+    rationale += std::format("{}! ", tagged("STOP HIT", "red", BOLD, IT));
     base_rating = Rating::Exit;
   } else if (stop_hit.type == StopHitType::TimeExit) {
-    rationale += std::format("{}. ", tagged("time exit", RED, IT));
+    rationale += std::format("{}. ", tagged("time exit", "red", IT));
     base_rating = Rating::Exit;
   } else if (stop_hit.type == StopHitType::StopProximity &&
              base_rating == Rating::Entry) {
-    rationale += std::format("near {}. ", tagged("stop", YELLOW, IT));
+    rationale += std::format("near {}. ", tagged("stop", "yellow", IT));
     base_rating = Rating::Mixed;
   }
 
   // Disqualification check
   if (stop_hit.type == StopHitType::None && disqualify(filters)) {
     rationale +=
-        std::format("{} by filters. ", tagged("disqualified", RED, BOLD));
+        std::format("{} by filters. ", tagged("disqualified", "red", BOLD));
     return {Rating::Skip, score_mod, rationale};
   }
 
   // Position adjustments
   if (base_rating == Rating::Caution && has_position) {
     rationale +=
-        std::format("hold position {}. ", tagged("cautiously", YELLOW, IT));
+        std::format("hold position {}. ", tagged("cautiously", "yellow", IT));
     base_rating = Rating::HoldCautiously;
   }
 
   if (base_rating == Rating::Exit && !has_position) {
-    rationale += std::format("no position to {}. ", tagged("exit", GRAY));
+    rationale += std::format("no position to {}. ", tagged("exit", "gray"));
     base_rating = Rating::Caution;
   }
 
@@ -307,7 +309,7 @@ CombinedSignal::CombinedSignal(  //
         ev.days_until() < config.sizing_config.earnings_volatility_buffer) {
       type = Rating::Watchlist;
       rationale += std::format("Earnings proximity - . ",
-                               tagged("waiting", YELLOW, BOLD));
+                               tagged("waiting", "yellow", BOLD));
     }
   }
 }

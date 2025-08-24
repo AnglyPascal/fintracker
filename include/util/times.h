@@ -60,3 +60,7 @@ constexpr size_t candles_per_day(minutes timeframe) {
   minutes day_mins = hours{6} + minutes{30};
   return (day_mins + timeframe - minutes{1}) / timeframe;
 }
+
+inline auto today_ny() {
+  return floor<days>(now_ny_time());
+}
