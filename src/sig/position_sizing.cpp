@@ -136,10 +136,10 @@ PositionSizing::PositionSizing(const Metrics& m,
 
   // Detailed second line
   std::vector<std::string> details;
-  details.push_back(std::format("vol {:.1f} + trend {:.1f} + conflict {}",
+  details.push_back(std::format("vol {:.0f}, trend {:.0f}, conflict {}",
                                 vol_risk, trend_risk, conflicts));
   details.push_back(std::format("base {:.0f} shares", base_shares));
-  details.push_back(std::format("multipliers: {:.1f}×{:.1f}×{:.2f} = {:.2f}",
+  details.push_back(std::format("multipliers: {:.1f} * {:.1f} * {:.2f} = {:.2f}",
                                 signal_mult, conf_mult, risk_mult, total_mult));
 
   rationale = std::format(                                          //
