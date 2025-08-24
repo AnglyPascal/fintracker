@@ -17,7 +17,7 @@ Replay::Replay(TD& td, const Symbols& symbols) noexcept
   if (!config.replay_en)
     return;
 
-  auto candles_fname = "data/replay_candles.bin";
+  auto candles_fname = "private/replay_candles.bin";
 
   if (!config.replay_clear && fs::exists(candles_fname)) {
     candles_by_sym = read_candles(candles_fname);

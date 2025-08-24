@@ -73,7 +73,6 @@ list(REMOVE_ITEM SOURCES
 add_executable(${TARGET} ${SOURCES})
 
 target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(${TARGET} SYSTEM PRIVATE ${ZMQ_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${GLAZE_INCLUDE_DIR})
 target_include_directories(${TARGET} SYSTEM PRIVATE ${SUBPROCESS_INCLUDE_DIR})
@@ -109,9 +108,13 @@ set(CALENDAR get_calendar)
 
 add_executable(${CALENDAR}
   src/get_calendar.cpp
+  src/ind/calendar.cpp
+  src/util/times.cpp
+  src/util/symbols.cpp
 )
 
-target_link_libraries(${CALENDAR} cpr::cpr)
-target_include_directories(${CALENDAR} SYSTEM PRIVATE ${SPDLOG_INCLUDE_DIR})
+target_link_libraries(${CALENDAR} cpr::cpr spdlog::spdlog)
+target_include_directories(${CALENDAR} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(${CALENDAR} SYSTEM PRIVATE ${NLOHMANN_JSON_INCLUDE_DIR})
+target_include_directories(${CALENDAR} SYSTEM PRIVATE ${GLAZE_INCLUDE_DIR})
 

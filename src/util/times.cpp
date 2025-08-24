@@ -19,9 +19,8 @@ LocalTimePoint datetime_to_local(std::string_view datetime,
   local_time<seconds> local;
   in >> parse(std::string(fmt), local);
 
-  if (timezone == ny_tz) {
-    return local;  // Already NY time
-  }
+  if (timezone == ny_tz)
+    return local;
 
   // interpret as time in local time zone, then convert to ny local time
   auto& db = get_tzdb();

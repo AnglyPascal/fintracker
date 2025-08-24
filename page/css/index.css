@@ -107,25 +107,15 @@ table.signal {
   border-left: 1px solid var(--color-border) !important;
 }
 
-/* Signal rows */
-.combined-signal-tr {
-  border-bottom: 2px solid var(--color-border) !important;
-}
-
 .combined-signal-tr td {
   padding: 5px;
   margin: 0em;
   vertical-align: top !important;
 }
 
-.combined-signal-tr .signal,
-.signal-memory-tr .signal {
+.combined-signal-tr .signal {
   padding: 5px;
   margin: 0em;
-}
-
-.signal-memory-tr .signal {
-  margin-top: 5px;
 }
 
 /* Override signal time visibility for signal table */

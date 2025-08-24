@@ -12,11 +12,13 @@
 using json = nlohmann::json;
 using namespace std::chrono;
 
+inline auto today_ny() {
+  return floor<days>(now_ny_time());
+}
+
 int Event::days_until() const {
-  auto date_now = floor<days>(now_ny_time());
-  if (ny_date < date_now)
-    return -1;
-  return duration_cast<days>(ny_date - date_now).count();
+  auto today = today_ny();
+  return date < today ? -1 : duration_cast<days>(date - today).count();
 }
 
 template <>
@@ -34,25 +36,10 @@ struct glz::meta<LocalTimePoint> {
   static constexpr auto value = custom<read, write>;
 };
 
-Calendar::Calendar(const Symbols& symbols) {
-  if (weekday{floor<days>(now_ny_time())} == Monday) {
-    fetch_events(symbols);
-    return;
-  }
-
-  auto ec = glz::read_file_json(events, filename, std::string{});
-  if (ec)
-    spdlog::error("[calendar] error reading {}", filename.c_str());
-
-  for (auto& [s, arr] : events)
-    std::sort(arr.begin(), arr.end(),
-              [](auto& l, auto& r) { return l.ny_date < r.ny_date; });
-}
-
 inline auto fetch_nasdaq_events(auto& event_type, auto& date) {
-  Events events;
+  EventsMap events;
 
-  auto url = std::format("https://api.nasdaq.com/api/calendar/{}?date={}",
+  auto url = std::format("https://api.nasdaq.com/api/calendar/{}?date={:%F}",
                          event_type, date);
   cpr::Response r =
       cpr::Get(cpr::Url{url}, cpr::Header{{"User-Agent", "Mozilla/5.0"}});
@@ -73,19 +60,19 @@ inline auto fetch_nasdaq_events(auto& event_type, auto& date) {
       auto earnings = data["rows"];
       for (auto& item : earnings) {
         auto sym = item.value("symbol", "");
-        events[sym].emplace_back('E', datetime_to_local(date));
+        events[sym].emplace('E', date);
       }
     } else if (event_type == "dividends") {
       auto dividends = data["calendar"]["rows"];
       for (auto& item : dividends) {
         auto sym = item.value("symbol", "");
-        events[sym].emplace_back('D', datetime_to_local(date));
+        events[sym].emplace('D', date);
       }
     } else if (event_type == "splits") {
       auto splits = data["rows"];
       for (auto& item : splits) {
         auto sym = item.value("symbol", "");
-        events[sym].emplace_back('S', datetime_to_local(date));
+        events[sym].emplace('S', date);
       }
     }
   } catch (const std::exception& e) {
@@ -95,45 +82,68 @@ inline auto fetch_nasdaq_events(auto& event_type, auto& date) {
   return events;
 }
 
-void Calendar::fetch_events(const Symbols& symbols) {
+Calendar::Calendar(const Symbols& symbols) {
+  auto ec = glz::read_file_json(events, filename, std::string{});
+  if (ec) {
+    events.from = today_ny();
+    events.to = events.from + days{30};
+    events.data = fetch_events(symbols, events.from, events.to);
+    backup();
+    return;
+  }
+
+  auto today = today_ny();
+  if (today <= events.from + days{7})
+    return;
+
+  for (auto [sym, arr] : events.data)
+    arr.erase(arr.begin(), arr.lower_bound({'\0', today}));
+
+  auto mp = fetch_events(symbols, events.to, events.to + days{7});
+  for (auto& [sym, arr] : mp)
+    events.data[sym].insert(arr.begin(), arr.end());
+
+  events.from = today;
+  events.to = events.to + days{7};
+
+  backup();
+}
+
+EventsMap Calendar::fetch_events(const Symbols& symbols,
+                                 LocalTimePoint from,
+                                 LocalTimePoint to) const {
+  EventsMap mp;
+
   std::unordered_set<std::string> watchlist;
   for (auto& si : symbols.arr)
     watchlist.insert(si.symbol);
 
-  auto today = floor<days>(now_ny_time());
-
-  for (int i = 0; i < 30; ++i) {
-    auto day = today + std::chrono::hours(24 * i);
-    auto date = datetime_to_string(day);
-
-    for (const auto& event_type : {"earnings", "dividends", "splits"}) {
-      auto events = fetch_nasdaq_events(event_type, date);
-      for (auto& [sym, evs] : events) {
-        if (watchlist.count(sym) == 0)
+  for (auto date = from; date <= to; date += days{1}) {
+    for (auto& event_type : {"earnings", "dividends", "splits"}) {
+      auto events_map = fetch_nasdaq_events(event_type, date);
+      for (auto& [sym, evs] : events_map) {
+        if (!watchlist.contains(sym))
           continue;
-        auto& arr = events[sym];
-        arr.insert(arr.end(), evs.begin(), evs.end());
+        auto& arr = mp[sym];
+        arr.insert(evs.begin(), evs.end());
       }
     }
   }
 
-  for (auto& [s, arr] : events)
-    std::sort(arr.begin(), arr.end(),
-              [](auto& l, auto& r) { return l.ny_date < r.ny_date; });
+  return mp;
+}
 
+void Calendar::backup() const {
   auto ec = glz::write_file_json(events, filename, std::string{});
   if (ec)
     spdlog::error("[calendar] error writing {}", filename.c_str());
 }
 
 Event Calendar::next_event(std::string symbol) const {
-  auto it = events.find(symbol);
-  if (it == events.end() || it->second.empty())
+  auto it = events.data.find(symbol);
+  if (it == events.data.end() || it->second.empty())
     return {};
 
-  for (auto& ev : it->second)
-    if (ev.days_until() >= 0)
-      return ev;
-
-  return {};
+  auto ev_it = it->second.lower_bound({'\0', today_ny()});
+  return ev_it != it->second.end() ? *ev_it : Event{};
 }
