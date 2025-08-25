@@ -5,7 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
-inline auto& sizing_config = config.sizing_config;
+inline auto& risk_config = config.risk_config;
 
 inline double round_to(double x, int n = 2) {
   double factor = std::pow(10.0, n);
@@ -58,7 +58,7 @@ PositionSizing::PositionSizing(const Metrics& m,
   // Base position calculation
   double risk_per_share = current_price - sl.final_stop;
   risk_pct = risk_per_share / current_price;
-  double base_shares = sizing_config.max_risk_amount() / risk_per_share;
+  double base_shares = risk_config.max_risk_amount() / risk_per_share;
 
   // Multipliers
   double signal_mult = sig.type == Rating::Entry       ? 1.0
@@ -75,7 +75,7 @@ PositionSizing::PositionSizing(const Metrics& m,
   rec_capital = rec_shares * current_price;
 
   // Position limit check
-  auto max_position = sizing_config.max_position_amount();
+  auto max_position = risk_config.max_position_amount();
   bool was_capped = false;
   if (rec_capital > max_position) {
     rec_shares = round_to(max_position / current_price, 2);
@@ -85,15 +85,15 @@ PositionSizing::PositionSizing(const Metrics& m,
 
   // Final risk calculation
   risk_amount = rec_shares * risk_per_share;
-  auto final_risk_pct = risk_amount / sizing_config.capital_usd;
+  auto final_risk_pct = risk_amount / risk_config.capital_usd;
 
   // Recommendation logic
   bool possible_entry = sig.type == Rating::Entry ||
                         (sig.type == Rating::Watchlist &&
-                         sig.score > sizing_config.entry_score_cutoff);
+                         sig.score > risk_config.entry_score_cutoff);
   bool criteria_met = possible_entry &&
-                      risk <= sizing_config.entry_risk_cutoff &&
-                      sig.forecast.conf > sizing_config.entry_conf_cutoff;
+                      risk <= risk_config.entry_risk_cutoff &&
+                      sig.forecast.conf > risk_config.entry_conf_cutoff;
 
   if (!criteria_met) {
     rec = Recommendation::Avoid;

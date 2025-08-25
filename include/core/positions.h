@@ -44,8 +44,6 @@ Position operator-(const Position& lhs, const Position& rhs);
 using Trades = std::unordered_map<std::string, std::vector<Trade>>;
 using Positions = std::unordered_map<std::string, Position>;
 
-class TG;
-
 class OpenPositions {
   Trades trades_by_ticker;
   Positions positions;

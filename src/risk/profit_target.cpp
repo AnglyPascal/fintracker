@@ -3,7 +3,7 @@
 #include "util/config.h"
 #include "util/format.h"
 
-inline auto& sizing_config = config.sizing_config;
+inline auto& risk_config = config.risk_config;
 
 struct ResistanceOption {
   std::string timeframe;
@@ -48,7 +48,7 @@ ProfitTarget::ProfitTarget(const Metrics& m,
   add_res(m.ind_1h, "1h");
 
   // Calculate percentage-based target
-  double config_target = entry_price * (1.0 + sizing_config.profit_pct);
+  double config_target = entry_price * (1.0 + risk_config.profit_pct);
   double min_rr_target = entry_price + (2.0 * risk_amount);
   double percentage_target = std::max(config_target, min_rr_target);
   double percentage_rr = (percentage_target - entry_price) / risk_amount;
@@ -101,43 +101,4 @@ ProfitTarget::ProfitTarget(const Metrics& m,
   }
 
   target_pct = (target_price - entry_price) / entry_price;
-}
-
-std::pair<Zone, minutes> ProfitTarget::calculate_resistance_target(
-    const Metrics& m) const {
-  // Check resistance levels in order of preference: 1D -> 4H -> 1H
-  auto resistance_1d = m.ind_1d.nearest_resistance_above(-1);
-  auto resistance_4h = m.ind_4h.nearest_resistance_above(-1);
-  auto resistance_1h = m.ind_1h.nearest_resistance_above(-1);
-
-  if (resistance_1d) {
-    auto& zone = resistance_1d->get();
-    if (zone.conf >= 0.7)
-      return {zone, D_1};
-  }
-
-  if (resistance_4h) {
-    const auto& zone = resistance_4h->get();
-    if (zone.conf >= 0.7)
-      return {zone, H_4};
-  }
-
-  if (resistance_1h) {
-    const auto& zone = resistance_1h->get();
-    if (zone.conf >= 0.6)
-      return {zone, H_1};
-  }
-
-  return {};
-}
-
-double ProfitTarget::calculate_percentage_target(double entry_price,
-                                                 double stop_price) const {
-  double risk_amount = entry_price - stop_price;
-
-  // Use config profit percentage as base, but ensure minimum 2:1 R:R
-  double config_target = entry_price * (1.0 + sizing_config.profit_pct);
-  double min_rr_target = entry_price + (2.0 * risk_amount);  // 2:1 minimum
-
-  return std::max(config_target, min_rr_target);
 }

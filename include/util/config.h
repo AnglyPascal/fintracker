@@ -38,7 +38,7 @@ struct IndicatorsConfig {
   }
 };
 
-struct PositionSizingConfig {
+struct RiskConfig {
   static constexpr const char* name = "pos_config";
   static constexpr bool debug = true;
 
@@ -189,7 +189,7 @@ struct Config {
 
   APIConfig api_config;
   IndicatorsConfig ind_config;
-  PositionSizingConfig sizing_config;
+  RiskConfig risk_config;
   SupportResistanceConfig sr_config;
   SignalConfig sig_config;
 

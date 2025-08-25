@@ -305,7 +305,7 @@ CombinedSignal::CombinedSignal(  //
 
   if (type == Rating::Entry) {
     if (ev.is_earnings() && ev.days_until() >= 0 &&
-        ev.days_until() < config.sizing_config.earnings_volatility_buffer) {
+        ev.days_until() < config.risk_config.earnings_volatility_buffer) {
       type = Rating::Watchlist;
       rationale += std::format("Earnings proximity - . ",
                                tagged("waiting", "yellow", BOLD));

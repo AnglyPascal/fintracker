@@ -39,12 +39,12 @@ void Config::update() {
 
   api_config = read<APIConfig>("private/api.json");
   ind_config = read<IndicatorsConfig>("private/indicators.json");
-  sizing_config = read<PositionSizingConfig>("private/sizing.json");
+  risk_config = read<RiskConfig>("private/risk.json");
   sr_config = read<SupportResistanceConfig>("private/support_resistance.json");
   sig_config = read<SignalConfig>("private/signal.json");
 
-  sizing_config.capital_usd =
-      to_usd(sizing_config.capital, sizing_config.capital_currency);
+  risk_config.capital_usd =
+      to_usd(risk_config.capital, risk_config.capital_currency);
 }
 
 void Config::read_args(int argc, char* argv[]) {

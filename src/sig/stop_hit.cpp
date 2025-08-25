@@ -11,7 +11,7 @@ StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
   auto days_held =
       std::chrono::floor<days>(std::chrono::floor<days>(now_ny_time()) -
                                std::chrono::floor<days>(m.position->tp));
-  if (days_held.count() > config.sizing_config.max_hold_days)
+  if (days_held.count() > config.risk_config.max_hold_days)
     return StopHitType::TimeExit;
 
   auto price = m.last_price();

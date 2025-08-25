@@ -8,8 +8,8 @@ Backtest::Backtest(const IndicatorsTrends& _ind) : ind{_ind} {
   size_t n = ind.size();
   lookahead.reserve(n);
 
-  double profit_target = config.sizing_config.profit_pct * 100;
-  double stop_loss = config.sizing_config.stop_pct * 100;
+  double profit_target = config.risk_config.profit_pct * 100;
+  double stop_loss = config.risk_config.stop_pct * 100;
 
   for (size_t i = 0; i < n; ++i) {
     double entry = ind.price(i);
@@ -21,7 +21,7 @@ Backtest::Backtest(const IndicatorsTrends& _ind) : ind{_ind} {
     double final_pnl = 0.0;
 
     size_t max_candles =
-        config.sizing_config.max_hold_days * candles_per_day(ind.interval);
+        config.risk_config.max_hold_days * candles_per_day(ind.interval);
     size_t exit_candles = max_candles;
 
     auto end_idx = std::min(n - 1, i + max_candles);

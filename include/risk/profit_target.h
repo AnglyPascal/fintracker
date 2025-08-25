@@ -18,9 +18,4 @@ struct ProfitTarget {
 
   ProfitTarget() noexcept = default;
   ProfitTarget(const Metrics& m, const StopLoss& stop_loss) noexcept;
-
- private:
-  std::pair<Zone, minutes> calculate_resistance_target(const Metrics& m) const;
-  double calculate_percentage_target(double entry_price,
-                                     double stop_price) const;
 };

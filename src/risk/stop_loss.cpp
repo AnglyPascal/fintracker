@@ -3,7 +3,7 @@
 #include "util/config.h"
 #include "util/format.h"
 
-inline auto& sizing_config = config.sizing_config;
+inline auto& risk_config = config.risk_config;
 
 StopLoss::StopLoss(const Metrics& m) noexcept {
   auto& ind = m.ind_1h;
@@ -24,15 +24,15 @@ StopLoss::StopLoss(const Metrics& m) noexcept {
 
   is_trailing =
       m.has_position() &&
-      (max_price_seen > entry_price + sizing_config.trailing_trigger_atr * atr);
+      (max_price_seen > entry_price + risk_config.trailing_trigger_atr * atr);
 
   if (is_trailing) {
     reasons.push_back(tagged("trailing", "sage", BOLD));
 
-    atr_stop = max_price_seen - sizing_config.trailing_atr_multiplier * atr;
+    atr_stop = max_price_seen - risk_config.trailing_atr_multiplier * atr;
     details.emplace_back("atr: " + tagged(atr_stop, atr_color));
 
-    double hard_stop = max_price_seen * (1.0 - sizing_config.trailing_stop_pct);
+    double hard_stop = max_price_seen * (1.0 - risk_config.trailing_stop_pct);
     details.emplace_back("hard: " + tagged(hard_stop, hard_color));
 
     final_stop = std::min(atr_stop, hard_stop);
@@ -45,7 +45,7 @@ StopLoss::StopLoss(const Metrics& m) noexcept {
   } else {
     reasons.push_back(tagged("initial", "champagne", BOLD));
 
-    atr_stop = entry_price - sizing_config.stop_atr_multiplier * atr;
+    atr_stop = entry_price - risk_config.stop_atr_multiplier * atr;
     details.emplace_back("atr: " + tagged(atr_stop, atr_color));
 
     auto support_1d = m.ind_1d.nearest_support_below(-1);
@@ -60,7 +60,7 @@ StopLoss::StopLoss(const Metrics& m) noexcept {
       }
     }
 
-    double hard_stop = entry_price * (1.0 - sizing_config.stop_pct);
+    double hard_stop = entry_price * (1.0 - risk_config.stop_pct);
     details.emplace_back("max loss: " + tagged(hard_stop, hard_color));
 
     final_stop = atr_stop;
