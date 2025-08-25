@@ -1,5 +1,5 @@
 #include "ind/indicators.h"
-#include "sig/signals.h"
+#include "sig/filters.h"
 
 std::vector<Filter> evaluate_1h_trends(const Metrics& m) {
   const auto& ind = m.ind_1h;

@@ -64,11 +64,6 @@ std::string to_str(const std::string& str) {
 }
 
 template <>
-std::string to_str(const Confirmation& h) {
-  return h.str;
-}
-
-template <>
 std::string to_str(const Reason& r) {
   return r.str();
 }

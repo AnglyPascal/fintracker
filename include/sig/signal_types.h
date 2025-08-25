@@ -1,15 +1,10 @@
 #pragma once
 
-#include "util/math.h"
-#include "util/times.h"
-
-#include <map>
 #include <string>
 
 enum class Severity { Urgent = 4, High = 3, Medium = 2, Low = 1 };
 enum class Source { Price, Stop, EMA, RSI, MACD, SR, None };
 enum class SignalClass { None, Entry, Exit };
-enum class Confidence { Low, Medium, High };
 
 struct Meta {
   Severity sev;
@@ -111,37 +106,4 @@ struct SignalType {
 using Reason = SignalType<ReasonType, ReasonType::None>;
 using Hint = SignalType<HintType, HintType::None>;
 using StopHit = SignalType<StopHitType, StopHitType::None>;
-
-enum class Trend {
-  StrongUptrend,
-  ModerateUptrend,
-  NeutralOrSideways,
-  Caution,
-  Bearish,
-  None,
-};
-
-struct Filter {
-  Trend trend;
-  Confidence conf;
-  std::string str;
-  std::string desc;
-
-  Filter() : trend{Trend::None}, conf{Confidence::Low}, str{""} {}
-  Filter(Trend t,
-         Confidence c,
-         const std::string& str = "",
-         const std::string& desc = "")
-      : trend{t}, conf{c}, str{str}, desc{desc} {}
-};
-
-using Filters = std::map<minutes::rep, std::vector<Filter>>;
-
-struct Confirmation {
-  std::string str;
-
-  Confirmation(const char* str) : str{str} {}
-  Confirmation() : str{""} {}
-};
-
 

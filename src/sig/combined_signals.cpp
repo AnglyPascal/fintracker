@@ -1,6 +1,7 @@
 #include "ind/calendar.h"
 #include "ind/indicators.h"
-#include "sig/signals.h"
+#include "risk/stop_loss.h"
+#include "sig/combined_signal.h"
 #include "util/config.h"
 #include "util/format.h"
 
@@ -279,8 +280,6 @@ auto combined_forecast(auto fc_1h, auto fc_4h, auto fc_1d) {
 }
 
 StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss);
-Filters evaluate_filters(const Metrics& m);
-std::vector<Confirmation> confirmations(const Metrics& m);
 
 CombinedSignal::CombinedSignal(  //
     const Metrics& m,
@@ -296,7 +295,7 @@ CombinedSignal::CombinedSignal(  //
   forecast =
       combined_forecast(sig_1h.forecast, sig_4h.forecast, sig_1d.forecast);
 
-  filters = evaluate_filters(m);
+  filters = Filters{m};
   auto [rating, mod, r_str] = contextual_rating(
       sig_1h, sig_4h, sig_1d, stop_hit, filters, m.has_position());
 

@@ -1,10 +1,8 @@
 #pragma once
 
 #include "ind/indicators.h"
-
-struct Indicators;
-struct Metrics;
-struct StopLoss;
+#include "sig/combined_signal.h"
+#include "stop_loss.h"
 
 enum class Recommendation {
   StrongBuy,  // Full position size

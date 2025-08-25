@@ -1,5 +1,5 @@
-#include "sig/position_sizing.h"
-#include "ind/stop_loss.h"
+#include "risk/position_sizing.h"
+#include "risk/stop_loss.h"
 #include "util/config.h"
 #include "util/format.h"
 
@@ -139,8 +139,9 @@ PositionSizing::PositionSizing(const Metrics& m,
   details.push_back(std::format("vol {:.0f}, trend {:.0f}, conflict {}",
                                 vol_risk, trend_risk, conflicts));
   details.push_back(std::format("base {:.0f} shares", base_shares));
-  details.push_back(std::format("multipliers: {:.1f} * {:.1f} * {:.2f} = {:.2f}",
-                                signal_mult, conf_mult, risk_mult, total_mult));
+  details.push_back(
+      std::format("multipliers: {:.1f} * {:.1f} * {:.2f} = {:.2f}", signal_mult,
+                  conf_mult, risk_mult, total_mult));
 
   rationale = std::format(                                          //
       "{}<br><div class=\"rationale-details\">{}</div>",            //

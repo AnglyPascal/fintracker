@@ -1,4 +1,5 @@
 #include "sig/signal_types.h"
+#include "util/math.h"
 
 #include <unordered_map>
 

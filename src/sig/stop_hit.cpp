@@ -1,5 +1,5 @@
 #include "ind/indicators.h"
-#include "ind/stop_loss.h"
+#include "risk/stop_loss.h"
 #include "sig/signals.h"
 #include "util/config.h"
 

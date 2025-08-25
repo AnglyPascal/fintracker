@@ -56,9 +56,6 @@ struct PositionSizingConfig {
   double trailing_atr_multiplier = 3.0;
   double trailing_stop_pct = 0.035;
 
-  double swing_low_buffer = 0.002;
-  double ema_stop_pct = 0.02;
-
   double entry_score_cutoff = 0.6;
   double entry_risk_cutoff = 6.0;
   double entry_conf_cutoff = 0.6;

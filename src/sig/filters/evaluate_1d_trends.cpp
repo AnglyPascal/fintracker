@@ -1,5 +1,5 @@
 #include "ind/indicators.h"
-#include "sig/signals.h"
+#include "sig/filters.h"
 #include "util/config.h"
 #include "util/format.h"
 

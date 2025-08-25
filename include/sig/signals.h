@@ -12,7 +12,6 @@ struct Metrics;
 
 using signal_f = Reason (*)(const IndicatorsTrends&, int);
 using hint_f = Hint (*)(const IndicatorsTrends&, int);
-using conf_f = Confirmation (*)(const Metrics&);
 
 struct Score {
   double entry = 0.0;
@@ -55,21 +54,3 @@ struct Signal {
   Signal(const Indicators& ind, int idx = -1);
 };
 
-struct StopLoss;
-struct Event;
-
-struct CombinedSignal {
-  Rating type = Rating::None;
-  Score score;
-  std::string rationale;
-
-  StopHit stop_hit;
-  Filters filters;
-  Forecast forecast;
-
-  CombinedSignal() = default;
-  CombinedSignal(const Metrics& m,
-                 const StopLoss& sl,
-                 const Event& ev,
-                 int idx = -1);
-};

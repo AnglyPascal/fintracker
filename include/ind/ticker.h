@@ -2,9 +2,10 @@
 
 #include "calendar.h"
 #include "indicators.h"
-#include "sig/position_sizing.h"
+#include "risk/position_sizing.h"
+#include "risk/profit_target.h"
+#include "risk/stop_loss.h"
 #include "sig/signals.h"
-#include "stop_loss.h"
 #include "util/symbols.h"
 
 struct Ticker {
