@@ -1,6 +1,5 @@
 #include "ind/calendar.h"
 #include "ind/indicators.h"
-#include "risk/stop_loss.h"
 #include "sig/combined_signal.h"
 #include "util/config.h"
 #include "util/format.h"
@@ -103,7 +102,6 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
     auto& sig_1h,
     auto& sig_4h,
     auto& sig_1d,
-    auto& stop_hit,
     auto& filters,
     bool has_position  //
 ) {
@@ -212,21 +210,8 @@ inline std::tuple<Rating, double, std::string> contextual_rating(
     }
   }
 
-  // Stop loss handling
-  if (stop_hit.type == StopHitType::StopLossHit) {
-    rationale += std::format("{}! ", tagged("STOP HIT", "red", BOLD, IT));
-    base_rating = Rating::Exit;
-  } else if (stop_hit.type == StopHitType::TimeExit) {
-    rationale += std::format("{}. ", tagged("time exit", "red", IT));
-    base_rating = Rating::Exit;
-  } else if (stop_hit.type == StopHitType::StopProximity &&
-             base_rating == Rating::Entry) {
-    rationale += std::format("near {}. ", tagged("stop", "yellow", IT));
-    base_rating = Rating::Mixed;
-  }
-
   // Disqualification check
-  if (stop_hit.type == StopHitType::None && disqualify(filters)) {
+  if (disqualify(filters)) {
     rationale +=
         std::format("{} by filters. ", tagged("disqualified", "red", BOLD));
     return {Rating::Skip, score_mod, rationale};
@@ -279,25 +264,40 @@ auto combined_forecast(auto fc_1h, auto fc_4h, auto fc_1d) {
   return !fc_1h.empty() ? fc_1h : !fc_4h.empty() ? fc_4h : fc_1d;
 }
 
-StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss);
+void CombinedSignal::apply_stop_hit(StopHit hit) {
+  stop_hit = hit;
 
-CombinedSignal::CombinedSignal(  //
-    const Metrics& m,
-    const StopLoss& sl,
-    const Event& ev,
-    int idx  //
-) {
-  auto sig_1h = m.ind_1h.get_signal(idx);
-  auto sig_4h = m.ind_4h.get_signal(idx);
-  auto sig_1d = m.ind_1d.get_signal(idx);
+  if (stop_hit.type == StopHitType::StopLossHit) {
+    rationale += std::format("{}! ", tagged("STOP HIT", "red", BOLD, IT));
+    type = Rating::Exit;
+    return;
+  }
 
-  stop_hit = stop_loss_hits(m, sl);
+  if (stop_hit.type == StopHitType::TimeExit) {
+    rationale += std::format("{}. ", tagged("time exit", "red", IT));
+    type = Rating::Exit;
+    return;
+  }
+
+  if (stop_hit.type == StopHitType::StopProximity && type == Rating::Entry) {
+    rationale += std::format("near {}. ", tagged("stop", "yellow", IT));
+    type = Rating::Mixed;
+  }
+}
+
+CombinedSignal::CombinedSignal(const Metrics& m,
+                               const Event& ev,
+                               LocalTimePoint tp) {
+  auto sig_1h = m.ind_1h.get_signal(tp);
+  auto sig_4h = m.ind_4h.get_signal(tp);
+  auto sig_1d = m.ind_1d.get_signal(tp);
+
   forecast =
       combined_forecast(sig_1h.forecast, sig_4h.forecast, sig_1d.forecast);
 
   filters = Filters{m};
-  auto [rating, mod, r_str] = contextual_rating(
-      sig_1h, sig_4h, sig_1d, stop_hit, filters, m.has_position());
+  auto [rating, mod, r_str] =
+      contextual_rating(sig_1h, sig_4h, sig_1d, filters, m.has_position());
 
   type = rating;
   rationale = r_str;
@@ -305,7 +305,7 @@ CombinedSignal::CombinedSignal(  //
 
   if (type == Rating::Entry) {
     if (ev.is_earnings() && ev.days_until() >= 0 &&
-        ev.days_until() < config.risk_config.earnings_volatility_buffer) {
+        ev.days_until() < config.risk_config.earnings_buffer_days) {
       type = Rating::Watchlist;
       rationale += std::format("Earnings proximity - . ",
                                tagged("waiting", "yellow", BOLD));

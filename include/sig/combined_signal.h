@@ -16,9 +16,8 @@ struct CombinedSignal {
   Forecast forecast;
 
   CombinedSignal() = default;
-  CombinedSignal(const Metrics& m,
-                 const StopLoss& sl,
-                 const Event& ev,
-                 int idx = -1);
+  CombinedSignal(const Metrics& m, const Event& ev, LocalTimePoint tp = {});
+
+  void apply_stop_hit(StopHit hit);
 };
 

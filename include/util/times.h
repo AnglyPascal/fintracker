@@ -64,3 +64,9 @@ constexpr size_t candles_per_day(minutes timeframe) {
 inline auto today_ny() {
   return floor<days>(now_ny_time());
 }
+
+inline auto floor(LocalTimePoint tp, minutes interval) {
+  auto since_epoch = tp.time_since_epoch();
+  auto interval_dur = duration_cast<LocalTimePoint::duration>(interval);
+  return LocalTimePoint{since_epoch - (since_epoch % interval_dur)};
+}

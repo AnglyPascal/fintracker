@@ -2,37 +2,42 @@
 
 #include "calendar.h"
 #include "indicators.h"
-#include "risk/position_sizing.h"
-#include "risk/profit_target.h"
-#include "risk/stop_loss.h"
+#include "risk/risk.h"
 #include "sig/signals.h"
 #include "util/symbols.h"
+
+#include <iostream>
 
 struct Ticker {
   const SymbolInfo si;
   Event ev;
 
-  Metrics metrics;
-  StopLoss stop_loss;
-  ProfitTarget profit_target;
+  const Indicators& spy;
+  const OpenPositions& open_positions;
 
+  Metrics metrics;
   CombinedSignal signal;
-  PositionSizing position_sizing;
+  Risk risk;
 
  private:
   friend class Portfolio;
 
   void calc_signal() {
-    stop_loss = StopLoss{metrics};
-    profit_target = ProfitTarget{metrics, stop_loss};
-    signal = CombinedSignal{metrics, stop_loss, ev};
-    position_sizing = PositionSizing{metrics, signal, stop_loss};
+    signal = CombinedSignal{metrics, ev};
+    risk = Risk{metrics, spy, LocalTimePoint{}, signal, open_positions, ev};
+    signal.apply_stop_hit(risk.get_stop_hit(metrics));
   }
 
   template <typename... Args>
-  Ticker(const SymbolInfo& si, const Event& ev, Args&&... args) noexcept
+  Ticker(const SymbolInfo& si,
+         const Event& ev,
+         const Indicators& spy,
+         const OpenPositions& open_positions,
+         Args&&... args) noexcept
       : si{si},
         ev{ev},
+        spy{spy},
+        open_positions{open_positions},
         metrics{std::forward<Args>(args)...}  //
   {
     calc_signal();

@@ -13,7 +13,9 @@ void write_candles(const std::string& filename, const CandleStore& data);
 CandleStore read_candles(const std::string& filename);
 
 Replay::Replay(TD& td, const Symbols& symbols) noexcept
-    : td{td}, calls_per_hour{static_cast<size_t>(H_1 / td.interval)} {
+    : td{td},
+      calls_per_hour{static_cast<size_t>(H_1 / td.interval)}  //
+{
   if (!config.replay_en)
     return;
 
@@ -30,13 +32,13 @@ Replay::Replay(TD& td, const Symbols& symbols) noexcept
 
   std::mutex mtx;
 
-  auto func = [&, this](SymbolInfo&& si) {
+  auto func = [&, this](SymbolInfo&& si, minutes interval = H_1) {
     if (sleeper.should_shutdown())
       return false;
 
     auto& symbol = si.symbol;
 
-    auto candles = td.time_series(symbol, H_1);
+    auto candles = td.time_series(symbol, interval);
     if (candles.empty()) {
       spdlog::error("[init] ({}) no candles", symbol.c_str());
       return true;
@@ -60,13 +62,16 @@ Replay::Replay(TD& td, const Symbols& symbols) noexcept
 
   {
     thread_pool<SymbolInfo> pool{config.n_concurrency, func, symbols.arr};
+    func(SymbolInfo{symbols.spy}, D_1);
   }
 
   write_candles(candles_fname, candles_by_sym);
   spdlog::info("[replay] constructed with intervals {}", calls_per_hour);
 }
 
-TimeSeriesRes Replay::time_series(const std::string& symbol, minutes) noexcept {
+TimeSeriesRes Replay::time_series(const std::string& symbol,
+                                  minutes) noexcept  //
+{
   auto it = candles_by_sym.find(symbol);
   if (it == candles_by_sym.end()) {
     spdlog::warn("[replay] no time series for {}", symbol.c_str());
@@ -94,13 +99,9 @@ RealTimeRes Replay::real_time(const std::string& symbol, minutes) noexcept {
 }
 
 void Replay::roll_fwd() noexcept {
-  // if (!config.replay_en)
-  //   return;
-  // if (++n_ticks < calls_per_hour)
-  //   return;
-  // n_ticks = 0;
-  for (auto& [_, tl] : candles_by_sym)
+  for (auto& [_, tl] : candles_by_sym) {
     tl.idx++;
+  }
 }
 
 // FIXME fix
@@ -113,7 +114,7 @@ void Replay::rollback(const std::string& symbol) {
 
   // if (time_idx == 0) {
   //   time_idx = calls_per_hour - 1;
-  //   it->second.idx--;
+  //   it->second.ids--;
   // }
 }
 

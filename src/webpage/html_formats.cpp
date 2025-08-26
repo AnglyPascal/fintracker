@@ -57,6 +57,22 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
   }
 }
 
+template <>
+std::string to_str<FormatTarget::HTML>(const Recommendation& rec) {
+  switch (rec) {
+    case Recommendation::StrongBuy:
+      return tagged(rec, "green", BOLD);
+    case Recommendation::Buy:
+      return tagged(rec, "green");
+    case Recommendation::WeakBuy:
+      return tagged(rec, "sage");
+    case Recommendation::Avoid:
+      return tagged(rec, "gray");
+    default:
+      return "";
+  }
+}
+
 inline constexpr auto score_div_template = R"(
   <div class="thing-abbr">
     {}
@@ -127,24 +143,6 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s) {
 }
 
 template <>
-std::string to_str<FormatTarget::HTML>(const Recommendation& recom) {
-  switch (recom) {
-    case Recommendation::StrongBuy:
-      return colored("green", "Strong Buy");
-    case Recommendation::Buy:
-      return colored("green", "Buy");
-    case Recommendation::WeakBuy:
-      return colored("blue", "Weak Buy");
-    case Recommendation::Caution:
-      return colored("yellow", "Caution");
-    case Recommendation::Avoid:
-      return colored("red", "Avoid");
-    default:
-      return "";
-  }
-}
-
-template <>
 std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
   if (sizing.rec == Recommendation::Avoid)
     return std::format("<div><b>{}</b></div>",
@@ -152,17 +150,15 @@ std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
 
   constexpr auto templ = R"(
     <div><b>{}</b>: {} w/ {:.2f}</div>
-    <div><b>Risk</b>: {} ({:.2f}%), {:.1f}</div>
+    <div><b>Risk</b>: {} ({:.2f}%)</div>
   )";
 
-  return std::format(templ,                                   //
-                     to_str<FormatTarget::HTML>(sizing.rec),  //
-                     colored("yellow", sizing.rec_shares),    //
-                     sizing.rec_capital,                      //
-                     colored("red", sizing.risk_amount),      //
-                     sizing.risk_pct * 100,                   //
-                     sizing.risk                              //
-  );
+  return std::format(templ,                                        //
+                     to_str<FormatTarget::HTML>(sizing.rec),       //
+                     colored("yellow", sizing.rec_shares),         //
+                     sizing.rec_capital,                           //
+                     colored("red", sizing.position_risk_amount),  //
+                     sizing.position_risk_pct * 100);
 }
 
 template <>
@@ -190,15 +186,15 @@ std::string to_str(const ProfitTarget& pt) {
 
 template <>
 std::string to_str(const StopLoss& sl) {
-  if (sl.final_stop == 0.0)
+  if (sl.current_stop == 0.0)
     return "";
-  auto str = std::format("{:.2f}", sl.final_stop);
+  auto str = std::format("{:.2f}", sl.current_stop);
   return std::format("<div class=\"stop_loss\">{}</div>", str);
 }
 
 template <>
 std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
-  if (sl.final_stop == 0.0)
+  if (sl.current_stop == 0.0)
     return "";
   constexpr auto templ = R"(
     <b>{}</b>: {}, {}, <b>{}</b>
@@ -206,9 +202,9 @@ std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
   return std::format(                        //
       templ,                                 //
       sl.is_trailing ? "Trailing" : "Stop",  //
-      colored("yellow", sl.swing_low),       //
+      colored("yellow", sl.support_stop),    //
       colored("white", sl.atr_stop),         //
-      colored("blue", sl.final_stop)         //
+      colored("blue", sl.current_stop)       //
   );
 }
 

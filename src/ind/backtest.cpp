@@ -8,8 +8,9 @@ Backtest::Backtest(const IndicatorsTrends& _ind) : ind{_ind} {
   size_t n = ind.size();
   lookahead.reserve(n);
 
-  double profit_target = config.risk_config.profit_pct * 100;
-  double stop_loss = config.risk_config.stop_pct * 100;
+  // FIXME: needs to be updated alongside the risk module
+  double profit_target = 5.0;
+  double stop_loss = 2.5;
 
   for (size_t i = 0; i < n; ++i) {
     double entry = ind.price(i);

@@ -27,6 +27,7 @@ class Portfolio : public Endpoint {
   TD td;
   Replay rp;
 
+  Indicators spy;
   Tickers tickers;
   OpenPositions positions;
   Calendar calendar;
@@ -102,12 +103,14 @@ class Portfolio : public Endpoint {
 
   void write_history() const;
   void write_tickers() const;
+  void write_positions() const;
   void write_index() const;
 
   void write_page() const {
     write_index();
     write_tickers();
     write_history();
+    write_positions();
   }
 
  private:

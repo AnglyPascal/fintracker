@@ -19,6 +19,8 @@ Portfolio::Portfolio() noexcept
       td{symbols.size()},
       rp{td, symbols},
 
+      spy{time_series("SPY", D_1), D_1},
+
       // components
       positions{},
       calendar{symbols},
@@ -39,8 +41,13 @@ Portfolio::Portfolio() noexcept
       return true;
     }
 
-    Ticker ticker{si, calendar.next_event(symbol),  //
-                  std::move(candles), H_1, positions.get_position(symbol)};
+    Ticker ticker{si,
+                  calendar.next_event(symbol),  //
+                  spy,
+                  positions,
+                  std::move(candles),
+                  H_1,
+                  positions.get_position(symbol)};
 
     {
       auto _ = writer_lock();
@@ -74,6 +81,14 @@ Portfolio::Portfolio() noexcept
 }
 
 void Portfolio::add_candle() {
+  auto [_, spy_next] = real_time("SPY", D_1);
+  if (spy_next.time() == LocalTimePoint{}) {
+    spdlog::error("[push_back] (SPY) invalid candle {}",
+                  to_str(spy_next).c_str());
+    return;
+  }
+  spy.push_back(spy_next);
+
   auto func = [&](SymbolInfo&& si) {
     if (sleeper.should_shutdown())
       return false;

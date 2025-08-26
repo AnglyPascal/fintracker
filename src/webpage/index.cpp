@@ -22,6 +22,9 @@ inline constexpr std::string_view index_subtitle_template = R"(
         <a href="history.html" target="_blank"><b>History</b></a>
       </div>
       <div class="update-block">
+        <a href="positions.html" target="_blank"><b>Positions</b></a>
+      </div>
+      <div class="update-block">
         <b>Earnings:</b> 
           <a href="https://finance.yahoo.com/calendar/earnings/" target="_blank">Yahoo</a>
           <a href="calendar.html">Calendar</a>
@@ -225,22 +228,22 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
         str(Source::RSI),                                                     //
         str(Source::MACD),                                                    //
         to_str<FormatTarget::HTML>(m.position, m.last_price()),               //
-        to_str<FormatTarget::HTML>(m, ticker.stop_loss,                       //
-                                   ticker.profit_target)                      //
+        to_str<FormatTarget::HTML>(m, ticker.risk.stop_loss,                  //
+                                   ticker.risk.target)                        //
     );
 
-    auto overview = std::format(                             //
-        signal_overview_template,                            //
-        m.has_position() ? "" : "no-position",               //
-        to_str<FormatTarget::HTML>(sig.forecast),            //
-        to_str<FormatTarget::HTML>(ticker.position_sizing),  //
-        to_str<FormatTarget::HTML>(ticker.stop_loss),        //
-        to_str<FormatTarget::HTML>(ticker.profit_target)     //
+    auto overview = std::format(                            //
+        signal_overview_template,                           //
+        m.has_position() ? "" : "no-position",              //
+        to_str<FormatTarget::HTML>(sig.forecast),           //
+        to_str<FormatTarget::HTML>(ticker.risk.sizing),     //
+        to_str<FormatTarget::HTML>(ticker.risk.stop_loss),  //
+        to_str<FormatTarget::HTML>(ticker.risk.target)      //
     );
 
-    auto& sl = ticker.stop_loss;
-    auto& sizing = ticker.position_sizing;
-    auto& target = ticker.profit_target;
+    auto& sl = ticker.risk.stop_loss;
+    auto& sizing = ticker.risk.sizing;
+    auto& target = ticker.risk.target;
 
     auto rationale = std::format(                        //
         rational_template,                               //

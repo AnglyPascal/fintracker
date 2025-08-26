@@ -9,8 +9,10 @@
 #include "sig/signals.h"
 #include "util/times.h"
 
+#include <algorithm>
 #include <cassert>
 #include <deque>
+#include <iterator>
 #include <map>
 #include <string>
 #include <vector>
@@ -149,6 +151,14 @@ struct IndicatorsCore {
     minutes day{D_1 + interval - minutes{1}};
     return day / interval;
   }
+
+  int idx_for_time(LocalTimePoint tp) const {
+    if (tp == LocalTimePoint{})
+      return candles.size() - 1;
+    auto it = std::upper_bound(candles.begin(), candles.end(), tp,
+                               [](auto& l, auto& r) { return l < r.datetime; });
+    return it == candles.begin() ? 0 : std::distance(candles.begin(), it - 1);
+  }
 };
 
 struct IndicatorsTrends : public IndicatorsCore {
@@ -237,6 +247,10 @@ struct Indicators : public IndicatorsTrends {
   LocalTimePoint plot(const std::string& sym, const std::string& time) const;
 
   Signal get_signal(int idx) const;
+  Signal get_signal(LocalTimePoint tp) const {
+    auto idx = tp == LocalTimePoint{} ? -1 : idx_for_time(tp);
+    return get_signal(idx);
+  }
 };
 
 struct Metrics {
@@ -262,6 +276,15 @@ struct Metrics {
 
   auto last_price() const { return ind_1h.price(-1); }
   auto last_updated() const { return ind_1h.time(-1); }
+
+  int days_held() const {
+    if (!has_position())
+      return -1;
+    auto now = now_ny_time();
+    auto entry = position->tp;
+    auto days = std::chrono::duration_cast<std::chrono::days>(now - entry);
+    return days.count();
+  }
 
   const Indicators& get_indicators(minutes interval) const {
     return interval == H_1 ? ind_1h : (interval == H_4 ? ind_4h : ind_1d);

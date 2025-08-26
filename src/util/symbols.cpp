@@ -5,7 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
-Symbols::Symbols() noexcept {
+Symbols::Symbols() noexcept : spy{true, "SPY", 4, "benchmark etf"} {
   std::ifstream file("private/tickers.csv");
   std::string line;
 

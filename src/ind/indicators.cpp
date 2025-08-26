@@ -209,7 +209,5 @@ void Indicators::pop_back() noexcept {
 }
 
 Signal Indicators::get_signal(int idx) const {
-  if (idx == -1)
-    return signal;
-  return {*this, idx};
+  return (sanitize(idx) == size() - 1) ? signal : Signal{*this, idx};
 }

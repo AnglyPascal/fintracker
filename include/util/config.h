@@ -38,39 +38,48 @@ struct IndicatorsConfig {
   }
 };
 
-struct RiskConfig {
-  static constexpr const char* name = "pos_config";
+struct RiskConfig {  // Rename from PositionSizingConfig
+  static constexpr const char* name = "risk_config";
   static constexpr bool debug = true;
 
+  // Capital
   double capital = 4000.0;
   std::string capital_currency = "GBP";
-
-  double max_capital_per_position = 0.18;
-  double max_risk_pct = 0.015;
-
-  double stop_pct = 0.025;
-  double stop_atr_multiplier = 3.0;
-  double profit_pct = 0.045;
-
-  double trailing_trigger_atr = 1.5;
-  double trailing_atr_multiplier = 3.0;
-  double trailing_stop_pct = 0.035;
-
-  double entry_score_cutoff = 0.6;
-  double entry_risk_cutoff = 6.0;
-  double entry_conf_cutoff = 0.6;
-
-  int min_hold_days = 2;
-  int max_hold_days = 15;
-
-  int earnings_volatility_buffer = 3;
-
   mutable double capital_usd = -1.0;
 
-  double max_risk_amount() const { return capital_usd * max_risk_pct; }
+  // Risk limits - Per position
+  static constexpr double MAX_RISK_PER_POSITION = 0.01;      // 1% hard cap
+  static constexpr double TARGET_RISK_PER_POSITION = 0.005;  // 0.5% standard
+
+  // Portfolio limits
+  static constexpr double MAX_PORTFOLIO_RISK = 0.06;  // 6% total
+  static constexpr int MAX_POSITIONS = 12;
+
+  // Stop loss parameters (moved from old config)
+  double stop_atr_multiplier_base = 3.5;  // Will be adjusted by volatility
+  double trailing_trigger_R = 1.0;        // Trigger at 1R profit
+  double trailing_stop_pct = 0.035;       // For extreme cases
+
+  // Profit target parameters
+  double min_rr_ratio = 1.5;
+  double target_rr_ratio = 2.0;
+  double max_rr_ratio = 3.0;
+
+  // Entry filters
+  double entry_score_cutoff = 0.5;
+  double entry_risk_cutoff = 8.0;  // Increased from 6.0 for wider stops
+  double entry_conf_cutoff = 0.4;  // Lowered from 0.6 for more flexibility
+  
+  int min_hold_days = 2;
+  int max_hold_days = 2;
+
+  // Other
+  int earnings_buffer_days = 5;
+
+  double max_risk_amount() const { return capital_usd * MAX_RISK_PER_POSITION; }
   double max_position_amount() const {
-    return capital_usd * max_capital_per_position;
-  }
+    return capital_usd * 0.25;
+  }  // Max 25% in one position
 };
 
 struct SupportResistanceConfig {

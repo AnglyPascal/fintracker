@@ -12,6 +12,7 @@ struct SymbolInfo {
 
 struct Symbols {
   std::vector<SymbolInfo> arr;
+  SymbolInfo spy;
 
   Symbols() noexcept;
 

@@ -166,9 +166,9 @@ inline std::string to_str<FormatTarget::HTML>(const Ticker& ticker) {
   auto body =
       std::format(ticker_body_template,
                   to_str<FormatTarget::HTML>(m.position, m.last_price()),  //
-                  to_str<FormatTarget::HTML>(ticker.stop_loss),            //
+                  to_str<FormatTarget::HTML>(ticker.risk.stop_loss),       //
                   to_str<FormatTarget::HTML>(forecast),                    //
-                  to_str<FormatTarget::HTML>(ticker.position_sizing)       //
+                  to_str<FormatTarget::HTML>(ticker.risk.sizing)           //
       );
 
   auto& sym = ticker.si.symbol;

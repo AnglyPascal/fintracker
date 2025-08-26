@@ -4,7 +4,7 @@
 #include "util/config.h"
 
 // Stop Loss tests
-StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
+StopHit calculate_stop_hit(const Metrics& m, const StopLoss& stop_loss) {
   if (!m.has_position())
     return StopHitType::None;
 
@@ -15,17 +15,17 @@ StopHit stop_loss_hits(const Metrics& m, const StopLoss& stop_loss) {
     return StopHitType::TimeExit;
 
   auto price = m.last_price();
-  if (price < stop_loss.final_stop)
+  if (price < stop_loss.current_stop)
     return StopHitType::StopLossHit;
 
-  auto dist = price - stop_loss.final_stop;
+  auto dist = price - stop_loss.current_stop;
 
   if (dist > 0 &&
       dist < m.ind_1h.atr(-1) * config.sig_config.stop_atr_proximity)
     return StopHitType::StopProximity;
 
   // FIXME what's this?
-  if (dist < 1.0 * stop_loss.atr_stop - stop_loss.final_stop)
+  if (dist < 1.0 * stop_loss.atr_stop - stop_loss.current_stop)
     return StopHitType::StopInATR;
 
   return StopHitType::None;

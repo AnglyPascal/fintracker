@@ -1,97 +1,191 @@
 #include "risk/stop_loss.h"
-#include "ind/indicators.h"
+
 #include "util/config.h"
 #include "util/format.h"
 
+#include <algorithm>
+
 inline auto& risk_config = config.risk_config;
 
-StopLoss::StopLoss(const Metrics& m) noexcept {
-  auto& ind = m.ind_1h;
+double StopLoss::calculate_atr_multiplier(double daily_atr_pct) const {
+  // Much tighter multipliers
+  if (daily_atr_pct > 0.04)
+    return 2.3;
+  if (daily_atr_pct > 0.03)
+    return 2.05;
+  if (daily_atr_pct > 0.02)
+    return 1.8;
+  return 1.6;
+}
 
-  auto price = ind.price(-1);
-  auto atr = ind.atr(-1);
+double StopLoss::calculate_support_buffer(double daily_atr_pct) const {
+  if (daily_atr_pct > 0.03)
+    return 0.015;
+  if (daily_atr_pct > 0.02)
+    return 0.012;
+  return 0.01;
+}
 
+double StopLoss::calculate_regime_adjustment(MarketRegime regime) const {
+  switch (regime) {
+    case MarketRegime::TRENDING_UP:
+      return 1.0;
+    case MarketRegime::CHOPPY_BULLISH:
+      return 1.15;
+    case MarketRegime::RANGE_BOUND:
+      return 1.2;
+    case MarketRegime::CHOPPY_BEARISH:
+      return 1.15;
+    case MarketRegime::TRENDING_DOWN:
+      return 1.05;
+  }
+  return 1.0;
+}
+
+double StopLoss::calculate_time_adjustment(int days_held) const {
+  // Also reduce these
+  if (days_held == 0)
+    return 1.1;
+  if (days_held == 1)
+    return 1.07;
+  if (days_held == 2)
+    return 1.05;
+  return 1.0;
+}
+
+double StopLoss::calculate_trailing_adjustment(int days_to_1r) const {
+  if (days_to_1r <= 3)
+    return 0.7;
+  else if (days_to_1r <= 7)
+    return 0.85;
+  else
+    return 1.0;
+}
+
+StopLoss::StopLoss(const Metrics& m,
+                   LocalTimePoint tp,
+                   MarketRegime regime,
+                   int days_held) noexcept
+    : days_held(days_held),
+      regime(regime)  //
+{
+  auto& ind_1h = m.ind_1h;
+  auto& ind_1d = m.ind_1d;
+
+  auto idx_1h = ind_1h.idx_for_time(tp);
+  auto idx_1d = ind_1d.idx_for_time(tp);
+
+  double price = ind_1h.price(idx_1h);
+  double daily_atr = ind_1d.atr(idx_1d);
+  double daily_atr_pct = daily_atr / price;
+
+  std::deque<fmt_string> reasons;
+  std::vector<fmt_string> details;
+
+  // For existing positions
   auto pos = m.position;
-  auto entry_price = m.has_position() ? pos->px : price;
-  auto max_price_seen = m.has_position() ? pos->max_price_seen : price;
+  double entry_price = m.has_position() ? pos->px : price;
+  double max_price_seen = m.has_position() ? pos->max_price_seen : price;
 
-  std::vector<std::string> reasons;
-  std::vector<std::string> details;
+  // Calculate ATR-based stop
+  atr_multiplier = calculate_atr_multiplier(daily_atr_pct);
+  double regime_adj = calculate_regime_adjustment(regime);
+  double effective_multiplier = atr_multiplier * regime_adj;
+  atr_stop = price - (daily_atr * effective_multiplier);
 
-  constexpr auto atr_color = "amethyst";
-  constexpr auto swing_color = "arctic-teal";
-  constexpr auto hard_color = "coral";
+  details.emplace_back("atr stop: {:.2f} ({} x {} atr)", atr_stop,
+                       tagged(atr_multiplier, "amethyst"),
+                       tagged(daily_atr, "amethyst"));
 
-  is_trailing =
-      m.has_position() &&
-      (max_price_seen > entry_price + risk_config.trailing_trigger_atr * atr);
+  // Check for support-based stop
+  support_stop = 0.0;
+  auto support_1d = ind_1d.nearest_support_below(idx_1d);
+  if (support_1d) {
+    double buffer = calculate_support_buffer(daily_atr_pct);
+    support_stop = support_1d->get().lo * (1.0 - buffer);
 
-  if (is_trailing) {
-    reasons.push_back(tagged("trailing", "sage", BOLD));
+    details.emplace_back("support: {:.2f} (-{}% buffer)",  //
+                         support_stop, tagged(buffer * 100, "arctic-teal"));
 
-    atr_stop = max_price_seen - risk_config.trailing_atr_multiplier * atr;
-    details.emplace_back("atr: " + tagged(atr_stop, atr_color));
+    bool support_too_tight = support_stop > price * 0.97;
+    bool support_too_far = support_stop < atr_stop * 0.85;
 
-    double hard_stop = max_price_seen * (1.0 - risk_config.trailing_stop_pct);
-    details.emplace_back("hard: " + tagged(hard_stop, hard_color));
-
-    final_stop = std::min(atr_stop, hard_stop);
-    reasons.push_back(                                         //
-        "using: " +                                            //
-        (final_stop == atr_stop ? tagged("atr", atr_color)     //
-                                : tagged("hard", hard_color))  //
-    );
-
-  } else {
-    reasons.push_back(tagged("initial", "champagne", BOLD));
-
-    atr_stop = entry_price - risk_config.stop_atr_multiplier * atr;
-    details.emplace_back("atr: " + tagged(atr_stop, atr_color));
-
-    auto support_1d = m.ind_1d.nearest_support_below(-1);
-    if (support_1d) {
-      swing_low = support_1d->get().lo * 0.998;
-      details.emplace_back("support: " + tagged(swing_low, swing_color));
-
-      // Only use support if it's not too tight
-      if (swing_low < atr_stop * 0.85) {
-        reasons.push_back(tagged("tight support", "storm"));
-        swing_low = 0.0;
-      }
-    }
-
-    double hard_stop = entry_price * (1.0 - risk_config.stop_pct);
-    details.emplace_back("max loss: " + tagged(hard_stop, hard_color));
-
-    final_stop = atr_stop;
-    if (swing_low > 0 && swing_low < final_stop) {
-      final_stop = swing_low;
-      reasons.push_back("using " + tagged("support", swing_color, BOLD));
+    if (support_too_tight) {
+      support_stop = 0.0;  // Don't use it
+      reasons.emplace_back("{}, tight support", tagged("using atr", "yellow"));
+    } else if (support_too_far) {
+      support_stop = 0.0;
+      reasons.emplace_back("{}, support too far", tagged("using atr", "coral"));
     } else {
-      reasons.push_back("using " + tagged("atr", atr_color, BOLD));
-    }
-
-    // But never go below hard stop
-    if (final_stop < hard_stop) {
-      final_stop = hard_stop;
-      reasons.push_back(tagged("capped at ", IT) +
-                        tagged("max loss", hard_color, IT));
+      reasons.push_back(tagged("using support", "arctic-teal", BOLD));
     }
   }
 
-  stop_pct = (entry_price - final_stop) / entry_price;
+  standard_stop = std::max(atr_stop, support_stop);
 
-  auto final_stop_color = final_stop == atr_stop    ? atr_color
-                          : final_stop == swing_low ? swing_color
-                                                    : hard_color;
-  details.push_back(std::format(                                      //
-      "final: {} ({}%)", tagged(final_stop, final_stop_color, BOLD),  //
-      tagged(stop_pct * 100, final_stop_color)                        //
-      ));
+  double time_adj = calculate_time_adjustment(days_held);
+  auto stop_distance = entry_price - standard_stop;
+  initial_stop = entry_price - stop_distance * time_adj;
 
-  rationale = std::format(                                //
-      "{}<br><div class=\"rationale-details\">{}</div>",  //
-      join(reasons.begin(), reasons.end(), ", "),         //
-      join(details.begin(), details.end(), ", ")          //
-  );
+  current_stop = initial_stop;
+
+  // Check for trailing stop activation
+  if (m.has_position()) {
+    double profit_pct = (max_price_seen - entry_price) / entry_price;
+    double r_achieved =
+        profit_pct / (entry_price - standard_stop) * entry_price;
+
+    if (r_achieved >= 1.0) {  // 1R profit achieved
+      is_trailing = true;
+      trailing_activation_price = entry_price + (entry_price - standard_stop);
+
+      // Determine trailing tightness based on velocity
+      double days_to_1r = days_held;  // Approximate
+      double trailing_multiplier = calculate_trailing_adjustment(days_to_1r);
+
+      if (days_to_1r <= 3)
+        reasons.emplace_back(tagged("tight trailing", "green", BOLD));
+      else if (days_to_1r <= 7)
+        reasons.emplace_back(tagged("moderate trailing", "green"));
+      else
+        reasons.emplace_back(tagged("loose trailing", "sage"));
+
+      // Calculate trailing stop
+      double trailing_distance =
+          (daily_atr * atr_multiplier) * trailing_multiplier;
+      trailing_stop = max_price_seen - trailing_distance;
+      current_stop = std::max(trailing_stop, entry_price);
+
+      details.emplace_back("trailing from {:.2f} at {:.1f}x", max_price_seen,
+                           trailing_multiplier);
+    }
+  }
+
+  // Calculate final metrics
+  stop_distance = price - current_stop;
+  stop_pct = stop_distance / price;
+
+  // Build rationale
+  if (is_trailing)
+    reasons.emplace_front(tagged("trailing", "sage", BOLD));
+  else if (days_held <= 2)
+    reasons.emplace_front(tagged(std::format("initial (day {})", days_held + 1),
+                                 "champagne", BOLD));
+  else
+    reasons.emplace_front(tagged("standard", "frost", BOLD));
+
+  reasons.push_back(tagged(regime, "blue"));
+  if (regime_adj > 1.0)
+    details.emplace_back("regime adj {}%",
+                         tagged((int)((regime_adj - 1.0) * 100), "coral"));
+
+  details.emplace_back("{}% daily vol", tagged(daily_atr_pct * 100, "rose"));
+
+  reasons.emplace_back("final: {} (-{}%)", tagged(current_stop, "blue", BOLD),
+                       tagged(stop_pct * 100, "blue"));
+
+  rationale =
+      fmt_string{"{}<br><div class=\"rationale-details\">{}</div>",
+                 join(reasons.begin(), reasons.end(), tagged(" | ", "gray")),
+                 join(details.begin(), details.end(), tagged(" | ", "gray"))};
 }

@@ -55,7 +55,10 @@ struct glz::meta<LocalTimePoint> {
   };
 
   static constexpr auto read = [](T& t, const std::string& str) {
-    t = datetime_to_local(str);
+    if (str.size() > 10)
+      t = datetime_to_local(str);
+    else
+      t = date_to_local(str) + hours{9} + minutes{30};
   };
 
   static constexpr auto value = custom<read, write>;

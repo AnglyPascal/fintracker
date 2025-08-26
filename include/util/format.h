@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <format>
 #include <string>
 
@@ -11,8 +12,6 @@ inline constexpr std::string ELIXIR = "elixir";
 enum class FormatTarget {
   None,
   Telegram,
-  Alert,
-  Console,
   HTML,
 };
 
@@ -84,15 +83,36 @@ inline std::string apply_tag(std::string str, const std::string& color) {
   return colored(color, str);
 }
 
-template <typename... Tags>
-inline std::string tagged(std::string str, Tags... tags) {
+template <typename Str, typename... Tags>
+  requires std::constructible_from<std::string, Str>
+inline std::string tagged(Str _str, Tags... tags) {
+  std::string str{_str};
   ((str = apply_tag(std::move(str), tags)), ...);
   return str;
 }
 
-template <typename... Tags>
-inline std::string tagged(double val, Tags... tags) {
-  auto str = std::format("{:.2f}", val);
+template <typename T, typename... Tags>
+inline std::string tagged(T t, Tags... tags) {
+  auto str = to_str(t);
   ((str = apply_tag(std::move(str), tags)), ...);
   return str;
 }
+
+struct fmt_string : public std::string {
+  using std::string::operator=;
+
+  // default copy/move
+  fmt_string(const fmt_string&) = default;
+  fmt_string(fmt_string&&) noexcept = default;
+  fmt_string& operator=(const fmt_string&) = default;
+  fmt_string& operator=(fmt_string&&) noexcept = default;
+
+  // construct from std::string (implicit)
+  fmt_string(const std::string& s) : std::string(s) {}
+  fmt_string(std::string&& s) noexcept : std::string(std::move(s)) {}
+
+  // construct from format string
+  template <typename... Args>
+  explicit fmt_string(std::string_view fmt, Args&&... args)
+      : std::string(std::vformat(fmt, std::make_format_args(args...))) {}
+};
