@@ -1,9 +1,10 @@
 #include "risk/sizing.h"
-#include <algorithm>
-#include <cmath>
 #include "core/positions.h"
 #include "util/config.h"
 #include "util/format.h"
+#include "util/math.h"
+
+#include <algorithm>
 
 inline auto& risk_config = config.risk_config;
 
@@ -82,7 +83,7 @@ double PositionSizing::calculate_target_risk(const CombinedSignal& signal,
   else if (signal.type == Rating::Watchlist && signal.score > 0.6)
     base_risk = 0.004;
   else  // Skip mediocre trades
-    return 0.0;
+    return 0.0015;
 
   // Adjust based on forecast confidence
   // if (signal.forecast.conf > 0.8)
@@ -117,14 +118,15 @@ int PositionSizing::get_daily_position_limit(MarketRegime regime) const {
   return 1;
 }
 
-PositionSizing::PositionSizing(const Metrics& m,
-                               const Indicators& spy,
-                               LocalTimePoint tp,
-                               const CombinedSignal& signal,
-                               const StopLoss& stop_loss,
-                               const OpenPositions& positions,
-                               MarketRegime regime)  //
-{
+PositionSizing::PositionSizing(  //
+    const Metrics& m,
+    const Indicators& spy,
+    LocalTimePoint tp,
+    const CombinedSignal& signal,
+    const StopLoss& stop_loss,
+    const OpenPositions& positions,
+    MarketRegime regime  //
+) {
   std::vector<fmt_string> reasons;
   std::vector<fmt_string> adjustments;
 
@@ -223,9 +225,7 @@ PositionSizing::PositionSizing(const Metrics& m,
       std::min(adjusted_risk, risk_config.MAX_RISK_PER_POSITION);
   position_risk_amount = risk_config.capital_usd * position_risk_pct;
 
-  double stop_distance = stop_loss.stop_distance;
-  rec_shares = std::round(position_risk_amount / stop_distance * 100) /
-               100;  // Round to 2 decimals
+  rec_shares = round(position_risk_amount / stop_loss.standard_distance(), 2);
   rec_capital = rec_shares * current_price;
 
   portfolio_risk_after = portfolio.total_risk_deployed + position_risk_pct;
@@ -248,8 +248,8 @@ PositionSizing::PositionSizing(const Metrics& m,
                                                          : tagged(rec, "gray");
 
   reasons.emplace_back(rec_str);
-  reasons.emplace_back("{}% risk", tagged(position_risk_pct * 100, "ruby"));
-  reasons.emplace_back("{} shares @ ${}", tagged(rec_shares, "teal"),
+  reasons.emplace_back("{}% risk", tagged(position_risk_pct * 100, "coral"));
+  reasons.emplace_back("{} shares w/ ${}", tagged(rec_shares, "teal"),
                        tagged(rec_capital, "teal"));
 
   // Portfolio context

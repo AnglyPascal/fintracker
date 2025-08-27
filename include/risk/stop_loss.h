@@ -12,6 +12,9 @@ enum class MarketRegime {
 };
 
 struct StopLoss {
+  double entry_price = 0.0;
+  double max_price_seen = 0.0;
+
   // Core stop values
   double initial_stop = 0.0;   // Wider stop for first 2 days
   double standard_stop = 0.0;  // Normal stop after initial period
@@ -42,6 +45,10 @@ struct StopLoss {
            LocalTimePoint tp,
            MarketRegime regime,
            int days_held = 0) noexcept;
+
+  double standard_distance() const { return entry_price - standard_stop; }
+  double initial_distance() const { return entry_price - initial_stop; }
+  double current_distance() const { return entry_price - current_stop; }
 
  private:
   double calculate_atr_multiplier(double daily_atr_pct) const;

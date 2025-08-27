@@ -43,7 +43,6 @@ double StopLoss::calculate_regime_adjustment(MarketRegime regime) const {
 }
 
 double StopLoss::calculate_time_adjustment(int days_held) const {
-  // Also reduce these
   if (days_held == 0)
     return 1.1;
   if (days_held == 1)
@@ -84,8 +83,8 @@ StopLoss::StopLoss(const Metrics& m,
 
   // For existing positions
   auto pos = m.position;
-  double entry_price = m.has_position() ? pos->px : price;
-  double max_price_seen = m.has_position() ? pos->max_price_seen : price;
+  entry_price = m.has_position() ? pos->px : price;
+  max_price_seen = m.has_position() ? pos->max_price_seen : price;
 
   // Calculate ATR-based stop
   atr_multiplier = calculate_atr_multiplier(daily_atr_pct);
@@ -124,7 +123,7 @@ StopLoss::StopLoss(const Metrics& m,
   standard_stop = std::max(atr_stop, support_stop);
 
   double time_adj = calculate_time_adjustment(days_held);
-  auto stop_distance = entry_price - standard_stop;
+  stop_distance = entry_price - standard_stop;
   initial_stop = entry_price - stop_distance * time_adj;
 
   current_stop = initial_stop;
@@ -159,6 +158,16 @@ StopLoss::StopLoss(const Metrics& m,
       details.emplace_back("trailing from {:.2f} at {:.1f}x", max_price_seen,
                            trailing_multiplier);
     }
+
+    auto risk = (entry_price - current_stop) * m.position->qty;
+    auto risk_pct = risk / entry_price;
+    if (risk_pct > risk_config.MAX_RISK_PER_POSITION) {
+      details.emplace_back("capped at risk {} ({}%)", tagged(risk, "red", BOLD),
+                           tagged("risk_pct", "yellow"));
+      risk = risk_config.MAX_RISK_PER_POSITION * entry_price;
+      current_stop = entry_price - risk;
+      reasons.emplace_back("stop risk {}", tagged(current_stop, "red"));
+    }
   }
 
   // Calculate final metrics
@@ -168,7 +177,7 @@ StopLoss::StopLoss(const Metrics& m,
   // Build rationale
   if (is_trailing)
     reasons.emplace_front(tagged("trailing", "sage", BOLD));
-  else if (days_held <= 2)
+  else if (days_held >= 0 && days_held <= 2)
     reasons.emplace_front(tagged(std::format("initial (day {})", days_held + 1),
                                  "champagne", BOLD));
   else
