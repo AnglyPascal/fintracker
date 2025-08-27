@@ -56,7 +56,7 @@ ProfitTarget::ProfitTarget(const Metrics& m,
     return;
 
   double current_price = m.last_price();
-  double stop_price = stop_loss.current_stop;
+  double stop_price = stop_loss.get_stop_price();
   double risk_amount = current_price - stop_price;
 
   std::vector<std::string> reasons;

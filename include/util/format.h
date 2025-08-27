@@ -111,8 +111,10 @@ struct fmt_string : public std::string {
   fmt_string(const std::string& s) : std::string(s) {}
   fmt_string(std::string&& s) noexcept : std::string(std::move(s)) {}
 
-  // construct from format string
   template <typename... Args>
   explicit fmt_string(std::string_view fmt, Args&&... args)
       : std::string(std::vformat(fmt, std::make_format_args(args...))) {}
 };
+
+template <typename T>
+std::string color_of(T t);

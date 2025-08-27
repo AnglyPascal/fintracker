@@ -106,4 +106,3 @@ struct SignalType {
 using Reason = SignalType<ReasonType, ReasonType::None>;
 using Hint = SignalType<HintType, HintType::None>;
 using StopHit = SignalType<StopHitType, StopHitType::None>;
-

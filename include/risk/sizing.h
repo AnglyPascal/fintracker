@@ -45,12 +45,4 @@ struct PositionSizing {
                  const StopLoss& stop_loss,
                  const OpenPositions& positions,
                  MarketRegime regime);
-
- private:
-  double calculate_correlation_to_spy(const Metrics& m,
-                                      const Indicators& spy,
-                                      LocalTimePoint tp) const;
-  double calculate_target_risk(const CombinedSignal& signal,
-                               MarketRegime regime) const;
-  int get_daily_position_limit(MarketRegime regime) const;
 };

@@ -135,8 +135,8 @@ inline constexpr std::string_view combined_signal_template = R"(
 )";
 
 template <>
-inline std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
-                                              const Ticker& ticker) {
+std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
+                                       const Ticker& ticker) {
   auto& ind_1h = ticker.metrics.ind_1h;
   auto& sig_1h = ind_1h.signal;
 

@@ -118,18 +118,22 @@ inline std::string to_str<FormatTarget::HTML>(const Indicators& ind) {
         continue;
 
       S r{rtype};
-      auto pnl_str = colored(stat.avg_pnl > 0 ? "green" : "red", stat.avg_pnl);
+      auto pnl_str =
+          colored(stat.avg_pnl > 0 ? color_of("profit") : color_of("loss"),
+                  stat.avg_pnl);
 
       auto holding_candles = stat.avg_winning_holding_period;
       auto holding_days = holding_candles / candles_per_day(ind.interval);
 
-      html += std::format(
-          stats_row_templ,
-          r.cls() == SignalClass::Entry ? "entry" : "exit",  //
-          to_str(r), colored("blue", stat.imp),
-          colored("border", stat.win_rate), pnl_str, stat.pnl_volatility,
-          colored("green", stat.avg_profit), colored("red", stat.avg_loss),
-          holding_days  //
+      html += std::format(                                                 //
+          stats_row_templ,                                                 //
+          to_str(r.cls()),                                                 //
+          to_str(r),                                                       //
+          colored("blue", stat.imp),                                       //
+          colored("border", stat.win_rate), pnl_str, stat.pnl_volatility,  //
+          colored(color_of("profit"), stat.avg_profit),                    //
+          colored(color_of("loss"), stat.avg_loss),                        //
+          holding_days                                                     //
       );
     }
     return html;

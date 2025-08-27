@@ -87,6 +87,11 @@ std::string to_str(const Rating& type) {
 }
 
 template <>
+std::string to_str(const Score& scr) {
+  return std::format("{:+}", Score::pretty(scr.final));
+}
+
+template <>
 std::string to_str(const Recommendation& recom) {
   switch (recom) {
     case Recommendation::StrongBuy:
@@ -126,4 +131,28 @@ std::string to_str(const TrendLine& tl) {
   oss << "period: " << tl.period << ", slope: " << tl.line.slope
       << ", r²: " << tl.r2;
   return oss.str();
+}
+
+template <>
+std::string to_str(const StopContext& sc) {
+  if (sc == StopContext::NEW_POSITION)
+    return "new position";
+  if (sc == StopContext::EXISTING_INITIAL)
+    return "initial";
+  if (sc == StopContext::EXISTING_STANDARD)
+    return "standard";
+  if (sc == StopContext::EXISTING_TRAILING)
+    return "trailing";
+  if (sc == StopContext::SCALE_UP_ENTRY)
+    return "scale up";
+  return "";
+}
+
+template <>
+std::string to_str(const SignalClass& sc) {
+  if (sc == SignalClass::Entry)
+    return "entry";
+  if (sc == SignalClass::Exit)
+    return "exit";
+  return "";
 }

@@ -59,18 +59,10 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Recommendation& rec) {
-  switch (rec) {
-    case Recommendation::StrongBuy:
-      return tagged(rec, "green", BOLD);
-    case Recommendation::Buy:
-      return tagged(rec, "green");
-    case Recommendation::WeakBuy:
-      return tagged(rec, "sage");
-    case Recommendation::Avoid:
-      return tagged(rec, "gray");
-    default:
-      return "";
-  }
+  auto colored_str = colored(color_of(rec), to_str(rec));
+  if (rec == Recommendation::StrongBuy)
+    return tagged(colored_str, BOLD);
+  return colored_str;
 }
 
 inline constexpr auto score_div_template = R"(
@@ -90,10 +82,11 @@ std::string to_str<FormatTarget::HTML>(const Score& scr) {
   else
     scr_str = std::format("{:+}", Score::pretty(scr.final));
 
-  return std::format(score_div_template,        //
-                     scr_str,                   //
-                     Score::pretty(scr.entry),  //
-                     Score::pretty(scr.exit)    //
+  return std::format(            //
+      score_div_template,        //
+      scr_str,                   //
+      Score::pretty(scr.entry),  //
+      Score::pretty(scr.exit)    //
   );
 }
 
@@ -153,12 +146,14 @@ std::string to_str<FormatTarget::HTML>(const PositionSizing& sizing) {
     <div><b>Risk</b>: {} ({:.2f}%)</div>
   )";
 
-  return std::format(templ,                                        //
-                     to_str<FormatTarget::HTML>(sizing.rec),       //
-                     colored("yellow", sizing.rec_shares),         //
-                     sizing.rec_capital,                           //
-                     colored("red", sizing.position_risk_amount),  //
-                     sizing.position_risk_pct * 100);
+  return std::format(                                         //
+      templ,                                                  //
+      to_str<FormatTarget::HTML>(sizing.rec),                 //
+      tagged(sizing.rec_shares, color_of("risk")),            //
+      sizing.rec_capital,                                     //
+      tagged(sizing.position_risk_amount, color_of("risk")),  //
+      sizing.position_risk_pct * 100                          //
+  );
 }
 
 template <>
@@ -186,25 +181,25 @@ std::string to_str(const ProfitTarget& pt) {
 
 template <>
 std::string to_str(const StopLoss& sl) {
-  if (sl.current_stop == 0.0)
+  auto stop = sl.get_stop_price();
+  if (stop == 0.0)
     return "";
-  auto str = std::format("{:.2f}", sl.current_stop);
+  auto str = std::format("{:.2f}", stop);
   return std::format("<div class=\"stop_loss\">{}</div>", str);
 }
 
 template <>
 std::string to_str<FormatTarget::HTML>(const StopLoss& sl) {
-  if (sl.current_stop == 0.0)
+  auto stop = sl.get_stop_price();
+  if (stop == 0.0)
     return "";
   constexpr auto templ = R"(
-    <b>{}</b>: {}, {}, <b>{}</b>
+    {}: {}
   )";
-  return std::format(                        //
-      templ,                                 //
-      sl.is_trailing ? "Trailing" : "Stop",  //
-      colored("yellow", sl.support_stop),    //
-      colored("white", sl.atr_stop),         //
-      colored("blue", sl.current_stop)       //
+  return std::format(                              //
+      templ,                                       //
+      tagged(sl.get_context(), BOLD),              //
+      tagged(sl.get_stop_price(), "yellow", BOLD)  //
   );
 }
 
@@ -226,12 +221,18 @@ std::string to_str<FormatTarget::HTML>(const ProfitTarget& pt) {
   );
 }
 
+inline constexpr std::string color_of_pnl(double pnl) {
+  return pnl < 0 ? color_of("loss") : color_of("profit");
+}
+
 template <>
 std::string to_str<FormatTarget::HTML>(const Forecast& f) {
-  return std::format("<b>Forecast</b>: <b>{}</b> {}, {}",                  //
-                     colored(f.exp_pnl > 0 ? "green" : "red", f.exp_pnl),  //
-                     colored("gray", std::format("[{}d]", f.holding_days)),
-                     colored("blue", f.conf));
+  return std::format(                                    //
+      "<b>Forecast</b>: {} [{}d], {}",                   //
+      tagged(f.exp_pnl, BOLD, color_of_pnl(f.exp_pnl)),  //
+      tagged(f.holding_days, "blue"),                    //
+      tagged(f.conf, "blue")                             //
+  );
 }
 
 template <>
@@ -257,10 +258,7 @@ inline std::string signal_type_score(double val) {
   return std::format("<span style='opacity: {0:.2f}'>({0:.1f})</span>", val);
 }
 
-inline std::string reason_list(const auto& header,
-                               auto& lst,
-                               auto cls,
-                               auto& stats) {
+inline std::string reason_list(auto hd, auto& lst, auto cls, auto& stats) {
   constexpr auto div = R"(
   <li><b>{}</b>
     <ul>
@@ -273,12 +271,12 @@ inline std::string reason_list(const auto& header,
   for (auto& r : lst)
     if (r.cls() == cls) {
       auto colored_stats = [&](auto& stats) {
-        return std::format(
-            " {}: <b>{}</b> ({}) <b>{}</b>",                              //
-            colored("snow", signal_type_score(r.score)),                  //
-            colored(stats.avg_pnl > 0 ? "green" : "red", stats.avg_pnl),  //
-            colored("white", stats.pnl_volatility),                       //
-            colored("blue", stats.imp)                                    //
+        return std::format(                                            //
+            " {}: {} ({}) {}",                                         //
+            tagged(signal_type_score(r.score), "snow"),                //
+            tagged(stats.avg_pnl, BOLD, color_of_pnl(stats.avg_pnl)),  //
+            tagged(stats.pnl_volatility, IT),                          //
+            tagged(stats.imp, "blue", BOLD)                            //
         );
       };
 
@@ -293,7 +291,7 @@ inline std::string reason_list(const auto& header,
   if (body.empty())
     return "";
 
-  return std::format(div, header, body);
+  return std::format(div, tagged(hd, color_of(cls)), body);
 }
 
 inline constexpr auto signal_entry_template = R"(
@@ -313,39 +311,34 @@ std::string to_str<FormatTarget::HTML>(const Signal&, const Forecast& fc) {
 
   std::string icon = "";
   if (fc.exp_pnl > 4)
-    icon = tagged("🌣", BOLD, "yellow");
+    icon = tagged("🌣", BOLD, color_of("good"));
   else if (fc.exp_pnl > 0)
-    icon = tagged("🌥", "yellow");
+    icon = tagged("🌥", color_of("semi-good"));
   else if (fc.exp_pnl > -4)
-    icon = tagged("🌧", "gray");
+    icon = tagged("🌧", color_of("semi-bad"));
   else
-    icon = tagged("⛈", BOLD, "gray");
+    icon = tagged("⛈", BOLD, color_of("bad"));
 
-  return std::format(                                          //
-      "<li>{}: {} {}, {}</li>",                                //
-      icon,                                                    //
-      colored(fc.exp_pnl > 0 ? "green" : "red", fc.exp_pnl),   //
-      colored("gray", std::format("[{}d]", fc.holding_days)),  //
-      colored("blue", fc.conf)                                 //
+  return std::format(                                         //
+      "<li>{}: {} [{}d], {}</li>",                            //
+      icon,                                                   //
+      tagged(fc.exp_pnl, color_of_pnl(fc.exp_pnl)),           //
+      tagged(std::format("[{}d]", fc.holding_days), "gray"),  //
+      tagged(fc.conf, "blue")                                 //
   );
 }
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Signal& s, const Indicators& ind) {
-  auto a = reason_list(tagged("▲", "green"), s.reasons, SignalClass::Entry,  //
-                       ind.stats.reason);                                    //
-  auto b = reason_list(tagged("△", "green"), s.hints, SignalClass::Entry,    //
-                       ind.stats.hint);                                      //
-  auto c = reason_list(tagged("▼", "red"), s.reasons, SignalClass::Exit,     //
-                       ind.stats.reason);                                    //
-  auto d = reason_list(tagged("▽", "red"), s.hints, SignalClass::Exit,       //
-                       ind.stats.hint);                                      //
-  auto e = a + b + c + d;
+  auto a = reason_list("▲", s.reasons, SignalClass::Entry, ind.stats.reason);
+  auto b = reason_list("△", s.hints, SignalClass::Entry, ind.stats.hint);
+  auto c = reason_list("▼", s.reasons, SignalClass::Exit, ind.stats.reason);
+  auto d = reason_list("▽", s.hints, SignalClass::Exit, ind.stats.hint);
 
   return std::format(                            //
       signal_entry_template,                     //
       to_str<FormatTarget::HTML>(s),             //
-      e,                                         //
+      a + b + c + d,                             //
       to_str<FormatTarget::HTML>(s, s.forecast)  //
   );
 }

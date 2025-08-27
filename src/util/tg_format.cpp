@@ -110,10 +110,10 @@ std::string to_str<FormatTarget::Telegram>(const Ticker& ticker) {
   auto& ind = metrics.ind_1h;
   auto& signal = ticker.signal;
 
-  auto stop_line =
-      metrics.has_position()
-          ? std::format("Stop: {:.2f}\n", ticker.risk.stop_loss.current_stop)
-          : "";
+  auto stop_line = metrics.has_position()
+                       ? std::format("Stop: {:.2f}\n",
+                                     ticker.risk.stop_loss.get_stop_price())
+                       : "";
 
   auto pos_line =
       to_str<FormatTarget::Telegram>(metrics.position, metrics.last_price());

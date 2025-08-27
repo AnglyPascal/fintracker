@@ -33,7 +33,7 @@ Risk::Risk(const Metrics& m,
     should_take_trade = false;
   }
 
-  stop_loss = StopLoss{m, tp, regime, m.days_held()};
+  stop_loss = StopLoss{m, tp, regime};
   sizing = PositionSizing{m, spy, tp, signal, stop_loss, positions, regime};
   target = ProfitTarget(m, tp, signal, stop_loss, sizing);
   scaling = ScalingRules(m, tp, stop_loss, sizing);
@@ -58,8 +58,8 @@ Risk::Risk(const Metrics& m,
       decision.emplace_back("Market trending down");
   }
 
-  checks.emplace_back("Stop: {:.2f} (-{:.1f}%)", stop_loss.current_stop,
-                      stop_loss.stop_pct * 100);
+  checks.emplace_back("Stop: {:.2f} (-{:.1f}%)", stop_loss.get_stop_price(),
+                      stop_loss.get_stop_percentage(m.last_price()) * 100);
   checks.emplace_back("Risk: {:.1f}%", sizing.position_risk_pct * 100);
   checks.emplace_back("Target: {:.2f} ({:.1f}:1)", target.target_price,
                       target.risk_reward_ratio);

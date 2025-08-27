@@ -48,7 +48,7 @@ ScalingRules::ScalingRules(const Metrics& m,
 
   // Scale down rules - trim losers
   double halfway_to_stop =
-      entry_price - (entry_price - stop_loss.current_stop) * 0.5;
+      entry_price - (entry_price - stop_loss.get_stop_price()) * 0.5;
 
   if (current_price <= halfway_to_stop) {
     should_trim = true;
