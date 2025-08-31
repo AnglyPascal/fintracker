@@ -3,6 +3,7 @@
 #include <concepts>
 #include <format>
 #include <string>
+#include <type_traits>
 
 inline constexpr std::string HASKELL = "haskell";
 inline constexpr std::string DIFF = "diff";
@@ -27,6 +28,12 @@ std::string to_str(const T& t, const S& s, const U& u);
 template <typename T>
 std::string to_str(const T& t);
 
+template <typename Str>
+  requires std::constructible_from<std::string, Str>
+std::string to_str(const Str& str) {
+  return std::string{str};
+}
+
 template <FormatTarget target = FormatTarget::None>
 inline std::string join(auto start, auto end, std::string sep = ", ") {
   std::string result;
@@ -45,56 +52,36 @@ inline std::string join(auto start, auto end, std::string sep = ", ") {
   return result;
 }
 
-template <typename Arg>
-inline std::string colored(std::string_view color, Arg&& arg) {
-  return std::format("<span style='color: var(--color-{});'>{}</span>",  //
-                     color, std::forward<Arg>(arg));
-}
-
-inline std::string colored(std::string_view color, double arg) {
-  return std::format("<span style='color: var(--color-{});'>{:.2f}</span>",  //
-                     color, arg);
-}
-
 enum HTMLTags {
   BOLD,
   UL,
   IT,
-  EM,
+  COLORED,
+  NORMAL,
 };
 
-inline std::string apply_tag(std::string str, HTMLTags tag) {
+constexpr std::string __apply_tag(std::string str, HTMLTags tag) {
   switch (tag) {
     case BOLD:
-      return std::format("<b>{}</b>", str);
+      return "<b>" + str + "</b>";
     case UL:
-      return std::format("<u>{}</u>", str);
+      return "<u>" + str + "</u>";
     case IT:
-      return std::format("<i>{}</i>", str);
-    case EM:
-      return std::format("<em>{}</em>", str);
-
+      return "<i>" + str + "</i>";
     default:
       return str;
   }
 }
 
-inline std::string apply_tag(std::string str, const std::string& color) {
-  return colored(color, str);
-}
-
-template <typename Str, typename... Tags>
-  requires std::constructible_from<std::string, Str>
-inline std::string tagged(Str _str, Tags... tags) {
-  std::string str{_str};
-  ((str = apply_tag(std::move(str), tags)), ...);
-  return str;
+constexpr std::string __apply_tag(std::string str, std::string_view color) {
+  return std::format("<span style='color: var(--color-{});'>{}</span>",  //
+                     color, str);
 }
 
 template <typename T, typename... Tags>
-inline std::string tagged(T t, Tags... tags) {
+constexpr std::string tagged(const T& t, Tags... tags) {
   auto str = to_str(t);
-  ((str = apply_tag(std::move(str), tags)), ...);
+  ((str = __apply_tag(std::move(str), tags)), ...);
   return str;
 }
 
@@ -117,4 +104,44 @@ struct fmt_string : public std::string {
 };
 
 template <typename T>
-std::string color_of(T t);
+std::string_view color_of(T t);
+
+template <>
+constexpr std::string_view color_of(const char* s) {
+  std::string_view str{s};
+
+  if (str == "atr")
+    return "sage";
+  if (str == "support")
+    return "teal";
+
+  if (str == "risk")
+    return "coral";
+  if (str == "loss")
+    return "red";
+  if (str == "bad")
+    return "red";
+  if (str == "semi-bad")
+    return "coral";
+
+  if (str == "caution")
+    return "yellow";
+  if (str == "wishful")
+    return "sage-teal";
+  if (str == "neutral")
+    return "lilac";
+
+  if (str == "profit")
+    return "green";
+  if (str == "good")
+    return "green";
+  if (str == "semi-good")
+    return "sage";
+
+  if (str == "info")
+    return "frost";
+  if (str == "comment")
+    return "gray";
+
+  return "gray";
+}

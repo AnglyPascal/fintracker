@@ -11,6 +11,8 @@
 #include <cereal/types/unordered_map.hpp>
 #include <cereal/types/vector.hpp>
 
+#include <cpr/cpr.h>
+
 namespace cereal {
 template <class Archive>
 void save(Archive& ar, const Candle& c) {
@@ -88,9 +90,8 @@ struct fx_res_t {
   std::unordered_map<std::string, double> rates;
 };
 
-double get_amount_json(double amount,
-                       const std::string& currency,
-                       const std::string& str) {
+inline double get_rate_from_json(const std::string& currency,
+                                 const std::string& str) {
   try {
     constexpr auto opts = glz::opts{
         .error_on_unknown_keys = false,
@@ -100,7 +101,7 @@ double get_amount_json(double amount,
     auto ec = glz::read<opts>(resp, str);
     if (ec) {
       spdlog::error("[fx] glaze parse error: {}", glz::format_error(ec, str));
-      return amount;
+      return -1.0;
     }
 
     // Convert: currency -> GBP -> USD
@@ -108,18 +109,31 @@ double get_amount_json(double amount,
     if (currency == "GBP") {
       auto it = resp.rates.find("USD");
       if (it != resp.rates.end())
-        return amount * it->second;
+        return it->second;
     } else {
       auto it_from = resp.rates.find(currency);
       auto it_usd = resp.rates.find("USD");
       if (it_from != resp.rates.end() && it_usd != resp.rates.end()) {
         double gbp_per_currency = 1.0 / it_from->second;
-        return amount * gbp_per_currency * it_usd->second;
+        return gbp_per_currency * it_usd->second;
       }
     }
   } catch (const std::exception& ex) {
     spdlog::error("[fx] {}->USD error: {}", currency, ex.what());
   }
 
-  return amount;
+  return -1.0;
+}
+
+double to_usd(const std::string& currency) noexcept {
+  if (currency == "USD")
+    return 1.0;
+
+  auto res = cpr::Get(cpr::Url{"https://open.er-api.com/v6/latest/GBP"});
+  if (res.status_code != 200) {
+    spdlog::error("[fx] {}->USD http error {}", currency, res.status_code);
+    return currency == "GBP" ? 1.3 : -1;
+  }
+
+  return get_rate_from_json(currency, res.text);
 }

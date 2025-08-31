@@ -4,8 +4,9 @@
 ScalingRules::ScalingRules(const Metrics& m,
                            LocalTimePoint tp,
                            const StopLoss& stop_loss,
-                           const PositionSizing& initial_sizing) {
-  if (!m.has_position() || initial_sizing.rec == Recommendation::Avoid)
+                           const PositionSizing& initial_sizing)  //
+{
+  if (!m.has_position())
     return;
 
   auto pos = m.position;
@@ -14,7 +15,8 @@ ScalingRules::ScalingRules(const Metrics& m,
   double entry_price = pos->px;
   double position_pnl_pct = (current_price - entry_price) / entry_price;
 
-  std::vector<std::string> reasons;
+  std::vector<fmt_string> reasons;
+  std::vector<fmt_string> details;
 
   // Scale up rules - add to winners
   if (position_pnl_pct >= 0.05) {  // Up 5%
@@ -36,13 +38,13 @@ ScalingRules::ScalingRules(const Metrics& m,
       add_trigger_price = current_price * 1.01;  // Add on 1% more gain
       add_size_shares = initial_sizing.rec_shares * 0.25;  // Add 25% of initial
 
-      reasons.push_back(std::format("Can add {} shares at {}",
-                                    tagged(add_size_shares, "green"),
-                                    tagged(add_trigger_price, "green")));
+      reasons.push_back(std::format(
+          "can add {} shares at {}", tagged(add_size_shares, color_of("good")),
+          tagged(add_trigger_price, color_of("good"))));
 
-      if (breaking_resistance) {
-        reasons.push_back(tagged("Breaking resistance", "emerald", BOLD));
-      }
+      if (breaking_resistance)
+        details.push_back(
+            tagged("breaking resistance", color_of("good"), BOLD));
     }
   }
 
@@ -55,23 +57,29 @@ ScalingRules::ScalingRules(const Metrics& m,
     trim_trigger_price = current_price * 0.99;  // Trim on 1% more loss
     trim_size_shares = pos->qty * 0.5;          // Trim half
 
-    reasons.push_back(std::format("Should trim {} shares at {}",
-                                  tagged(trim_size_shares, "red"),
-                                  tagged(trim_trigger_price, "red")));
-    reasons.push_back(tagged("Halfway to stop", "coral", BOLD));
+    details.push_back(tagged("halfway to stop", color_of("semi-bad"), BOLD));
 
     // Check if at support - maybe don't trim
     auto idx_1h = m.ind_1h.idx_for_time(tp);
     auto support = m.ind_1h.nearest_support_below(idx_1h);
     if (support && support->get().is_near(current_price)) {
       should_trim = false;
-      reasons.push_back(tagged("But at support - holding", "sage"));
+      details.push_back(
+          tagged("but at support - holding", color_of("wishful")));
     }
+
+    if (should_trim)
+      reasons.emplace_back("should trim {} shares at {}",
+                           tagged(trim_size_shares, color_of("semi-bad")),
+                           tagged(trim_trigger_price, color_of("semi-bad")));
   }
 
   if (!can_add && !should_trim) {
-    reasons.push_back(tagged("No scaling action", "gray"));
+    reasons.push_back(tagged("no scaling action", color_of("comment")));
   }
 
-  rationale = join(reasons.begin(), reasons.end(), " | ");
+  rationale = std::format(
+      "{}<br><div class=\"rationale-details\">{}</div>",
+      join(reasons.begin(), reasons.end(), tagged(" | ", color_of("comment"))),
+      join(details.begin(), details.end(), tagged(" | ", color_of("comment"))));
 }

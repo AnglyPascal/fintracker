@@ -8,7 +8,7 @@ inline auto& sig_config = config.sig_config;
 Filter swing_base_pattern(const Metrics& m) {
   auto& ind = m.ind_4h;
 
-  const int base_window = 10;  // 40 hours for better base detection
+  const int base_window = 10;  // 5 days
   double current_price = ind.price(-1);
   double atr = ind.atr(-1);
 

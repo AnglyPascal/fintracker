@@ -154,20 +154,3 @@ LocalTimePoint TD::latest_datetime() noexcept {
   }
   return tp;
 }
-
-double get_amount_json(double amount,
-                       const std::string& currency,
-                       const std::string& str);
-
-double to_usd(double amount, const std::string& currency) noexcept {
-  if (currency == "USD")
-    return amount;
-
-  auto res = cpr::Get(cpr::Url{"https://open.er-api.com/v6/latest/GBP"});
-  if (res.status_code != 200) {
-    spdlog::error("[fx] {}->USD http error {}", currency, res.status_code);
-    return amount;
-  }
-
-  return get_amount_json(amount, currency, res.text);
-}

@@ -68,21 +68,21 @@ template <>
 std::string to_str(const Rating& type) {
   switch (type) {
     case Rating::Entry:
-      return "Entry";
+      return "entry";
     case Rating::Exit:
-      return "Exit";
+      return "exit";
     case Rating::Watchlist:
-      return "Watch";
+      return "watch";
     case Rating::Caution:
-      return "Caution";
+      return "caution";
     case Rating::HoldCautiously:
-      return "Hold";
+      return "hold";
     case Rating::Mixed:
-      return "Mixed";
+      return "mixed";
     case Rating::Skip:
-      return "Skip";
+      return "skip";
     default:
-      return "None";
+      return "none";
   }
 }
 

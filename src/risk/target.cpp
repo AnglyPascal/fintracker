@@ -8,17 +8,14 @@ inline auto& risk_config = config.risk_config;
 
 TargetStrategy ProfitTarget::select_strategy(const CombinedSignal& signal,
                                              double resistance_room) const {
-  // High quality setup with lots of room
-  if (signal.score > 0.7 && signal.forecast.conf > 0.7 &&
+  if (signal.score > 0.7 &&  // signal.forecast.conf > 0.7 &&
       resistance_room > 0.08)
-    return TargetStrategy::AGGRESSIVE;  // 3:1 R:R
+    return TargetStrategy::AGGRESSIVE;  // great 3:1 R:R
 
-  // Good setup with decent room
   if (signal.score > 0.5 && resistance_room > 0.05)
-    return TargetStrategy::STANDARD;  // 2:1 R:R
+    return TargetStrategy::STANDARD;  // decent 2:1 R:R
 
-  // Lower quality or limited room
-  return TargetStrategy::CONSERVATIVE;  // 1.5:1 R:R
+  return TargetStrategy::CONSERVATIVE;  // low 1.5:1 R:R
 }
 
 double ProfitTarget::calculate_atr_projection(const Metrics& m,
@@ -49,12 +46,8 @@ double ProfitTarget::calculate_atr_projection(const Metrics& m,
 ProfitTarget::ProfitTarget(const Metrics& m,
                            LocalTimePoint tp,
                            const CombinedSignal& signal,
-                           const StopLoss& stop_loss,
-                           const PositionSizing& sizing) noexcept {
-  // Skip if position wasn't approved
-  if (sizing.rec == Recommendation::Avoid)
-    return;
-
+                           const StopLoss& stop_loss) noexcept  //
+{
   double current_price = m.last_price();
   double stop_price = stop_loss.get_stop_price();
   double risk_amount = current_price - stop_price;

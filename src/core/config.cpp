@@ -32,7 +32,7 @@ Config::Config() {
   update();
 }
 
-double to_usd(double amount, const std::string& currency = "GBP") noexcept;
+double to_usd(const std::string& currency = "GBP") noexcept;
 
 void Config::update() {
   fs::remove("logs/configs.log");
@@ -43,8 +43,9 @@ void Config::update() {
   sr_config = read<SupportResistanceConfig>("private/support_resistance.json");
   sig_config = read<SignalConfig>("private/signal.json");
 
-  risk_config.capital_usd =
-      to_usd(risk_config.capital, risk_config.capital_currency);
+  auto rate = to_usd(risk_config.capital_currency);
+  if (rate != -1.0)
+    risk_config.to_usd_rate = rate;
 }
 
 void Config::read_args(int argc, char* argv[]) {

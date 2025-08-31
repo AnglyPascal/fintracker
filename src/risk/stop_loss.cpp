@@ -4,7 +4,6 @@
 #include "util/format.h"
 
 #include <algorithm>
-#include <stop_token>
 
 inline auto& risk_config = config.risk_config;
 
@@ -133,6 +132,48 @@ inline int calculate_days_held(LocalTimePoint entry_time,
   return std::chrono::duration_cast<std::chrono::days>(duration).count();
 }
 
+constexpr std::string_view color_of_stops(std::string_view str) {
+  if (str == "atr")
+    return "amethyst";
+  if (str == "support")
+    return "arctic-teal";
+  if (str == "trailing")
+    return "seafoam";
+  if (str == "initial")
+    return "champagne";
+  return "";
+}
+
+template <>
+constexpr std::string_view color_of(StopContext sc) {
+  if (sc == StopContext::NEW_POSITION)
+    return color_of("wishful");
+  if (sc == StopContext::SCALE_UP_ENTRY)
+    return color_of("semi-good");
+  if (sc == StopContext::EXISTING_INITIAL)
+    return color_of("caution");
+  if (sc == StopContext::EXISTING_STANDARD)
+    return color_of("neutral");
+  if (sc == StopContext::EXISTING_TRAILING)
+    return color_of("good");
+  return "gray";
+}
+
+template <>
+constexpr std::string to_str(const StopContext& sc) {
+  if (sc == StopContext::NEW_POSITION)
+    return "new position";
+  if (sc == StopContext::SCALE_UP_ENTRY)
+    return "scale up entry";
+  if (sc == StopContext::EXISTING_INITIAL)
+    return "initial";
+  if (sc == StopContext::EXISTING_STANDARD)
+    return "standard";
+  if (sc == StopContext::EXISTING_TRAILING)
+    return "trailing";
+  return "";
+}
+
 StopLoss::StopLoss(const Metrics& m,
                    LocalTimePoint tp,
                    MarketRegime regime_param,
@@ -153,7 +194,7 @@ StopLoss::StopLoss(const Metrics& m,
   double daily_atr = ind_1d.atr(idx_1d);
   double daily_atr_pct = daily_atr / price;
 
-  std::vector<fmt_string> reasons;
+  std::deque<fmt_string> reasons;
   std::vector<fmt_string> details;
 
   auto [atr_mult, atr_base] = calculate_base_atr_stop(m, tp, regime);
@@ -162,28 +203,29 @@ StopLoss::StopLoss(const Metrics& m,
 
   support_stop_base = calculate_support_stop(m, tp, atr_stop_base);
 
-  // ATR details
+  // atr details
   double regime_adj = calculate_regime_adjustment(regime);
-  details.emplace_back("ATR stop: {:.2f} ({} x {})", atr_stop_base,
-                       tagged(atr_multiplier, "amethyst"),
+  details.emplace_back("atr stop: {:.2f} ({} x {})", atr_stop_base,
+                       tagged(atr_multiplier, color_of_stops("atr")),
                        tagged(regime_adj, "slate"));
 
   // Support details
   if (support_stop_base > 0) {
     double buffer = calculate_support_buffer(daily_atr_pct);
-    details.emplace_back("Support: {:.2f} (-{}% buffer)", support_stop_base,
-                         tagged(buffer * 100, "arctic-teal"));
+    details.emplace_back("support: {:.2f} (-{}% buffer)", support_stop_base,
+                         tagged(buffer * 100, color_of_stops("support")));
   }
 
   if (context == StopContext::NEW_POSITION) {
     new_position_stop = std::max(atr_stop_base, support_stop_base);
     entry_price = price;
 
-    reasons.emplace_back(tagged("new position", "champagne", BOLD));
     if (support_stop_base > atr_stop_base) {
-      reasons.emplace_back(tagged("using support", "arctic-teal", BOLD));
+      reasons.emplace_back("using " +
+                           tagged("support", color_of_stops("support"), BOLD));
     } else {
-      reasons.emplace_back(tagged("using ATR", "amethyst", BOLD));
+      reasons.emplace_back("using " +
+                           tagged("atr", color_of_stops("atr"), BOLD));
     }
     reasons.emplace_back("{} (-{}%)", tagged(new_position_stop, "blue", BOLD),
                          tagged(get_stop_percentage(price) * 100, "blue"));
@@ -191,14 +233,17 @@ StopLoss::StopLoss(const Metrics& m,
   } else if (context == StopContext::SCALE_UP_ENTRY) {
     scale_up_stop = std::max(atr_stop_base, support_stop_base);
 
-    reasons.emplace_back(tagged("scale-up entry", "green", BOLD));
     if (support_stop_base > atr_stop_base) {
-      reasons.emplace_back(tagged("using support", "arctic-teal", BOLD));
+      reasons.emplace_back("using " +
+                           tagged("support", color_of_stops("support"), BOLD));
     } else {
-      reasons.emplace_back(tagged("using ATR", "amethyst", BOLD));
+      reasons.emplace_back("using " +
+                           tagged("atr", color_of_stops("atr"), BOLD));
     }
-    reasons.emplace_back("{} (-{}%)", tagged(scale_up_stop, "blue", BOLD),
-                         tagged((price - scale_up_stop) / price * 100, "blue"));
+    reasons.emplace_back(
+        "{} (-{}%)", tagged(scale_up_stop, color_of_stops("trailing"), BOLD),
+        tagged((price - scale_up_stop) / price * 100,
+               color_of_stops("trailing")));
 
   } else {
     // Position exists, determine context automatically
@@ -224,22 +269,24 @@ StopLoss::StopLoss(const Metrics& m,
           max_price_seen, daily_atr, atr_multiplier, estimated_days_to_1r);
       trailing_stop_value = std::max(trailing_stop_value, entry_price);
 
-      reasons.emplace_back(tagged("trailing", "sage", BOLD));
       if (estimated_days_to_1r <= 3) {
-        reasons.emplace_back(tagged("tight (fast 1R)", "green", BOLD));
+        reasons.emplace_back(
+            tagged("tight (fast 1R)", color_of("caution"), BOLD));
       } else if (estimated_days_to_1r <= 7) {
-        reasons.emplace_back(tagged("moderate", "green"));
+        reasons.emplace_back(tagged("moderate", color_of("semi-good")));
       } else {
-        reasons.emplace_back(tagged("loose", "sage"));
+        reasons.emplace_back(tagged("loose", color_of("neutral")));
       }
 
-      details.emplace_back("From max {} at {}x",
-                           tagged(max_price_seen, "green"),
-                           tagged(trailing_adj, "sage"));
+      details.emplace_back("from max {} at {}x",
+                           tagged(max_price_seen, color_of("info")),
+                           tagged(trailing_adj, color_of("info")));
 
       reasons.emplace_back(
-          "{} (-{}%)", tagged(trailing_stop_value, "blue", BOLD),
-          tagged((price - trailing_stop_value) / price * 100, "blue"));
+          "{} (-{}%)",
+          tagged(trailing_stop_value, color_of_stops("trailing"), BOLD),
+          tagged((price - trailing_stop_value) / price * 100,
+                 color_of_stops("trailing")));
 
     } else if (days_held <= 2) {
       context = StopContext::EXISTING_INITIAL;
@@ -249,25 +296,25 @@ StopLoss::StopLoss(const Metrics& m,
       initial_period_stop =
           apply_time_adjustment(entry_price, base_stop, days_held);
 
-      reasons.emplace_back(tagged(
-          std::format("initial (day {})", days_held + 1), "champagne", BOLD));
       if (time_adj > 1.0) {
-        reasons.emplace_back("{}% wider",
-                             tagged((int)((time_adj - 1.0) * 100), "yellow"));
+        reasons.emplace_back("{}% wider", tagged((int)((time_adj - 1.0) * 100),
+                                                 color_of("risk")));
       }
       reasons.emplace_back(
-          "{} (-{}%)", tagged(initial_period_stop, "blue", BOLD),
+          "{} (-{}%)",
+          tagged(initial_period_stop, color_of_stops("initial"), BOLD),
           tagged((entry_price - initial_period_stop) / entry_price * 100,
-                 "blue"));
+                 color_of_stops("initial")));
 
     } else {
       context = StopContext::EXISTING_STANDARD;
 
-      reasons.emplace_back(tagged("standard", "frost", BOLD));
       if (support_stop_base > atr_stop_base) {
-        reasons.emplace_back(tagged("using support", "arctic-teal", BOLD));
+        reasons.emplace_back(
+            "using " + tagged("support", color_of_stops("support"), BOLD));
       } else {
-        reasons.emplace_back(tagged("using ATR", "amethyst", BOLD));
+        reasons.emplace_back("using  " +
+                             tagged("atr", color_of_stops("atr"), BOLD));
       }
       reasons.emplace_back(
           "{} (-{}%)", tagged(standard_period_stop, "blue", BOLD),
@@ -276,21 +323,30 @@ StopLoss::StopLoss(const Metrics& m,
     }
   }
 
+  if (context != StopContext::EXISTING_INITIAL)
+    reasons.emplace_front(tagged(context, color_of(context), BOLD));
+  else
+    reasons.emplace_front("{}, (day {})",
+                          tagged(context, color_of(context), BOLD),
+                          days_held + 1);
+
   // Add regime context
   reasons.emplace_back(tagged(regime, "blue"));
   if (regime_adj > 1.0) {
-    details.emplace_back("Regime adj +{}%",
-                         tagged((int)((regime_adj - 1.0) * 100), "coral"));
+    details.emplace_back(
+        "regime adj +{}%",
+        tagged((int)((regime_adj - 1.0) * 100), color_of("info")));
   }
 
   // Add volatility context
-  details.emplace_back("{}% daily vol", tagged(daily_atr_pct * 100, "rose"));
+  details.emplace_back("{}% daily vol",
+                       tagged(daily_atr_pct * 100, color_of("info")));
 
   // Build final rationale
-  rationale =
-      std::format("{}<br><div class=\"rationale-details\">{}</div>",
-                  join(reasons.begin(), reasons.end(), tagged(" | ", "gray")),
-                  join(details.begin(), details.end(), tagged(" | ", "gray")));
+  rationale = std::format(
+      "{}<br><div class=\"rationale-details\">{}</div>",
+      join(reasons.begin(), reasons.end(), tagged(" | ", color_of("comment"))),
+      join(details.begin(), details.end(), tagged(" | ", color_of("comment"))));
 }
 
 // Primary interface methods

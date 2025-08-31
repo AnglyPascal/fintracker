@@ -156,13 +156,11 @@ std::string to_str<FormatTarget::HTML>(const CombinedSignal& s,
   );
 }
 
-inline constexpr std::string_view rational_template = R"(
+inline constexpr std::string_view rationale_template = R"(
   <div class="rationale {}">
   <ul>
     <li><div class="rationale-sig">{}</div></li>
-    <li><div class="rationale-size">{}</div></li>
-    <li><div class="rationale-stop">{}</div></li>
-    <li><div class="rationale-target">{}</div></li>
+    <li><div class="rationale-risk">{}</div></li>
   </ul>
   </div>
 )";
@@ -241,17 +239,13 @@ inline std::string to_str<FormatTarget::HTML>(const Portfolio& p) {
         to_str<FormatTarget::HTML>(ticker.risk.target)      //
     );
 
-    auto& sl = ticker.risk.stop_loss;
-    auto& sizing = ticker.risk.sizing;
-    auto& target = ticker.risk.target;
+    auto& risk = ticker.risk;
 
-    auto rationale = std::format(                        //
-        rational_template,                               //
-        m.has_position() ? "" : "no-position",           //
-        sig.rationale != "" ? sig.rationale : "--",      //
-        sizing.rationale != "" ? sizing.rationale : "",  //
-        sl.rationale != "" ? sl.rationale : "",          //
-        target.rationale != "" ? target.rationale : ""   //
+    auto rationale = std::format(                                     //
+        rationale_template,                                            //
+        m.has_position() ? "" : "no-position",                        //
+        sig.rationale != "" ? sig.rationale : "--",                   //
+        risk.overall_rationale != "" ? risk.overall_rationale : "--"  //
     );
 
     body += std::format(                         //

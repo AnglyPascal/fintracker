@@ -19,20 +19,47 @@ std::string to_str<FormatTarget::HTML>(const Filter& f) {
   return std::format(thing_abbr_templ, f.str, f_desc);
 }
 
+inline auto fmt_signal_type(const auto& h, HTMLTags tag = NORMAL) {
+  auto str = h.str();
+  if (h.severity() >= Severity::Urgent)
+    str = tagged(str, BOLD);
+
+  if (tag == COLORED) {
+    if (h.cls() == SignalClass::Entry) {
+      if (h.severity() >= Severity::High)
+        str = tagged(str, color_of("good"));
+      else
+        str = tagged(str, color_of("semi-good"));
+    } else {
+      if (h.severity() >= Severity::High)
+        str = tagged(str, color_of("bad"));
+      else
+        str = tagged(str, color_of("semi-bad"));
+    }
+  }
+
+  auto h_desc = h.desc == "" ? "" : std::format(thing_desc_templ, h.desc);
+  return std::format(thing_abbr_templ, str, h_desc);
+}
+
 template <>
 std::string to_str<FormatTarget::HTML>(const Hint& h) {
-  auto h_str =
-      h.severity() >= Severity::Urgent ? tagged(to_str(h), BOLD) : to_str(h);
-  auto h_desc = h.desc == "" ? "" : std::format(thing_desc_templ, h.desc);
-  return std::format(thing_abbr_templ, h_str, h_desc);
+  return fmt_signal_type(h);
 }
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Reason& r) {
-  auto r_str =
-      r.severity() >= Severity::Urgent ? tagged(to_str(r), BOLD) : to_str(r);
-  auto r_desc = r.desc == "" ? "" : std::format(thing_desc_templ, r.desc);
-  return std::format(thing_abbr_templ, r_str, r_desc);
+  return fmt_signal_type(r);
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Hint& h, const HTMLTags&) {
+  return fmt_signal_type(h, COLORED);
+}
+
+template <>
+std::string to_str<FormatTarget::HTML>(const Reason& r, const HTMLTags&) {
+  return fmt_signal_type(r, COLORED);
 }
 
 template <>
@@ -59,7 +86,7 @@ std::string to_str<FormatTarget::HTML>(const Rating& type) {
 
 template <>
 std::string to_str<FormatTarget::HTML>(const Recommendation& rec) {
-  auto colored_str = colored(color_of(rec), to_str(rec));
+  auto colored_str = tagged(rec, color_of(rec));
   if (rec == Recommendation::StrongBuy)
     return tagged(colored_str, BOLD);
   return colored_str;
@@ -221,7 +248,7 @@ std::string to_str<FormatTarget::HTML>(const ProfitTarget& pt) {
   );
 }
 
-inline constexpr std::string color_of_pnl(double pnl) {
+inline constexpr auto color_of_pnl(double pnl) {
   return pnl < 0 ? color_of("loss") : color_of("profit");
 }
 
@@ -285,7 +312,7 @@ inline std::string reason_list(auto hd, auto& lst, auto cls, auto& stats) {
       if (it != stats.end())
         stat_str = colored_stats(it->second);
       body += std::format("<li>{}<span class=\"stats-details\">{}</span></li>",
-                          to_str<FormatTarget::HTML>(r), stat_str);
+                          to_str<FormatTarget::HTML>(r, COLORED), stat_str);
     }
 
   if (body.empty())

@@ -38,8 +38,7 @@ struct ProfitTarget {
   ProfitTarget(const Metrics& m,
                LocalTimePoint tp,
                const CombinedSignal& signal,
-               const StopLoss& stop_loss,
-               const PositionSizing& sizing) noexcept;
+               const StopLoss& stop_loss) noexcept;
 
  private:
   TargetStrategy select_strategy(const CombinedSignal& signal,

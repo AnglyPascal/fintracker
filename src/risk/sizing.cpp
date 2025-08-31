@@ -24,7 +24,7 @@ struct PortfolioState {
       // Estimate risk per position (we don't have original stops, so estimate)
       // Assume average 3% stop for existing positions
       double estimated_risk =
-          (pos.qty * pos.px * 0.03) / risk_config.capital_usd;
+          (pos.qty * pos.px * 0.03) / risk_config.capital_usd();
       total_risk_deployed += estimated_risk;
     }
 
@@ -166,9 +166,9 @@ PositionSizing::PositionSizing(  //
   double target_risk = calculate_target_risk(signal, regime);
   if (target_risk < 0.002) {
     rec = Recommendation::Avoid;
-    reasons.emplace_back(tagged("weak signal", color_of("comment")));
+    reasons.emplace_back(tagged("weak signal", color_of("caution")));
     details.emplace_back("target risk {}% too low",
-                         tagged(target_risk * 100, color_of("comment")));
+                         tagged(target_risk * 100, color_of("risk")));
   }
 
   // Apply risk adjustments
@@ -183,10 +183,10 @@ PositionSizing::PositionSizing(  //
   } else if (correlation_to_spy < -0.3) {
     risk_multiplier *= 1.1;  // Defensive hedge bonus
     adjustments.emplace_back("defensive hedge {}",
-                             tagged(correlation_to_spy, "green"));
+                             tagged(correlation_to_spy, color_of("semi-good")));
   } else {
-    adjustments.emplace_back("SPY corr {}",
-                             tagged(correlation_to_spy, "slate"));
+    adjustments.emplace_back("spy corr {}",
+                             tagged(correlation_to_spy, color_of("info")));
   }
 
   // Volatility adjustment
@@ -194,14 +194,15 @@ PositionSizing::PositionSizing(  //
     risk_multiplier *= 0.7;
     was_reduced_for_volatility = true;
     adjustments.emplace_back("high vol {}%",
-                             tagged(daily_atr_pct * 100, "yellow"));
+                             tagged(daily_atr_pct * 100, color_of("semi-bad")));
   } else if (daily_atr_pct > 0.04) {
     risk_multiplier *= 0.85;
     was_reduced_for_volatility = true;
     adjustments.emplace_back("elevated vol {}%",
-                             tagged(daily_atr_pct * 100, "coral"));
+                             tagged(daily_atr_pct * 100, color_of("caution")));
   } else {
-    adjustments.emplace_back("{}% vol", tagged(daily_atr_pct * 100, "sage"));
+    adjustments.emplace_back("{}% vol",
+                             tagged(daily_atr_pct * 100, color_of("info")));
   }
 
   // Calculate adjusted risk
@@ -215,13 +216,16 @@ PositionSizing::PositionSizing(  //
     if (available_risk > 0.002) {  // At least 0.2% available
       adjusted_risk = available_risk;
       was_reduced_for_portfolio_limit = true;
-      adjustments.emplace_back("Portfolio limit, using {}%",
-                               tagged(available_risk * 100, "yellow"));
+      adjustments.emplace_back(
+          "portfolio limit, using {}%",
+          tagged(available_risk * 100, color_of("semi-bad")));
     } else {
       rec = Recommendation::Avoid;
-      reasons.emplace_back(tagged("portfolio risk full", "red", BOLD));
-      details.emplace_back("{}% deployed",
-                           tagged(portfolio.total_risk_deployed * 100, "red"));
+      reasons.emplace_back(
+          tagged("portfolio risk full", color_of("bad"), BOLD));
+      details.emplace_back(
+          "{}% deployed",
+          tagged(portfolio.total_risk_deployed * 100, color_of("bad")));
       rationale = std::format("{}<br><div class=\"rationale-details\">{}</div>",
                               join(reasons.begin(), reasons.end(), sep),
                               join(details.begin(), details.end(), sep));
@@ -232,14 +236,15 @@ PositionSizing::PositionSizing(  //
   // Position concentration check
   if (portfolio.active_positions >= 10) {
     risk_multiplier *= 0.8;
-    adjustments.emplace_back("{} positions open",
-                             tagged(portfolio.active_positions, "amber"));
+    adjustments.emplace_back(
+        "{} positions open",
+        tagged(portfolio.active_positions, color_of("info")));
   }
 
   // Calculate final position
   position_risk_pct =
       std::min(adjusted_risk, risk_config.MAX_RISK_PER_POSITION);
-  position_risk_amount = risk_config.capital_usd * position_risk_pct;
+  position_risk_amount = risk_config.capital_usd() * position_risk_pct;
 
   double stop_distance = stop_loss.get_stop_distance(current_price);
   rec_shares = round(position_risk_amount / stop_distance, 2);
@@ -251,27 +256,23 @@ PositionSizing::PositionSizing(  //
   rec = determine_recommendation(position_risk_pct);
 
   // Build rationale
-  std::string rec_str =  //
-      rec == Recommendation::StrongBuy ? tagged(rec, "green", BOLD)
-      : rec == Recommendation::Buy     ? tagged(rec, "green")
-      : rec == Recommendation::WeakBuy ? tagged(rec, "sage")
-                                       : tagged(rec, "gray");
+  auto rec_str = tagged(rec, color_of(rec));
+  if (rec == Recommendation::StrongBuy)
+    rec_str = tagged(rec_str, BOLD);
 
   reasons.emplace_back(rec_str);
-  reasons.emplace_back("{}% risk", tagged(position_risk_pct * 100, "coral"));
-  reasons.emplace_back("{} w/ ${}", tagged(rec_shares, "teal"),
-                       tagged(rec_capital, "teal"));
+  reasons.emplace_back("{}% risk",
+                       tagged(position_risk_pct * 100, color_of("risk")));
+  if (rec != Recommendation::Avoid)
+    reasons.emplace_back("{} w/ ${}", tagged(rec_shares, color_of("wishful")),
+                         tagged(rec_capital, color_of("wishful")));
 
   // Stop context
-  details.emplace_back("stop distance ${}", tagged(stop_distance, "blue"));
-  details.emplace_back("risk per share ${}",
-                       tagged(position_risk_amount / rec_shares, "coral"));
-
-  details.emplace_back("signal: {} ({})",  //
-                       tagged(signal.type, "blue"),
-                       tagged(signal.score, "blue"));
-
-  details.emplace_back("market: {}", tagged(regime, "slate"));
+  details.emplace_back("stop distance ${}",
+                       tagged(stop_distance, color_of("info")));
+  details.emplace_back(
+      "risk per share ${}",
+      tagged(position_risk_amount / rec_shares, color_of("info")));
 
   // Portfolio context
   auto portfolio_str =
@@ -284,8 +285,8 @@ PositionSizing::PositionSizing(  //
   if (!adjustments.empty()) {
     constexpr auto templ = R"(
       {}
-      <div class=\"rationale-details\">{} | {}</div>
-      <div class=\"rationale-details\">{}</div>
+      <div class="rationale-details">{} | {}</div>
+      <div class="rationale-details">{}</div>
     )";
     rationale = std::format(                                //
         templ,                                              //
@@ -297,7 +298,7 @@ PositionSizing::PositionSizing(  //
   } else {
     constexpr auto templ = R"(
       {}
-      <div class=\"rationale-details\">{} | {}</div>
+      <div class="rationale-details">{} | {}</div>
     )";
     rationale = std::format(                                      //
         templ,                                                    //

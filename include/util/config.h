@@ -45,7 +45,7 @@ struct RiskConfig {  // Rename from PositionSizingConfig
   // Capital
   double capital = 4000.0;
   std::string capital_currency = "GBP";
-  mutable double capital_usd = -1.0;
+  mutable double to_usd_rate = -1.0;
 
   // Risk limits - Per position
   static constexpr double MAX_RISK_PER_POSITION = 0.01;      // 1% hard cap
@@ -69,16 +69,19 @@ struct RiskConfig {  // Rename from PositionSizingConfig
   double entry_score_cutoff = 0.5;
   double entry_risk_cutoff = 8.0;  // Increased from 6.0 for wider stops
   double entry_conf_cutoff = 0.4;  // Lowered from 0.6 for more flexibility
-  
+
   int min_hold_days = 2;
   int max_hold_days = 2;
 
   // Other
   int earnings_buffer_days = 5;
 
-  double max_risk_amount() const { return capital_usd * MAX_RISK_PER_POSITION; }
+  double capital_usd() const { return capital * to_usd_rate; }
+  double max_risk_amount() const {
+    return capital_usd() * MAX_RISK_PER_POSITION;
+  }
   double max_position_amount() const {
-    return capital_usd * 0.25;
+    return capital_usd() * 0.25;
   }  // Max 25% in one position
 };
 

@@ -24,18 +24,19 @@ Risk::Risk(const Metrics& m,
 
   auto spy_idx = spy.idx_for_time(tp);
   regime = detect_market_regime(spy, spy_idx);
-  checks.emplace_back("Market: {}", tagged(regime, "slate"));
+  checks.emplace_back("{} market", tagged(regime, color_of(regime), BOLD));
 
   is_near_earnings = check_earnings_proximity(next_event);
   if (is_near_earnings) {
-    checks.emplace_back(tagged("EARNINGS WARNING", "red", BOLD));
-    checks.emplace_back("{} days until earnings", next_event.days_until());
+    checks.emplace_back(
+        "{} days until earnings",
+        tagged(next_event.days_until(), color_of("semi-bad"), BOLD));
     should_take_trade = false;
   }
 
   stop_loss = StopLoss{m, tp, regime};
   sizing = PositionSizing{m, spy, tp, signal, stop_loss, positions, regime};
-  target = ProfitTarget(m, tp, signal, stop_loss, sizing);
+  target = ProfitTarget(m, tp, signal, stop_loss);
   scaling = ScalingRules(m, tp, stop_loss, sizing);
 
   should_take_trade = !is_near_earnings &&
@@ -44,34 +45,39 @@ Risk::Risk(const Metrics& m,
                       regime != MarketRegime::TRENDING_DOWN;
 
   if (should_take_trade) {
-    decision.emplace_back(tagged("TAKE TRADE", "green", BOLD));
+    decision.emplace_back(tagged("TAKE TRADE", color_of("wishful"), BOLD));
   } else {
-    decision.emplace_back(tagged("SKIP", "red", BOLD));
+    decision.emplace_back(tagged("SKIP", color_of("semi-bad"), BOLD));
 
     if (is_near_earnings)
-      decision.emplace_back("Earnings too close");
+      decision.emplace_back(tagged("Earnings too close", color_of("semi-bad")));
     if (sizing.rec == Recommendation::Avoid)
-      decision.emplace_back("Position sizing rejected");
+      decision.emplace_back(tagged("Position sizing rejected"),
+                            color_of("caution"));
     if (target.risk_reward_ratio < risk_config.min_rr_ratio)
       decision.emplace_back("R:R too low ({:.1f})", target.risk_reward_ratio);
     if (regime == MarketRegime::TRENDING_DOWN)
-      decision.emplace_back("Market trending down");
+      decision.emplace_back(
+          tagged("Market trending down", color_of("bad"), IT));
   }
 
   checks.emplace_back("Stop: {:.2f} (-{:.1f}%)", stop_loss.get_stop_price(),
                       stop_loss.get_stop_percentage(m.last_price()) * 100);
-  checks.emplace_back("Risk: {:.1f}%", sizing.position_risk_pct * 100);
+  checks.emplace_back("Risk: {}%",
+                      tagged(sizing.position_risk_pct * 100, color_of("risk")));
   checks.emplace_back("Target: {:.2f} ({:.1f}:1)", target.target_price,
                       target.risk_reward_ratio);
 
   constexpr auto rationale_templ = R"(
       <div class="risk-summary">{}</div>
-      <div class="risk-checks">{}</div>
+      <div class="risk-checks rationale-details">{}</div>
       <div class="risk-components">
-        <div>Stop: {}</div>
-        <div>Size: {}</div>
-        <div>Target: {}</div>
-        <div>Scale: {}</div>"
+        <ul>
+        <li>{}: {}</li>
+        <li>{}: {}</li>
+        <li>{}: {}</li>
+        <li>{}: {}</li>
+        </ul>
       </div>
   )";
 
@@ -79,9 +85,13 @@ Risk::Risk(const Metrics& m,
       rationale_templ,
       join(decision.begin(), decision.end(), " | "),  //
       join(checks.begin(), checks.end(), " | "),      //
+      tagged("Stop", BOLD),                           //
       stop_loss.rationale,                            //
+      tagged("Size", BOLD),                           //
       sizing.rationale,                               //
+      tagged("Target", BOLD),                         //
       target.rationale,                               //
+      tagged("Scale", BOLD),                          //
       scaling.rationale                               //
   };
 }

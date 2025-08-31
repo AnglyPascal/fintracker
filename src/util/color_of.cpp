@@ -8,41 +8,7 @@
 #include <string>
 
 template <>
-std::string color_of(const char* _str) {
-  std::string str{_str};
-  if (str == "atr")
-    return "sage";
-  if (str == "support")
-    return "teal";
-
-  if (str == "risk")
-    return "coral";
-  if (str == "loss")
-    return "red";
-  if (str == "bad")
-    return "red";
-  if (str == "semi-bad")
-    return "coral";
-
-  if (str == "caution")
-    return "yellow";
-  if (str == "wishful")
-    return "mist";
-
-  if (str == "profit")
-    return "green";
-  if (str == "good")
-    return "green";
-  if (str == "semi-good")
-    return "sage";
-
-  if (str == "comment")
-    return "gray";
-  return "gray";
-}
-
-template <>
-std::string color_of(StopContext sc) {
+std::string_view color_of(StopContext sc) {
   if (sc == StopContext::NEW_POSITION)
     return "blue";
   if (sc == StopContext::EXISTING_INITIAL)
@@ -57,7 +23,7 @@ std::string color_of(StopContext sc) {
 }
 
 template <>
-std::string color_of(Rating type) {
+std::string_view color_of(Rating type) {
   switch (type) {
     case Rating::Entry:
       return color_of("good");
@@ -79,7 +45,7 @@ std::string color_of(Rating type) {
 }
 
 template <>
-std::string color_of(Recommendation recom) {
+std::string_view color_of(Recommendation recom) {
   switch (recom) {
     case Recommendation::StrongBuy:
       return "green";
@@ -95,7 +61,7 @@ std::string color_of(Recommendation recom) {
 }
 
 template <>
-std::string color_of(MarketRegime r) {
+std::string_view color_of(MarketRegime r) {
   if (r == MarketRegime::TRENDING_UP)
     return "green";
   if (r == MarketRegime::CHOPPY_BULLISH)
@@ -108,7 +74,7 @@ std::string color_of(MarketRegime r) {
 }
 
 template <>
-std::string color_of(SignalClass sc) {
+std::string_view color_of(SignalClass sc) {
   if (sc == SignalClass::Entry)
     return color_of("good");
   if (sc == SignalClass::Exit)

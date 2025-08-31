@@ -1,5 +1,6 @@
 #include "ind/indicators.h"
 #include "sig/filters.h"
+#include "util/format.h"
 
 std::vector<Filter> evaluate_1h_trends(const Metrics& m) {
   const auto& ind = m.ind_1h;
@@ -59,7 +60,7 @@ std::vector<Filter> evaluate_1h_trends(const Metrics& m) {
   else if (emas_bearish && price_below_emas)
     filters.emplace_back(Trend::Bearish, Confidence::High, "ema bear");
   else if (emas_bullish || (ind.ema9(-1) > ind.ema21(-1)))
-    filters.emplace_back(Trend::NeutralOrSideways, Confidence::Medium, "ema ?");
+    filters.emplace_back(Trend::NeutralOrSideways, Confidence::Medium, "ema?");
 
   // RSI momentum filter (different from trend)
   double rsi = ind.rsi(-1);
@@ -68,9 +69,9 @@ std::vector<Filter> evaluate_1h_trends(const Metrics& m) {
   else if (rsi < 40 && rsi > 25 && ind.rsi(-1) < ind.rsi(-2))
     filters.emplace_back(Trend::Bearish, Confidence::Medium, "rsi-");
   else if (rsi > 75)
-    filters.emplace_back(Trend::Caution, Confidence::Medium, "rsi>>");
+    filters.emplace_back(Trend::Caution, Confidence::Medium, "rsi!");
   else if (rsi < 25)
-    filters.emplace_back(Trend::Caution, Confidence::Medium, "rsi<<");
+    filters.emplace_back(Trend::Caution, Confidence::Medium, "rsi--");
 
   // MACD momentum
   if (ind.hist(-1) > 0 && ind.hist(-1) > ind.hist(-2))
@@ -79,6 +80,18 @@ std::vector<Filter> evaluate_1h_trends(const Metrics& m) {
     filters.emplace_back(Trend::Bearish, Confidence::Medium, "macd-");
   else if (ind.hist(-1) > ind.hist(-2))
     filters.emplace_back(Trend::NeutralOrSideways, Confidence::Low, "macd~");
+
+  for (auto& f : filters) {
+    if (f.trend == Trend::Bearish) {
+      f.str = f.conf == Confidence::High ? tagged(f.str, color_of("bad"))
+                                         : tagged(f.str, color_of("semi-bad"));
+    } else {
+      f.str = f.conf == Confidence::High ? tagged(f.str, color_of("good"))
+                                         : tagged(f.str, color_of("semi-good"));
+      if (f.trend == Trend::StrongUptrend)
+        f.str = tagged(f.str, BOLD);
+    }
+  }
 
   return filters;
 }
